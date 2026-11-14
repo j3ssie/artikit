@@ -2,5 +2,6 @@
   "name": "artikit",
   "compatibility_date": "2026-11-01",
   "assets": { "directory": "./public" },
-  "workers_dev": true
+  "workers_dev": true,
+  "routes": [{ "pattern": "artikit.vigolium.com", "custom_domain": true }]
 }

@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en" id="top">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Artikit now has three article templates</title>
+<meta name="description" content="A release post template: what shipped, who it is for and how to start, with a rail for the date and the contents.">
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..500&family=Geist+Mono:wght@400..500&display=swap" rel="stylesheet">
+<script>
+(function () {
+  var d = document.documentElement;
+  d.classList.add("js");
+  try {
+    var t = localStorage.getItem("artikit-blog-theme");
+    if (t === "light" || t === "dark") d.setAttribute("data-theme", t);
+  } catch (e) {}
+})();
+</script>
+<!--
+  Artikit, blog-release.html
+  A release post: a flush-left title, a large lede, one action, then sections
+  with a rail on the right for the date, the reading time and the contents.
+  To write your own document, replace what is inside <article class="post">.
+
+  Blocks
+    nav.crumbs          breadcrumb above the title
+    h1                  title, flush left, 48px
+    p.authors           avatar initial and author name
+    aside.rail          date, reading time, copy link and contents; a sidebar
+                        from 1320px, a row above the text below that
+    p.lede              opening sentence, 32px
+    aside.callout       one action in a bordered box, straight after the lede
+    h2, h3, p, ul, ol   body text in the 608px column; give each h2 an id and
+                        list it in the rail
+    aside.note          a fact set apart from the text
+    figure.demo         markup beside what it draws; .wide breaks out to 800px
+    figure.code         code with a file name and a copy button
+    div.table-wrap      table; add .wide to break out to 800px
+
+  Colours, faces, sizes and spacing are tokens in :root. The dark scheme
+  overrides only the colour tokens.
+-->
+<style>
+/* Hallmark · shape: Long Document · genre: modern-minimal · theme: custom · job: try · idea: "a release says what shipped, who it is for and what to do next before the first scroll" · vibe: "white, flush left, tight grotesk, one action"
+ * paper: oklch(98.5% 0 0) · accent: oklch(52.2% 0.187 257) · display: Geist · body: Geist · hero: a flush-left title, a 32px lede and one download box, with the date in a rail · nav: a wordmark and a scheme switch, no rule · footer: one line, the wordmark and a way back up · imagery: none, the template's own markup beside what it draws · signature: the download box that hands over this very file
+ * axes: light/grotesk-sans/chromatic-blue · posture: restrained · surface: absolute · contrast: pass · fold: pass · modes: light+dark · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H5 E4 S5 R4 V4 · weakest: P, a release post argues little; the lede was cut to one claim and the limits get their own section */
+/* Hallmark · waive 39b · the copy buttons are 32px tall with a 44px hit target from their ::after · they sit in the caption row of a code block and in the rail, where a taller control would outweigh the text beside it */
+/* Hallmark · dismissed 77 · the page is one article by design; a Long Document has no landing sections to count */
+/* Hallmark · answered F25 · the first column is pinned with position: sticky, so the template's name stays in view while the other columns scroll */
+/* Hallmark · waive 79 · the opening paragraph of the article starts inside that band and is in view at 1440 by 900 · the linter reads the header as a landing hero, while this Long Document runs straight on below it */
+/* Hallmark · hero-review: not run, the page was built in one pass · finish-review: subagent · 8 findings · 8 resolved · gap: none */
+/* Not Hallmark-clean on 58, on purpose: this is an article template, running prose is its material, and one screen of an article holds more than 80 words. */
+:root {
+  color-scheme: light;
+  --color-paper: oklch(98.5% 0 0);
+  --color-paper-2: oklch(99.7% 0 0);
+  --color-paper-3: oklch(95.8% 0 0);
+  --color-ink: oklch(20.5% 0 0);
+  --color-ink-2: oklch(42% 0 0);
+  --color-muted: oklch(51% 0 0);
+  --color-mark: oklch(73.2% 0 0);
+  --color-rule: oklch(91.9% 0 0);
+  --color-accent: oklch(52.2% 0.187 257);
+  --color-accent-ink: oklch(99.7% 0 0);
+  --color-focus: oklch(52.2% 0.187 257);
+
+  --font-display: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-outlier: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-title: clamp(2rem, 3.4vw + 1rem, 3rem);
+  --text-lede: clamp(1.5rem, 1.6vw + 1.05rem, 2rem);
+  --text-head: clamp(1.625rem, 1vw + 1.3rem, 2rem);
+  --text-subhead: 1.5rem;
+  --text-body: 1.125rem;
+  --text-small: 1rem;
+  --text-label: 0.875rem;
+  --text-code: 0.875rem;
+  --leading-body: 1.556;
+
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px;
+  --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --space-para: 24px;
+  --space-head: 72px;
+  --space-subhead: 48px;
+  --space-figure: 48px;
+  --gutter: 24px;
+
+  --measure: 38rem;
+  --measure-wide: 50rem;
+  --rail: 13.25rem;
+  --container: 1440px;
+  --bar-h: 64px;
+  --control: 44px;
+  --control-s: 32px;
+
+  --radius-box: 8px;
+  --radius-chip: 6px;
+  --radius-pill: 999px;
+  --rule-hair: 1px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-micro: 120ms;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: oklch(14.5% 0 0);
+  --color-paper-2: oklch(19.1% 0 0);
+  --color-paper-3: oklch(23.1% 0 0);
+  --color-ink: oklch(94.6% 0 0);
+  --color-ink-2: oklch(73.2% 0 0);
+  --color-muted: oklch(65% 0 0);
+  --color-mark: oklch(48.2% 0 0);
+  --color-rule: oklch(29.3% 0 0);
+  --color-accent: oklch(72.2% 0.148 252);
+  --color-accent-ink: oklch(14.5% 0 0);
+  --color-focus: oklch(72.2% 0.148 252);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --color-paper: oklch(14.5% 0 0);
+    --color-paper-2: oklch(19.1% 0 0);
+    --color-paper-3: oklch(23.1% 0 0);
+    --color-ink: oklch(94.6% 0 0);
+    --color-ink-2: oklch(73.2% 0 0);
+    --color-muted: oklch(65% 0 0);
+    --color-mark: oklch(48.2% 0 0);
+    --color-rule: oklch(29.3% 0 0);
+    --color-accent: oklch(72.2% 0.148 252);
+    --color-accent-ink: oklch(14.5% 0 0);
+    --color-focus: oklch(72.2% 0.148 252);
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { scroll-padding-top: var(--space-lg); scrollbar-color: var(--color-mark) var(--color-paper); -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: color-mix(in oklab, var(--color-accent) 22%, transparent); color: var(--color-ink); }
+:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+h1, h2, h3 { margin: 0; font-family: var(--font-display); font-synthesis: none; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
+p, figure, ul, ol, dl, dd { margin: 0; }
+p { text-wrap: pretty; }
+a { color: inherit; text-decoration-line: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; text-decoration-color: var(--color-mark); transition: text-decoration-color var(--dur-micro) var(--ease-out); }
+a:hover { color: var(--color-accent); text-decoration-color: currentColor; }
+svg { display: block; }
+button { font: inherit; }
+[hidden] { display: none !important; }
+strong { font-weight: 500; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* bar */
+.bar-in { max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); height: var(--bar-h); display: flex; align-items: center; justify-content: space-between; }
+.mark { display: inline-flex; align-items: center; gap: var(--space-xs); min-height: var(--control); font-size: var(--text-small); font-weight: 500; letter-spacing: -0.02em; text-decoration-line: none; }
+.mark svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+.iconbtn { display: inline-grid; place-items: center; width: var(--control); height: var(--control); padding: 0; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-muted); cursor: pointer; transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out); }
+.iconbtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.iconbtn svg .half { fill: currentColor; stroke: none; }
+.iconbtn:hover { color: var(--color-ink); background: var(--color-paper-3); }
+.iconbtn:active { background: var(--color-rule); }
+.iconbtn:disabled { opacity: 0.55; cursor: not-allowed; }
+html:not(.js) .iconbtn, html:not(.js) .copy { display: none; }
+
+/* post */
+.post { max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); padding-bottom: var(--space-4xl); }
+.post-head, .prose { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, var(--measure)) minmax(0, 1fr); }
+.post-head > *, .prose > * { grid-column: 2; }
+.post-head { padding-top: var(--space-3xl); }
+
+.crumbs ol { display: flex; gap: var(--space-xs); margin: 0; padding: 0; list-style: none; font-size: var(--text-label); color: var(--color-ink-2); }
+.crumbs li + li::before { content: "/"; margin-right: var(--space-xs); color: var(--color-mark); }
+.crumbs a { text-decoration-line: none; transition: color var(--dur-micro) var(--ease-out); }
+.crumbs a:hover, .foot a:hover, .mark:hover { color: var(--color-ink); }
+h1 { margin-top: var(--space-lg); font-size: var(--text-title); font-weight: 500; line-height: 1.167; letter-spacing: -0.045em; }
+.authors { display: flex; align-items: center; gap: var(--space-xs); margin-top: var(--space-lg); font-size: var(--text-label); }
+.authors a { text-decoration-line: none; }
+.authors a:hover { text-decoration-line: underline; }
+.avatar { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-pill); background: var(--color-ink); color: var(--color-paper); font-size: 0.6875rem; font-weight: 500; flex-shrink: 0; }
+
+.post-body { position: relative; margin-top: var(--space-2xl); }
+.rail { max-width: var(--measure); margin: 0 auto var(--space-xl); font-size: var(--text-label); line-height: 1.43; color: var(--color-ink-2); }
+.rail-in { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-lg); }
+.rail dl { display: contents; }
+.rail .copy { margin-left: calc(var(--space-sm) * -1); }
+.toc { flex-basis: 100%; }
+.toc summary { display: inline-flex; align-items: center; gap: var(--space-2xs); min-height: var(--control); cursor: pointer; color: var(--color-ink); font-weight: 500; list-style: none; }
+.toc summary::-webkit-details-marker { display: none; }
+.toc summary svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.5; transform: rotate(-90deg); }
+.toc[open] summary svg { transform: none; }
+.toc ol { display: grid; gap: var(--space-xs); margin: 0; padding: 0 0 var(--space-xs); list-style: none; }
+.toc a { color: var(--color-ink-2); text-decoration-line: none; transition: color var(--dur-micro) var(--ease-out); }
+.toc a:hover, .toc a[aria-current], .authors a:hover { color: var(--color-ink); }
+.toc a[aria-current] { font-weight: 500; }
+
+.prose > * + * { margin-top: var(--space-para); }
+.prose > .wide { grid-column: 1 / -1; justify-self: center; width: 100%; max-width: var(--measure-wide); }
+.lede { font-size: var(--text-lede); line-height: 1.12; letter-spacing: -0.04em; color: var(--color-ink-2); text-wrap: balance; }
+.prose > .lede + * { margin-top: var(--space-xl); }
+.prose > h2 { margin-top: var(--space-head); font-size: var(--text-head); font-weight: 400; line-height: 1.12; letter-spacing: -0.04em; }
+.prose > h3 { margin-top: var(--space-subhead); font-size: var(--text-subhead); font-weight: 400; line-height: 1.17; letter-spacing: -0.035em; }
+.prose > ul, .prose > ol { padding-left: var(--space-lg); }
+.prose > ul > li, .prose > ol > li { padding-left: var(--space-xs); }
+.prose > ul > li + li, .prose > ol > li + li { margin-top: var(--space-xs); }
+.prose > ul > li::marker { color: var(--color-mark); }
+.prose > ol > li::marker { color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.prose > figure, .prose > .table-wrap, .prose > .callout { margin-top: var(--space-figure); }
+.prose > :is(figure, .table-wrap, .callout) + :is(p, ul, ol) { margin-top: var(--space-figure); }
+.prose li { text-wrap: pretty; }
+figcaption { margin-top: var(--space-sm); font-size: var(--text-label); line-height: 1.43; color: var(--color-muted); }
+
+/* callout: the one action */
+.callout { display: flex; align-items: center; justify-content: space-between; gap: var(--space-lg); padding: var(--space-lg); border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-box); background: var(--color-paper-2); }
+.callout h2 { font-size: var(--text-small); font-weight: 500; line-height: 1.5; }
+.callout h2 code { padding: 0; background: none; font-size: var(--text-small); }
+.callout p { margin-top: var(--space-2xs); font-size: var(--text-small); line-height: 1.5; color: var(--color-ink-2); }
+.btn { display: inline-flex; align-items: center; justify-content: center; height: var(--control); padding: 0 var(--space-lg); border: 0; border-radius: var(--radius-pill); background: var(--color-ink); color: var(--color-paper); font-size: var(--text-small); font-weight: 500; text-decoration-line: none; white-space: nowrap; flex-shrink: 0; cursor: pointer; transition: background-color var(--dur-micro) var(--ease-out); }
+.btn:hover { background: var(--color-ink-2); }
+.btn:active { background: var(--color-muted); }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+
+/* note */
+.note { padding: var(--space-md) var(--space-lg); border-radius: var(--radius-box); background: var(--color-paper-3); font-size: var(--text-small); line-height: 1.5; }
+
+/* demo: markup beside what it draws */
+.demo-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border-block: var(--rule-hair) solid var(--color-rule); }
+.demo-grid > * { padding: var(--space-lg); min-width: 0; }
+.demo-code { margin: 0; overflow-x: auto; border-right: var(--rule-hair) solid var(--color-rule); line-height: 1.6; color: var(--color-ink-2); }
+.demo-out { display: grid; align-content: center; }
+
+/* code */
+code { font-family: var(--font-outlier); font-size: var(--text-code); }
+:not(pre) > code { padding: var(--space-3xs) var(--space-2xs); border-radius: var(--radius-chip); background: var(--color-paper-3); font-weight: 500; }
+.code { border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-box); background: var(--color-paper-2); }
+.code figcaption { display: flex; align-items: center; justify-content: space-between; min-height: var(--control); margin: 0; padding: var(--space-2xs) var(--space-xs) var(--space-2xs) var(--space-md); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.code figcaption code { padding: 0; background: none; font-weight: 400; }
+.code pre { margin: 0; padding: var(--space-md); overflow-x: auto; line-height: 1.6; tab-size: 2; }
+.copy { position: relative; height: var(--control-s); padding: 0 var(--space-sm); border: 0; border-radius: var(--radius-chip); background: transparent; color: var(--color-ink-2); font-family: var(--font-body); font-size: var(--text-label); white-space: nowrap; cursor: pointer; transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out); }
+.copy::after { content: ""; position: absolute; inset: calc(var(--space-2xs) * -1.5) 0; }
+.copy:hover { color: var(--color-ink); background: var(--color-paper-3); }
+.copy:active { background: var(--color-rule); }
+.copy:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* table */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: var(--text-small); line-height: 1.5; font-variant-numeric: tabular-nums; }
+th, td { padding: var(--space-sm) var(--space-lg) var(--space-sm) 0; border-bottom: var(--rule-hair) solid var(--color-rule); text-align: left; white-space: nowrap; }
+thead th { font-weight: 400; color: var(--color-muted); }
+tbody th { font-weight: 500; }
+th:first-child { position: sticky; left: 0; background: var(--color-paper); }
+
+/* foot */
+.foot { border-top: var(--rule-hair) solid var(--color-rule); }
+.foot-in { max-width: var(--container); margin-inline: auto; padding: var(--space-lg) var(--gutter); display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); font-size: var(--text-label); color: var(--color-ink-2); }
+.foot a { text-decoration-line: none; white-space: nowrap; transition: color var(--dur-micro) var(--ease-out); }
+
+@media (min-width: 82.5rem) {
+  .rail { position: absolute; inset-block: 0; right: 0; width: var(--rail); max-width: none; margin: 0; }
+  .rail-in { position: sticky; top: var(--space-lg); display: grid; gap: var(--space-xs); justify-items: start; }
+  .rail dl { display: grid; gap: var(--space-xs); }
+  .toc { margin-top: var(--space-md); }
+}
+@media (max-width: 40rem) {
+  :root { --gutter: 16px; --space-head: 56px; --space-subhead: 40px; --space-figure: 40px; }
+  .post-head { padding-top: var(--space-xl); }
+  .post-body { margin-top: var(--space-xl); }
+  .callout { flex-direction: column; align-items: flex-start; }
+  .demo-grid { grid-template-columns: minmax(0, 1fr); }
+  .demo-code { border-right: 0; border-bottom: var(--rule-hair) solid var(--color-rule); }
+  .demo-grid > * { padding: var(--space-md) 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-in">
+    <a class="mark" href="../index.html" aria-label="Artikit, all pages">
+      <svg viewBox="0 0 14 14" aria-hidden="true"><rect width="6" height="6" rx="1.5"/><rect x="8" width="6" height="6" rx="1.5"/><rect y="8" width="6" height="6" rx="1.5"/><rect x="8" y="8" width="6" height="6" rx="1.5"/></svg>
+      Artikit
+    </a>
+    <button class="iconbtn" id="scheme" type="button" aria-label="Switch between light and dark">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="6.25"/><path class="half" d="M9 2.75a6.25 6.25 0 0 1 0 12.5z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+<article class="post">
+
+  <header class="post-head">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="../index.html#blog">Blog templates</a></li>
+        <li aria-current="page">Release</li>
+      </ol>
+    </nav>
+    <h1>Artikit now has three article templates</h1>
+    <p class="authors"><span class="avatar" aria-hidden="true">J</span><a href="https://github.com/j3ssie" rel="author">j3ssie</a></p>
+  </header>
+
+  <div class="post-body">
+
+    <aside class="rail" aria-label="About this post">
+      <div class="rail-in">
+        <dl>
+          <div><dt class="visually-hidden">Published</dt><dd><time datetime="2026-11-14">14 Nov 2026</time></dd></div>
+          <div><dt class="visually-hidden">Reading time</dt><dd id="readtime">2 min read</dd></div>
+        </dl>
+        <button class="copy" type="button" data-copy-link>Copy link</button>
+        <details class="toc">
+          <summary>On this page<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></summary>
+          <ol>
+            <li><a href="#share">What the three files share</a></li>
+            <li><a href="#blocks">Blocks to write with</a></li>
+            <li><a href="#start">Start a new document</a></li>
+            <li><a href="#limits">What is left out</a></li>
+          </ol>
+        </details>
+      </div>
+    </aside>
+
+    <div class="prose">
+
+      <p class="lede">Three single-file article pages, with every block a document needs.</p>
+
+      <aside class="callout" aria-labelledby="get">
+        <div>
+          <h2 id="get"><code>blog-release.html</code></h2>
+          <p>This page as one HTML file of about 28&nbsp;KB. Nothing to install.</p>
+        </div>
+        <a class="btn" href="blog-release.html" download>Download</a>
+      </aside>
+
+      <p>Artikit now ships three article templates: a <a href="blog-narrative.html">narrative post</a>, this release post and a <a href="blog-research-note.html">research note</a>. Each is one HTML file with its styles and its script inline.</p>
+
+      <p>They are made for writing, so the chrome is small: a wordmark and a scheme switch above, one line below. Everything between is the document.</p>
+
+      <h2 id="share">What the three files share</h2>
+
+      <p>Each template is built the same way, so moving a document from one to another means copying a single element.</p>
+
+      <ul>
+        <li>One file and no build step</li>
+        <li>Colours, faces, sizes and spacing as tokens in <code>:root</code></li>
+        <li>A light and a dark scheme that follow the system setting</li>
+        <li>A text column that holds a line near 70 characters</li>
+        <li>A header and a footer of one line each</li>
+      </ul>
+
+      <h2 id="blocks">Blocks to write with</h2>
+
+      <p>The blocks are plain HTML elements with a class or two. Nothing is generated, so what you read in the source is what the browser draws.</p>
+
+      <figure class="wide demo">
+        <div class="demo-grid">
+<pre class="demo-code"><code>&lt;aside class="note"&gt;
+  &lt;p&gt;&lt;strong&gt;Fonts load from Google
+  Fonts.&lt;/strong&gt; Without a connection
+  the page falls back to the system
+  faces.&lt;/p&gt;
+&lt;/aside&gt;</code></pre>
+          <div class="demo-out">
+            <aside class="note"><p><strong>Fonts load from Google Fonts.</strong> Without a connection the page falls back to the system faces.</p></aside>
+          </div>
+        </div>
+        <figcaption>The markup for a note, and the note it draws.</figcaption>
+      </figure>
+
+      <h3>Code with its file name</h3>
+
+      <p>A code block carries the name of the file it comes from and a copy button. Inline code such as <code>--measure</code> sits in the line of text.</p>
+
+      <figure class="code">
+        <figcaption><code>blog-release.html</code><button class="copy" type="button" data-copy>Copy</button></figcaption>
+<pre><code>:root {
+  --measure: 38rem;       /* the text column */
+  --measure-wide: 50rem;  /* figures and tables */
+  --text-body: 1.125rem;
+  --color-accent: oklch(52.2% 0.187 257);
+}</code></pre>
+      </figure>
+
+      <h3>Tables as wide as a figure</h3>
+
+      <p>A table may break out of the column the way a figure does. On a phone it scrolls sideways and the first column stays in view.</p>
+
+      <div class="table-wrap wide" role="region" aria-label="The three templates compared" tabindex="0">
+        <table>
+          <thead>
+            <tr><th scope="col">Template</th><th scope="col">File</th><th scope="col">Text column</th><th scope="col">Body</th><th scope="col">First scheme</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Narrative</th><td><code>blog-narrative.html</code></td><td>576px</td><td>Inter, 17px</td><td>Dark</td></tr>
+            <tr><th scope="row">Release</th><td><code>blog-release.html</code></td><td>608px</td><td>Geist, 18px</td><td>Light</td></tr>
+            <tr><th scope="row">Research note</th><td><code>blog-research-note.html</code></td><td>560px</td><td>Source Serif 4, 17px</td><td>Light</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="start">Start a new document</h2>
+
+      <ol>
+        <li>Copy the file and rename it, keeping the <code>blog-</code> prefix</li>
+        <li>Replace what is inside <code>&lt;article class="post"&gt;</code> with your own text</li>
+        <li>Change the tokens in <code>:root</code> if the colours or the faces should differ</li>
+        <li>Add the page to <code>index.html</code> and <code>llms.txt</code> so the chooser lists it</li>
+      </ol>
+
+      <figure class="code">
+        <figcaption><span>Terminal</span><button class="copy" type="button" data-copy>Copy</button></figcaption>
+<pre><code>cp pages/blog-release.html pages/blog-my-post.html</code></pre>
+      </figure>
+
+      <h2 id="limits">What is left out</h2>
+
+      <p>There is no Markdown step, no syntax highlighting and no comment form. The templates are documents, and anything that needs a server is yours to add.</p>
+
+    </div>
+  </div>
+
+</article>
+</main>
+
+<footer class="foot">
+  <div class="foot-in">
+    <a href="../index.html">Artikit</a>
+    <a href="#top">Back to top</a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var scheme = document.getElementById("scheme");
+  if (scheme) scheme.addEventListener("click", function () {
+    var now = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    var next = now === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("artikit-blog-theme", next); } catch (e) {}
+  });
+
+  function flash(btn, label) {
+    var was = btn.textContent;
+    btn.textContent = label;
+    setTimeout(function () { btn.textContent = was; }, 1600);
+  }
+  function selectAll(node) {
+    var r = document.createRange();
+    r.selectNodeContents(node);
+    var sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+  document.querySelectorAll("[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var code = btn.closest("figure").querySelector("pre");
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code.textContent).then(function () { flash(btn, "Copied"); }, function () { selectAll(code); });
+      else selectAll(code);
+    });
+  });
+  var link = document.querySelector("[data-copy-link]");
+  if (link) {
+    if (navigator.clipboard && navigator.clipboard.writeText) link.addEventListener("click", function () {
+      navigator.clipboard.writeText(location.href).then(function () { flash(link, "Link copied"); }, function () {});
+    });
+    else link.hidden = true;
+  }
+
+  // reading time from the words actually on the page, at 230 a minute
+  var prose = document.querySelector(".prose");
+  var rt = document.getElementById("readtime");
+  if (prose && rt) {
+    var words = prose.textContent.trim().split(/\s+/).length;
+    rt.textContent = Math.max(1, Math.round(words / 230)) + " min read";
+  }
+
+  // contents: open as a sidebar, mark the section in view
+  var toc = document.querySelector(".toc");
+  if (toc) {
+    var wide = matchMedia("(min-width: 82.5rem)");
+    var sync = function () { toc.open = wide.matches; };
+    sync();
+    if (wide.addEventListener) wide.addEventListener("change", sync);
+    var items = [];
+    toc.querySelectorAll("a").forEach(function (a) {
+      var h = document.getElementById(a.getAttribute("href").slice(1));
+      if (h) items.push([h, a]);
+    });
+    var queued = false;
+    var mark = function () {
+      queued = false;
+      var line = innerHeight * 0.3, current = null;
+      items.forEach(function (it) { if (it[0].getBoundingClientRect().top <= line) current = it[1]; });
+      items.forEach(function (it) {
+        if (it[1] === current) it[1].setAttribute("aria-current", "location");
+        else it[1].removeAttribute("aria-current");
+      });
+    };
+    addEventListener("scroll", function () { if (!queued) { queued = true; requestAnimationFrame(mark); } }, { passive: true });
+    mark();
+  }
+})();
+</script>
+</body>
+</html>

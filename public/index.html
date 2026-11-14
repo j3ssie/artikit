@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Artikit</title>
-<meta name="description" content="Artikit: a chooser for standalone single-file HTML sample pages: landing pages, dashboards, data pages and a terminal design system.">
+<meta name="description" content="Artikit: a chooser for standalone single-file HTML sample pages: landing pages, dashboards, data pages, canvas pages, blog templates and a terminal design system.">
 <link rel="alternate" type="text/plain" href="llms.txt" title="llms.txt">
 <meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#16120d" media="(prefers-color-scheme: dark)">
@@ -172,6 +172,8 @@ header.nav.stuck{border-bottom-color:var(--border-1)}
     <button data-f="landing" aria-pressed="false">Landing</button>
     <button data-f="dashboard" aria-pressed="false">Dashboard</button>
     <button data-f="data" aria-pressed="false">Data</button>
+    <button data-f="canvas" aria-pressed="false">Canvas</button>
+    <button data-f="blog" aria-pressed="false">Blog</button>
     <button data-f="terminal" aria-pressed="false">Terminal</button>
   </nav>
   <div class="views" id="views" role="group" aria-label="View">
@@ -204,7 +206,7 @@ const THEMES=[
  {file:'landing-page-gimorra-verdicts.html',name:'Gimorra · Verdicts',kind:'landing',desc:'White product page framed by hairline rails: paper-textured hero with a live verdict flow, a draggable threshold, benchmarks, quickstart tabs and a human or machine view.',tags:['Instrument Sans + DM Mono','light only','animated widgets'],sw:['#ffffff','#ebe9e3','#fb631b']},
  {file:'landing-page-gimorra-stage.html',name:'Gimorra · Stage',kind:'landing',desc:'Near-black product page built around a playable run: a centred hero, a target switch, a staged demo with a five-step scrubber and a stop key, illustration cards, a command grid and install blocks.',tags:['system sans + mono','dark only','scripted demo'],sw:['#0a0a0b','#f4f4f5','#4a8fc4']},
  {file:'landing-page-coding-agents.html',name:'Coding agents',kind:'landing',desc:'Dark landing page over a landscape painting redrawn live in ASCII glyphs: a centred prompt box with an autonomy switch, a permission matrix, a scripted session replay and an install block.',tags:['Geist + Geist Mono','dark only','canvas ASCII + replay'],sw:['#070706','#f26a21','#ffab73']},
- {file:'dashboard-gimorra-console.html',name:'Gimorra · Console',kind:'dashboard',desc:'All-monospace operations console: top-bar tabs, stat tiles, runs and issues tables, and a run detail with transcript.',tags:['JetBrains Mono','dark + light','hash routes'],sw:['#14100b','#efece8','#78d670']},
+ {file:'dashboard-gimorra-console.html',name:'Gimorra · Console',kind:'dashboard',desc:'All-monospace security console modelled on the real Gimorra dashboard: a flush stat grid with severity, verdict and class charts, engagements with a nine-tab run view, a findings table with a proof rail and triage, targets, a new-scan form that writes its own command, and settings.',tags:['JetBrains Mono','dark + light','hash routes + live triage'],sw:['#14100b','#efece8','#78d670']},
  {file:'dashboard-vigolium-workbench.html',name:'Vigolium · Workbench',kind:'dashboard',desc:'Terminal-style workbench: text-only header, pipe-separated nav, zero-radius panels and 50/50 master-detail views.',tags:['monospace','dark + light','ASCII charts'],sw:['#1c1b19','#f6edda','#7fd962']},
  {file:'dashboard-vigolium-triage.html',name:'Vigolium · Triage',kind:'dashboard',desc:'Full-screen Scan & Triage Performance dashboard: stacked finding volume, open findings by severity, median triage time, a fix-time scatter and an SLA strip plot, with a project filter.',tags:['Inter','dark only','SVG charts + tooltips'],sw:['#0f1011','#1d1f22','#13a3b6']},
  {file:'dashboard-delivery-analytics.html',name:'Delivery analytics',kind:'dashboard',desc:'Charcoal delivery-analytics dashboard: range and project filters, KPI tiles with sparklines, created-vs-completed lines, stacked columns by project, a cycle-time histogram and hatched meters.',tags:['Inter','dark only','filters + chart tooltips'],sw:['#161618','#222225','#4c6bf0']},
@@ -213,27 +215,35 @@ const THEMES=[
  {file:'data-prompt-analytics.html',name:'Prompt analytics',kind:'data',desc:'Full-screen prompt analytics on a warm cream surface: prompt cards with line and bar charts, request geography, and latency, token and quantile meters, with a range switch and a table view.',tags:['Figtree','light first','SVG charts + tooltips','tweak dock'],sw:['#f6f2ed','#1b1a18','#e85a12']},
  {file:'data-evals.html',name:'Evals',kind:'data',desc:'Full-screen eval dashboard on oat with cream figure cards: hatched and solid paired columns, running-mean lines with leader labels, reference lines and error bars, all scoped by a suite switch.',tags:['Hanken Grotesk','light + dark','SVG charts + tooltips','tweak dock'],sw:['#e8e6dc','#faf9f5','#d9623c']},
  {file:'data-analysis-workbench.html',name:'Analysis workbench',kind:'data',desc:'Dense light analysis workbench: contents tree, a canvas of filter, table, time-series, bar and heat-grid cards, a card inspector with search settings, and a dependency graph view.',tags:['Inter + Geist Mono','light first','linked cards + graph view','tweak dock'],sw:['#f4f5f7','#1c2127','#2d72d2']},
+ {file:'canvas-gimorra-architecture.html',name:'Gimorra · Architecture',kind:'canvas',desc:'Interactive system-design page: three node-and-edge scenes on a pannable canvas, a detail rail with pickable options per component, a decisions panel that copies as Markdown, and the design documents rendered as pages.',tags:['React Flow from esm.sh','light + dark','pickable options + Markdown docs'],sw:['#14100b','#efece8','#78d670']},
+ {file:'canvas-vigolium-scan-lifecycle.html',name:'Vigolium · Scan lifecycle',kind:'canvas',desc:'Infrastructure diagram on a black canvas: hatched groups, mono group labels and pill-labelled edges follow one scan request, with a trace you can send through four outcomes and a second discovery scene.',tags:['Geist + Geist Mono','dark + light','pan and zoom + request trace'],sw:['#000000','#ededed','#3ecfb8']},
+ {file:'canvas-gimorra-workflows.html',name:'Gimorra · Workflows',kind:'canvas',desc:'Agent workflows drawn as loop and swimlane diagrams: mono uppercase steps inside a dashed loop frame, a fan-out of specialists, and a run that ticks through each step into an activity feed.',tags:['Inter + JetBrains Mono','dark + light','runnable workflows'],sw:['#08090a','#f7f8f8','#3ecf6e']},
+ {file:'blog-narrative.html',name:'Narrative post',kind:'blog',desc:'Near-black article template for a design narrative: a centred 48px title over an opening figure, an italic summary, one 576px column, stacked specimen figures, a quotation, code, a table and a source list. Its sample text is a study of three reference posts.',tags:['Inter + JetBrains Mono','dark + light','minimal header and footer'],sw:['#08090a','#f7f8f8','#8b93f2']},
+ {file:'blog-release.html',name:'Release post',kind:'blog',desc:'White article template for a release note: a flush-left title, a 32px lede, one download box, a rail with the date, the reading time and the contents, markup beside what it draws, code with a file name and a wide table.',tags:['Geist + Geist Mono','light + dark','contents rail'],sw:['#fafafa','#171717','#0064d2']},
+ {file:'blog-research-note.html',name:'Research note',kind:'blog',desc:'Cream article template for a research write-up: a centred sans title, a picture on a colour plate, a meta rail, serif prose, footnotes, a numbered table and two numbered figures of four plots, drawn in cream panels on tan frames (paired hatched and solid columns with whiskers, a three-series line plot, columns and a histogram), with hover readouts and data tables. Its sample text counts the line length of its own page.',tags:['Albert Sans + Source Serif 4','light + dark','charts + footnotes'],sw:['#faf9f5','#141413','#6fa8e3','#b9532f']},
+ {file:'blog-terminal-playbook.html',name:'Terminal playbook',kind:'blog',desc:'Cream article template in a terminal register: bracketed key links that work as shortcuts, a pixel tile over the title, a tree of sections with a block-character progress bar, mono capitals for every heading and label, and square hairline boxes for text-mode figures, tables and code. Its sample text is a guide to choosing between the five blog templates.',tags:['Figtree + Spline Sans Mono','light + dark','tree rail + key shortcuts'],sw:['#faf9f5','#141413','#c6613f']},
+ {file:'blog-serif-essay.html',name:'Serif essay',kind:'blog',desc:'White essay template: a dateline over a 54px bold sans title, an avatar byline, a rail with the way back and the share controls, serif text at 20px, a tinted callout with a line icon, bold serif subheads, a checklist, a toggle and hairline tables. Its sample text tells how the five blog templates were built and checked.',tags:['Inter + Newsreader','light + dark','callout, checklist, toggle'],sw:['#fefefd','#191918','#0b6fd6']},
  {file:'terminal-design-system.html',name:'Terminal Design System',kind:'terminal',desc:'Bundled design system in a warm terminal register, with a live control bar for theme, accent, font and density.',tags:['bundled app','warm dark','live controls'],sw:['#14100b','#78d670']},
  {file:'terminal-design-system-fieldnotes.html',name:'Terminal Design System · Field Notes',kind:'terminal',desc:'The same design system as a light-first kraft-paper notebook: dot-grid backdrop, ink-strip panel headers, sharp corners.',tags:['IBM Plex Mono','light first','compact'],sw:['#e7dcc2','#14140d','#1f4e8c']}
 ];
-const KIND={landing:'Landing',dashboard:'Dashboard',data:'Data',terminal:'Terminal'};
+const KIND={landing:'Landing',dashboard:'Dashboard',data:'Data',canvas:'Canvas',blog:'Blog',terminal:'Terminal'};
 const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const list=document.getElementById('list'),count=document.getElementById('count');
 list.innerHTML=THEMES.map((t,i)=>`<article class="row" data-kind="${t.kind}" style="--i:${i}">
   <div class="txt">
     <div class="eyebrow"><span class="n">${String(i+1).padStart(2,'0')}</span><span>${KIND[t.kind]}</span><span class="sw" aria-hidden="true">${t.sw.map(c=>`<i style="background:${c}"></i>`).join('')}</span></div>
-    <h2><a href="${t.file}">${esc(t.name)}</a></h2>
+    <h2><a href="pages/${t.file}">${esc(t.name)}</a></h2>
     <p class="desc">${esc(t.desc)}</p>
     <p class="tags">${t.tags.map(esc).join(' · ')}</p>
-    <div class="act"><a class="btn" href="${t.file}">Open preview <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a><a class="file" href="${t.file}" target="_blank" rel="noopener" title="Open in a new tab">${esc(t.file)}</a></div>
+    <div class="act"><a class="btn" href="pages/${t.file}">Open preview <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a><a class="file" href="pages/${t.file}" target="_blank" rel="noopener" title="Open in a new tab">${esc(t.file)}</a></div>
   </div>
-  <a class="shot" href="${t.file}" tabindex="-1" aria-hidden="true"><span class="ph">${esc(t.file)}</span><img src="thumbs/${t.file.replace(/\.html$/,'.png')}" alt="" loading="lazy" decoding="async" onerror="this.remove()"></a>
+  <a class="shot" href="pages/${t.file}" tabindex="-1" aria-hidden="true"><span class="ph">${esc(t.file)}</span><img src="thumbs/${t.file.replace(/\.html$/,'.png')}" alt="" loading="lazy" decoding="async" onerror="this.remove()"></a>
 </article>`).join('')+'<div class="empty" id="empty" hidden>No pages of that kind.</div>';
 const tbody=document.getElementById('tbody');
 tbody.innerHTML=THEMES.map((t,i)=>`<tr data-kind="${t.kind}">
   <td class="c-n">${String(i+1).padStart(2,'0')}</td>
-  <td class="c-shot"><a class="tshot" href="${t.file}" tabindex="-1" aria-hidden="true"><img src="thumbs/${t.file.replace(/\.html$/,'.png')}" alt="" loading="lazy" decoding="async" onerror="this.remove()"></a></td>
-  <td class="c-page"><a class="nm" href="${t.file}">${esc(t.name)}</a><a class="file" href="${t.file}" target="_blank" rel="noopener" title="Open in a new tab">${esc(t.file)}</a></td>
+  <td class="c-shot"><a class="tshot" href="pages/${t.file}" tabindex="-1" aria-hidden="true"><img src="thumbs/${t.file.replace(/\.html$/,'.png')}" alt="" loading="lazy" decoding="async" onerror="this.remove()"></a></td>
+  <td class="c-page"><a class="nm" href="pages/${t.file}">${esc(t.name)}</a><a class="file" href="pages/${t.file}" target="_blank" rel="noopener" title="Open in a new tab">${esc(t.file)}</a></td>
   <td class="c-kind">${KIND[t.kind]}</td>
   <td class="c-desc">${esc(t.desc)}</td>
   <td class="c-tags">${t.tags.map(x=>`<span>${esc(x)}</span>`).join(' · ')}</td>
@@ -246,8 +256,11 @@ function apply(f){
   document.getElementById('empty').hidden=n>0;document.getElementById('tempty').hidden=n>0;
   count.textContent=n===THEMES.length?n+' pages':n+' of '+THEMES.length;
 }
-document.getElementById('filters').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;document.querySelectorAll('#filters button').forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-pressed',x===b);});list.classList.add('settled');apply(b.dataset.f);});
+function pick(f){const b=document.querySelector('#filters button[data-f="'+f+'"]');if(!b)return;document.querySelectorAll('#filters button').forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-pressed',x===b);});apply(f);}
+document.getElementById('filters').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;list.classList.add('settled');pick(b.dataset.f);});
 apply('all');
+// index.html#blog (or any kind) opens the chooser filtered to that kind
+if(KIND[location.hash.slice(1)])pick(location.hash.slice(1));
 const views=document.getElementById('views'),tablewrap=document.getElementById('tablewrap');
 function setView(v,save){
   const isList=v==='list';list.hidden=isList;tablewrap.hidden=!isList;
@@ -255,7 +268,7 @@ function setView(v,save){
   if(save){list.classList.add('settled');try{localStorage.setItem('ak-view',v);}catch(e){}try{history.replaceState(null,'',isList?'#list':location.pathname+location.search);}catch(e){}}
 }
 views.addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v,true);});
-addEventListener('hashchange',()=>{if(location.hash==='#list')setView('list');else if(location.hash==='#grid')setView('grid');});
+addEventListener('hashchange',()=>{if(location.hash==='#list')setView('list');else if(location.hash==='#grid')setView('grid');else if(KIND[location.hash.slice(1)])pick(location.hash.slice(1));});
 (function(){let v='grid';try{v=localStorage.getItem('ak-view')||v;}catch(e){}if(location.hash==='#list')v='list';else if(location.hash==='#grid')v='grid';setView(v==='list'?'list':'grid');})();
 const root=document.documentElement,nav=document.getElementById('nav');
 document.getElementById('themebtn').addEventListener('click',()=>{const cur=root.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');const n=cur==='dark'?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem('tc-theme',n);}catch(e){}});

@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en" id="top">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which blog template should you write with?</title>
+<meta name="description" content="A terminal-style playbook template: a decision guide to the five Artikit blog templates, with a tree of sections, tables, code boxes and text-mode figures.">
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+(function () {
+  var d = document.documentElement;
+  d.classList.add("js");
+  try {
+    var t = localStorage.getItem("artikit-blog-theme");
+    if (t === "light" || t === "dark") d.setAttribute("data-theme", t);
+  } catch (e) {}
+})();
+</script>
+<!--
+  Artikit, blog-terminal-playbook.html
+  A playbook in a terminal register: sans text, with mono for every heading
+  and label, square hairline boxes, and a tree of sections beside the text.
+  To write your own document, replace what is inside <article class="post">
+  and list each h2 and h3 in nav.tree.
+
+  Blocks
+    header.nav          bracketed key links; H, B and T work as shortcuts and
+                        the footer has a switch that turns them off
+    header.hero         pixel tile, h1, p.standfirst, dl.meta
+    aside.rail          tree of sections, reading progress, reading time,
+                        share; a sidebar from 1024px, a block above the text
+                        below that
+    h2, h3, p, ul, ol   h2 is set in capitals, h3 in sentence case, both mono
+    figure.box          a bordered figure; put a pre.fig-text or an image
+                        element inside, then a figcaption with a b label
+    div.box.table       a table on a tinted ground with mono column heads
+    figure.box.code     code with a kind label, a language and a copy button
+    section.more        rows that link to other posts: date, title, minutes
+
+  Colours, faces, sizes and spacing are tokens in :root. The dark scheme
+  overrides only the colour tokens.
+-->
+<style>
+/* Hallmark · shape: Long Document · genre: modern-minimal · theme: custom · job: try · idea: "a decision guide laid out like a terminal session: a tree to move by, tables to choose from, code to copy" · vibe: "cream paper, mono capitals, square hairline boxes"
+ * paper: oklch(98.2% 0.005 95) · accent: oklch(60% 0.14 40) · display: Figtree · body: Figtree · hero: a pixel tile over a 34px title, one sentence and three labelled facts, closed by a full-width rule · nav: three bracketed key links and no wordmark text · footer: one line, the mark, a shortcuts switch and a way back up · imagery: none, two text-mode figures built from the templates' own numbers · signature: the tree of sections with a block-character progress bar that fills as you read
+ * axes: light/grotesk-sans/warm · posture: restrained · contrast: pass · fold: pass · modes: light+dark · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V4 · weakest: R, mono carries headings, labels, figures and code at once; the body stays in one sans at one size so the page still reads as prose */
+/* Hallmark · waive 64 · mono is this page's material: every heading, label, figure and code box is set in it, after the terminal reference the page was asked to match · sentence-case sans labels would break that register */
+/* Hallmark · waive 39b · the copy and share controls are 32px tall with a 44px hit target from their ::after · they sit in mono label rows, where a taller control would break the row rhythm of the tree */
+/* Hallmark · waive 78 · the shape is a Long Document and its heads are inline mono capitals at text size · the terminal reference sets every section head at the size of the body, so a 40px head would leave the register */
+/* Hallmark · dismissed 77 · the page is one article by design; a Long Document has no landing sections to count */
+/* Hallmark · waive 79 · the article text starts right under the hero rule and is in view at 1440 by 900 · the linter reads the header as a landing hero, while this Long Document runs straight on below it */
+/* Hallmark · hero-review: not run, the page was built in one pass · finish-review: subagent · 8 findings · 8 resolved · gap: none */
+/* Not Hallmark-clean on 58, on purpose: this is an article template, running prose is its material, and one screen of an article holds more than 80 words. */
+/* Not Hallmark-clean on 67, on purpose: the nav keys, the rail and box labels, the table heads and the h2s are mono capitals tracked 0.02em, because the terminal reference the page was asked to match sets them that way. */
+:root {
+  color-scheme: light;
+  --color-paper: oklch(98.2% 0.005 95);
+  --color-paper-2: oklch(95.3% 0.010 95);
+  --color-ink: oklch(19.1% 0.005 107);
+  --color-ink-2: oklch(41.5% 0.010 100);
+  --color-muted: oklch(52% 0.012 100);
+  --color-faint: oklch(72% 0.012 100);
+  --color-rule: oklch(89.5% 0.010 95);
+  --color-accent: oklch(60% 0.14 40);
+  --color-accent-ink: oklch(98.2% 0.005 95);
+  --color-accent-text: oklch(50% 0.14 40);
+  --color-focus: oklch(60% 0.16 40);
+
+  --font-display: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-outlier: "Spline Sans Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-title: clamp(1.75rem, 1.6vw + 1.2rem, 2.125rem);
+  --text-body: 1.125rem;
+  --text-small: 1rem;
+  --text-label: 0.84375rem;
+  --text-tiny: 0.75rem;
+  --leading-body: 1.7;
+
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px;
+  --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --space-para: 14px;
+  --space-sec: 54px;
+  --space-sub: 36px;
+  --space-box: 32px;
+  --space-hero: 72px;
+  --gutter: 36px;
+
+  --measure: 36rem;
+  --measure-head: 45rem;
+  --rail-w: 28.5rem;
+  --col: 14.25rem;
+  --container: 90rem;
+  --bar-h: 73px;
+  --control: 44px;
+  --control-s: 32px;
+  --tile: 5rem;
+  --rule-hair: 1px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-micro: 120ms;
+  --z-sticky-nav: 300;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: oklch(18.5% 0.004 95);
+  --color-paper-2: oklch(22.5% 0.005 95);
+  --color-ink: oklch(96% 0.006 95);
+  --color-ink-2: oklch(81% 0.010 95);
+  --color-muted: oklch(68% 0.012 95);
+  --color-faint: oklch(48% 0.010 95);
+  --color-rule: oklch(30% 0.006 95);
+  --color-accent: oklch(66% 0.13 40);
+  --color-accent-ink: oklch(18.5% 0.004 95);
+  --color-accent-text: oklch(74% 0.12 40);
+  --color-focus: oklch(70% 0.14 40);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --color-paper: oklch(18.5% 0.004 95);
+    --color-paper-2: oklch(22.5% 0.005 95);
+    --color-ink: oklch(96% 0.006 95);
+    --color-ink-2: oklch(81% 0.010 95);
+    --color-muted: oklch(68% 0.012 95);
+    --color-faint: oklch(48% 0.010 95);
+    --color-rule: oklch(30% 0.006 95);
+    --color-accent: oklch(66% 0.13 40);
+    --color-accent-ink: oklch(18.5% 0.004 95);
+    --color-accent-text: oklch(74% 0.12 40);
+    --color-focus: oklch(70% 0.14 40);
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { scroll-padding-top: calc(var(--bar-h) + var(--space-lg)); scrollbar-color: var(--color-faint) var(--color-paper); -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: color-mix(in oklab, var(--color-accent) 26%, transparent); color: var(--color-ink); }
+:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+h1, h2, h3 { margin: 0; font-synthesis: none; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
+p, figure, ul, ol, dl, dd, pre { margin: 0; }
+p { text-wrap: pretty; }
+a { color: inherit; text-decoration-line: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; text-decoration-color: var(--color-faint); transition: text-decoration-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out); }
+a:hover { color: var(--color-ink); text-decoration-color: var(--color-ink); }
+svg { display: block; }
+button { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.wrap { max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); }
+.label { font-family: var(--font-outlier); font-size: var(--text-label); line-height: 1.3; letter-spacing: 0.02em; text-transform: uppercase; color: var(--color-muted); }
+.br { margin-right: var(--space-xs); font-family: var(--font-outlier); font-size: var(--text-label); color: var(--color-faint); }
+
+/* nav: bracketed key links on the page grid */
+.nav { position: sticky; top: 0; z-index: var(--z-sticky-nav); background: color-mix(in oklab, var(--color-paper) 86%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.nav-in { display: grid; grid-template-columns: var(--col) var(--col) var(--col) minmax(0, 1fr); align-items: center; height: var(--bar-h); }
+.brand { display: inline-grid; place-items: center start; width: var(--control); height: var(--control); color: var(--color-accent); text-decoration-line: none; }
+.brand svg { width: 28px; height: 28px; fill: currentColor; }
+.key { display: inline-flex; align-items: center; gap: var(--space-xs); justify-self: start; min-height: var(--control); padding: 0; border: 0; background: none; font-family: var(--font-outlier); font-size: var(--text-label); letter-spacing: 0.02em; text-transform: uppercase; text-decoration-line: none; color: var(--color-ink-2); white-space: nowrap; cursor: pointer; transition: color var(--dur-micro) var(--ease-out); }
+.key span { color: var(--color-muted); }
+.key:hover { color: var(--color-ink); }
+.key:active { color: var(--color-ink-2); }
+.key:disabled { opacity: 0.55; cursor: not-allowed; }
+html:not(.js) button.key, html:not(.js) .copy, html:not(.js) .prog { display: none; }
+
+/* hero */
+.hero { border-bottom: var(--rule-hair) solid var(--color-rule); }
+.hero-in { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); padding-block: var(--space-hero); }
+.hero-in > * { grid-column: 2; max-width: var(--measure-head); }
+.tile { width: var(--tile); height: var(--tile); }
+.tile-ground { fill: var(--color-accent); }
+.tile-glyph { fill: var(--color-accent-ink); }
+h1 { margin-top: var(--space-lg); font-family: var(--font-display); font-size: var(--text-title); font-weight: 500; line-height: 1.2; letter-spacing: -0.01em; }
+.standfirst { margin-top: var(--space-sm); line-height: 1.6; color: var(--color-ink-2); }
+.meta { display: grid; grid-template-columns: repeat(3, var(--col)); margin-top: var(--space-lg); }
+.meta dd { margin-top: var(--space-xs); font-size: var(--text-small); white-space: nowrap; }
+.meta a { text-decoration-line: none; }
+.meta a:hover { text-decoration-line: underline; }
+
+/* body: a rail beside the text */
+.body { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); padding-top: var(--space-hero); padding-bottom: var(--space-3xl); }
+.rail { align-self: start; position: sticky; top: calc(var(--bar-h) + var(--space-lg)); padding-right: var(--space-xl); font-family: var(--font-outlier); }
+.rail .label { margin-bottom: var(--space-sm); }
+.tree { display: grid; gap: var(--space-2xs); font-size: var(--text-label); line-height: 1.45; }
+.tree a, .tree button { display: flex; align-items: baseline; width: fit-content; padding: 0; border: 0; background: none; font-family: inherit; font-size: inherit; text-align: left; text-decoration-line: none; color: var(--color-muted); cursor: pointer; transition: color var(--dur-micro) var(--ease-out); }
+.tree .sub { margin-left: var(--space-md); }
+.tree a:hover, .tree button:hover, .tree a[aria-current] { color: var(--color-ink); }
+.tree a[aria-current] .br { color: var(--color-ink); }
+.tree button:active { color: var(--color-ink-2); }
+.tree button:disabled { opacity: 0.55; cursor: not-allowed; }
+.prog { display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-lg); font-size: var(--text-label); color: var(--color-ink-2); font-variant-numeric: tabular-nums; }
+.prog b { font-weight: 400; letter-spacing: -0.08em; color: var(--color-ink); }
+.rail #readtime { margin-top: var(--space-sm); }
+.rail .share { margin-top: var(--space-xl); }
+
+/* post */
+.post { max-width: var(--measure); min-width: 0; }
+.post > * + * { margin-top: var(--space-para); }
+.post > p, .post > ul, .post > ol { font-size: var(--text-body); line-height: var(--leading-body); color: var(--color-ink-2); }
+.post > h2 { margin-top: var(--space-sec); font-family: var(--font-outlier); font-size: var(--text-small); font-weight: 500; line-height: 1.5; letter-spacing: 0.02em; text-transform: uppercase; }
+.post > h2:first-child { margin-top: 0; }
+.post > h3 { margin-top: var(--space-sub); font-family: var(--font-outlier); font-size: var(--text-small); font-weight: 500; line-height: 1.5; letter-spacing: 0.02em; }
+.post > h2 + *, .post > h3 + * { margin-top: var(--space-lg); }
+.post > ul, .post > ol { padding-left: var(--space-lg); }
+.post > ul > li + li, .post > ol > li + li { margin-top: var(--space-xs); }
+.post li { text-wrap: pretty; }
+.post li::marker { color: var(--color-muted); }
+.post strong { font-weight: 500; color: var(--color-ink); }
+code { font-family: var(--font-outlier); font-size: 0.875em; }
+pre code { font-size: inherit; }
+:not(pre) > code { padding: var(--space-3xs) var(--space-2xs); border: var(--rule-hair) solid var(--color-rule); background: var(--color-paper-2); color: var(--color-ink); }
+
+/* boxes: figures, tables and code share one square hairline frame */
+.box { border: var(--rule-hair) solid var(--color-rule); background: var(--color-paper-2); }
+.post > .box { margin-block: var(--space-box); }
+.box figcaption { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); gap: var(--space-md); padding: var(--space-sm) var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); background: var(--color-paper); font-size: var(--text-small); line-height: 1.6; color: var(--color-muted); }
+.box figcaption b { font-family: var(--font-outlier); font-size: var(--text-tiny); font-weight: 500; line-height: 2.1; letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-ink-2); }
+.fig-text { padding: var(--space-lg) var(--space-md); overflow-x: auto; font-family: var(--font-outlier); font-size: var(--text-label); line-height: 1.75; color: var(--color-ink-2); }
+.fig-text b { font-weight: 500; color: var(--color-ink); }
+.fig-text i { font-style: normal; color: var(--color-accent-text); }
+.table { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: var(--text-small); line-height: 1.5; }
+th, td { padding: var(--space-xs) var(--space-md) var(--space-xs) 0; border-top: var(--rule-hair) solid var(--color-rule); text-align: left; vertical-align: top; color: var(--color-ink-2); }
+th:first-child, td:first-child { padding-left: var(--space-md); }
+thead th { padding-top: var(--space-sm); border-top: 0; font-family: var(--font-outlier); font-size: var(--text-tiny); font-weight: 400; letter-spacing: 0.03em; text-transform: uppercase; vertical-align: bottom; color: var(--color-muted); }
+tbody th { font-weight: 400; }
+td.pick, td.num { color: var(--color-ink); }
+td.keep, thead th { white-space: nowrap; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.code-head { display: flex; align-items: center; justify-content: space-between; min-height: var(--control); padding: 0 var(--space-xs) 0 var(--space-md); border-bottom: var(--rule-hair) solid var(--color-rule); font-family: var(--font-outlier); font-size: var(--text-tiny); letter-spacing: 0.03em; text-transform: uppercase; }
+.code-head span span { margin-left: var(--space-sm); text-transform: none; color: var(--color-muted); }
+.code pre { padding: var(--space-md); overflow-x: auto; font-family: var(--font-outlier); font-size: var(--text-label); line-height: 1.75; color: var(--color-ink-2); tab-size: 2; }
+.copy { position: relative; height: var(--control-s); padding: 0 var(--space-xs); border: 0; background: none; font-family: var(--font-outlier); font-size: var(--text-tiny); letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-muted); white-space: nowrap; cursor: pointer; transition: color var(--dur-micro) var(--ease-out); }
+.copy::after { content: ""; position: absolute; inset: calc(var(--space-2xs) * -1.5) 0; }
+.copy:hover { color: var(--color-ink); }
+.copy:active { color: var(--color-ink-2); }
+.copy:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* more: rows that link to other posts */
+.more { border-top: var(--rule-hair) solid var(--color-rule); padding-block: var(--space-2xl) var(--space-3xl); }
+.more h2 { font-family: var(--font-outlier); font-size: var(--text-body); font-weight: 400; }
+.more ol { margin: var(--space-lg) 0 0; padding: 0; list-style: none; border-bottom: var(--rule-hair) solid var(--color-rule); }
+.more a { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr) auto; align-items: baseline; padding-block: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); text-decoration-line: none; }
+.more time, .more .min { font-family: var(--font-outlier); font-size: var(--text-small); color: var(--color-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.more a:hover b { text-decoration-line: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
+.more b { font-weight: 500; }
+
+/* foot */
+.foot { border-top: var(--rule-hair) solid var(--color-rule); }
+.foot-in { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); min-height: var(--bar-h); }
+.foot .key { justify-self: auto; }
+
+@media (max-width: 64rem) {
+  :root { --gutter: 24px; --space-hero: 48px; }
+  .nav-in { grid-template-columns: auto auto auto 1fr; column-gap: var(--space-lg); }
+  .nav-in .key:last-child { justify-self: end; }
+  .hero-in, .body { grid-template-columns: minmax(0, 1fr); }
+  .hero-in > * { grid-column: 1; }
+  .rail { position: static; padding: 0 0 var(--space-xl); }
+  .rail .share, .prog { display: none; }
+  .post { margin-inline: auto; width: 100%; }
+  .rail { max-width: var(--measure); margin-inline: auto; width: 100%; }
+  .more a { grid-template-columns: 8.5rem minmax(0, 1fr) auto; column-gap: var(--space-md); }
+}
+@media (max-width: 40rem) {
+  :root { --gutter: 16px; --space-sec: 44px; }
+  .meta { grid-template-columns: repeat(3, auto); justify-content: space-between; column-gap: var(--space-sm); }
+  .box figcaption { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .more a { grid-template-columns: minmax(0, 1fr) auto; }
+  .more time { grid-column: 1 / -1; }
+  tbody th { min-width: 6.5rem; }
+  .hide-s { display: none; }
+  .stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .stack table, .stack tbody, .stack tr, .stack th, .stack td { display: block; }
+  .stack tr { padding: var(--space-sm) var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
+  .stack tr:first-child { border-top: 0; }
+  .stack th, .stack td { padding: 0; border: 0; }
+  .stack th:first-child, .stack td:first-child { padding-left: 0; }
+  .stack td { margin-top: var(--space-2xs); }
+  .stack td::before { content: attr(data-label); display: block; font-family: var(--font-outlier); font-size: var(--text-tiny); letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-muted); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="../index.html" aria-label="Artikit, all pages">
+      <svg viewBox="0 0 14 14" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h6v6H0zM8 0h6v6H8zM0 8h6v6H0zM8 8h6v6H8z"/></svg>
+    </a>
+    <a class="key" href="../index.html" data-key="h"><span aria-hidden="true">[H]</span>Home</a>
+    <a class="key" href="../index.html#blog" data-key="b"><span aria-hidden="true">[B]</span>Blog</a>
+    <button class="key" id="scheme" type="button" data-key="t" aria-label="Switch between light and dark"><span aria-hidden="true">[T]</span>Theme</button>
+  </div>
+</header>
+
+<main>
+  <header class="hero">
+    <div class="wrap hero-in">
+      <svg class="tile" viewBox="0 0 20 20" shape-rendering="crispEdges" aria-hidden="true">
+        <path class="tile-ground" d="M0 0h20v20H0z"/>
+        <path class="tile-glyph" d="M5 4h8v1H5zM13 5h1v1h-1zM14 6h1v10h-1zM5 16h9v1H5zM4 5h1v11H4zM11 5h1v3h-1zM12 7h2v1h-2zM6 10h6v1H6zM6 12h6v1H6zM6 14h4v1H6z"/>
+      </svg>
+      <h1>Which blog template should you write with?</h1>
+      <p class="standfirst">Five single-file article pages, what each is for, and how to start.</p>
+      <dl class="meta">
+        <div><dt class="label">Author</dt><dd><span class="br" aria-hidden="true">└</span><a href="https://github.com/j3ssie" rel="author">j3ssie</a></dd></div>
+        <div><dt class="label">Category</dt><dd><span class="br" aria-hidden="true">└</span>Playbooks</dd></div>
+        <div><dt class="label">Published</dt><dd><span class="br" aria-hidden="true">└</span><time datetime="2026-11-15">Nov 15, 2026</time></dd></div>
+      </dl>
+    </div>
+  </header>
+
+  <div class="wrap body">
+
+    <aside class="rail" aria-label="On this page">
+      <p class="label">Tree</p>
+      <nav class="tree" id="tree" aria-label="Sections">
+        <a href="#tldr"><span class="br" aria-hidden="true">└</span>TL;DR</a>
+        <a href="#pick"><span class="br" aria-hidden="true">└</span>Pick a template by document</a>
+        <a href="#side-by-side"><span class="br" aria-hidden="true">└</span>The five templates side by side</a>
+        <a href="#trade-offs"><span class="br" aria-hidden="true">└</span>The trade-offs</a>
+        <a class="sub" href="#sans-serif"><span class="br" aria-hidden="true">└</span>Sans against serif</a>
+        <a class="sub" href="#rail"><span class="br" aria-hidden="true">└</span>A rail against a bare column</a>
+        <a class="sub" href="#light-dark"><span class="br" aria-hidden="true">└</span>Light against dark</a>
+        <a href="#start"><span class="br" aria-hidden="true">└</span>Start a document</a>
+      </nav>
+      <p class="prog" aria-hidden="true"><b id="bar">░░░░░░░░░░░░░░░░░░░░░░░░</b><span id="pct">00%</span></p>
+      <p class="label" id="readtime">3 min read</p>
+      <div class="share">
+        <p class="label">Share</p>
+        <div class="tree">
+          <a href="mailto:?subject=Which%20blog%20template%20should%20you%20write%20with%3F"><span class="br" aria-hidden="true">└</span>Email</a>
+          <button type="button" data-copy-link><span class="br" aria-hidden="true">└</span><span data-copy-label>Copy URL</span></button>
+        </div>
+      </div>
+    </aside>
+
+    <article class="post">
+
+      <p>Artikit has five blog templates. Each is one HTML file with a small header and footer, and each was drawn after a different published post. They hold the same kinds of block, so the choice is about register: how the page should sound before anyone reads a word.</p>
+
+      <p>If you are about to write something and are not sure which file to copy, this page is the short way to decide.</p>
+
+      <h2 id="tldr">TL;DR</h2>
+
+      <p>Start most documents on the release template. It is the plainest of the five, it is light first, and its rail lists the sections for you.</p>
+
+      <p>From there:</p>
+
+      <ul>
+        <li>Move to the narrative when the document tells how something was made, in order</li>
+        <li>Move to the research note when the claim needs plots, a table and footnotes</li>
+        <li>Stay on this playbook when the reader has to choose or follow steps, since it is built around tables and code</li>
+        <li>Move to the essay when the text is long and personal, and a callout or a checklist helps it along</li>
+      </ul>
+
+      <figure class="box">
+<pre class="fig-text"><b>What are you writing?</b>
+├── how something was made
+│   └── <i>narrative</i>
+├── one announcement
+│   └── <i>release</i>
+├── a measured result
+│   └── <i>research note</i>
+├── a guide or a comparison
+│   └── <i>playbook</i>
+└── a long personal piece
+    └── <i>essay</i></pre>
+        <figcaption><b>Fig A</b><span>The decision as a tree. Each branch ends on the template to copy.</span></figcaption>
+      </figure>
+
+      <h2 id="pick">Pick a template by document</h2>
+
+      <div class="box table stack" role="region" aria-label="Templates by kind of document" tabindex="0">
+        <table>
+          <thead>
+            <tr><th scope="col">Document</th><th scope="col">Start with</th><th scope="col">Why</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Release notes, changelogs and announcements</th><td class="pick" data-label="Start with">Release</td><td data-label="Why">One action in a box under the lede, and a rail that lists the sections.</td></tr>
+            <tr><th scope="row">A redesign or a build, told in order</th><td class="pick" data-label="Start with">Narrative</td><td data-label="Why">A centred title, an opening figure and figures stacked for comparison.</td></tr>
+            <tr><th scope="row">A benchmark, an audit or a measurement</th><td class="pick" data-label="Start with">Research note</td><td data-label="Why">Numbered plots in panels, a numbered table and footnotes.</td></tr>
+            <tr><th scope="row">A how-to, a comparison or a decision guide</th><td class="pick" data-label="Start with">Playbook</td><td data-label="Why">Tables, code boxes and a tree of sections that follows the scroll.</td></tr>
+            <tr><th scope="row">An essay, a retrospective or a memo</th><td class="pick" data-label="Start with">Essay</td><td data-label="Why">Serif text at 20px, a callout, a checklist and a toggle.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="side-by-side">The five templates side by side</h2>
+
+      <p>All five keep one text column and pull it in until the average line holds about 70 characters. The posts they were drawn after run from 76 to 79.</p>
+
+      <div class="box table" role="region" aria-label="The five templates compared, with the average characters a line" tabindex="0">
+        <table>
+          <thead>
+            <tr><th scope="col">Template</th><th scope="col" class="hide-s">Ground</th><th scope="col">Body</th><th scope="col">Column</th><th scope="col">Average</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Narrative</th><td class="keep hide-s">Near-black</td><td>Inter, 17px</td><td class="num">576px</td><td class="num">70.5</td></tr>
+            <tr><th scope="row">Release</th><td class="keep hide-s">White</td><td>Geist, 18px</td><td class="num">608px</td><td class="num">70.0</td></tr>
+            <tr><th scope="row">Research note</th><td class="keep hide-s">Cream</td><td>Source Serif 4, 17px</td><td class="num">560px</td><td class="num">69.5</td></tr>
+            <tr><th scope="row">Playbook</th><td class="keep hide-s">Cream</td><td>Figtree, 18px</td><td class="num" data-n="pb-col">576px</td><td class="num" data-n="pb-cpl">70.2</td></tr>
+            <tr><th scope="row">Essay</th><td class="keep hide-s">White</td><td>Newsreader, 20px</td><td class="num" data-n="es-col">592px</td><td class="num" data-n="es-cpl">71.0</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <figure class="box">
+<pre class="fig-text" id="fig-b">                   0    25   50   75
+                   ▏    ▏    ▏    ▏
+linear        <b>75.9</b> ███████████████▏
+vercel        <b>79.3</b> ███████████████▉
+anthropic     <b>78.0</b> ███████████████▋
+claude.dev    <b>76.4</b> ███████████████▎
+notion        <b>78.2</b> ███████████████▋
+
+narrative     <b>70.5</b> ██████████████▏
+release       <b>70.0</b> ██████████████
+research note <b>69.5</b> █████████████▉
+playbook      <b>70.2</b> ██████████████
+essay         <b>71.0</b> ██████████████▎</pre>
+        <figcaption><b>Fig B</b><span>Characters a line at a 1440px window, for the five reference posts and then the five templates. The last tick is 75, the top of the comfortable range.</span></figcaption>
+      </figure>
+
+      <h2 id="trade-offs">The trade-offs</h2>
+
+      <p>Three choices separate the five, and none of them is about what you write.</p>
+
+      <h3 id="sans-serif">Sans against serif</h3>
+
+      <p>Three of the five set their text in a sans face and two in a serif. The serif pages are easier to read at length and harder to scan, so the research note sets its table and its plots in sans, and the essay keeps its tables short.</p>
+
+      <h3 id="rail">A rail against a bare column</h3>
+
+      <p>Four of the five carry a rail beside the text: the release post, the research note, the essay and this page. The narrative has none. A rail helps a reader who jumps around and distracts one who reads straight through. On a phone each rail moves above the text.</p>
+
+      <h3 id="light-dark">Light against dark</h3>
+
+      <p>Every template has both schemes and follows the system setting until you press <code>T</code> or use the switch in the header. Only the narrative is drawn dark first. Choose by where the document will be read: dark suits a screen at night and washes out on a projector.</p>
+
+      <h2 id="start">Start a document</h2>
+
+      <ol>
+        <li>Copy the file and rename it, keeping the <code>blog-</code> prefix</li>
+        <li>Replace what is inside <code>&lt;article class="post"&gt;</code> with your own text</li>
+        <li>List each <code>h2</code> and <code>h3</code> in <code>nav.tree</code>, so the rail can follow the scroll</li>
+        <li>Add the page to <code>index.html</code> and <code>llms.txt</code>, so the chooser lists it</li>
+      </ol>
+
+      <figure class="box code">
+        <div class="code-head"><span>Code<span>Shell</span></span><button class="copy" type="button" data-copy>Copy</button></div>
+<pre><code>cp pages/blog-terminal-playbook.html pages/blog-my-guide.html</code></pre>
+      </figure>
+
+      <p>A figure is a box with whatever you want to show and a caption under a rule. This is the whole of Fig A, minus its text:</p>
+
+      <figure class="box code">
+        <div class="code-head"><span>Code<span>HTML</span></span><button class="copy" type="button" data-copy>Copy</button></div>
+<pre><code>&lt;figure class="box"&gt;
+  &lt;pre class="fig-text"&gt;...&lt;/pre&gt;
+  &lt;figcaption&gt;
+    &lt;b&gt;Fig A&lt;/b&gt;
+    &lt;span&gt;What the figure shows.&lt;/span&gt;
+  &lt;/figcaption&gt;
+&lt;/figure&gt;</code></pre>
+      </figure>
+
+    </article>
+  </div>
+
+  <section class="more" aria-labelledby="more-h">
+    <div class="wrap">
+      <h2 id="more-h">More templates</h2>
+      <ol>
+        <li><a href="blog-serif-essay.html"><time datetime="2026-11-15">Nov 15, 2026</time><b>Inside the five Artikit blog templates</b><span class="min" data-n="es-min">3 min</span></a></li>
+        <li><a href="blog-research-note.html"><time datetime="2026-11-14">Nov 14, 2026</time><b>The measure of this page</b><span class="min">4 min</span></a></li>
+        <li><a href="blog-release.html"><time datetime="2026-11-14">Nov 14, 2026</time><b>Artikit now has three article templates</b><span class="min">2 min</span></a></li>
+        <li><a href="blog-narrative.html"><time datetime="2026-11-14">Nov 14, 2026</time><b>Three blog posts, measured</b><span class="min">3 min</span></a></li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <a class="brand" href="../index.html" aria-label="Artikit, all pages">
+      <svg viewBox="0 0 14 14" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h6v6H0zM8 0h6v6H8zM0 8h6v6H0zM8 8h6v6H8z"/></svg>
+    </a>
+    <button class="key" id="keys" type="button" aria-pressed="true">Shortcuts on</button>
+    <a class="key" href="#top">Top</a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+  function flip() {
+    var now = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    var next = now === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    store("artikit-blog-theme", next);
+  }
+  var scheme = document.getElementById("scheme");
+  if (scheme) scheme.addEventListener("click", flip);
+
+  // single-key shortcuts for the bracketed links, with a switch that turns them off
+  var keysOn = read("artikit-blog-keys") !== "off";
+  var keysBtn = document.getElementById("keys");
+  function paintKeys() {
+    if (!keysBtn) return;
+    keysBtn.textContent = keysOn ? "Shortcuts on" : "Shortcuts off";
+    keysBtn.setAttribute("aria-pressed", keysOn ? "true" : "false");
+  }
+  paintKeys();
+  if (keysBtn) keysBtn.addEventListener("click", function () { keysOn = !keysOn; store("artikit-blog-keys", keysOn ? "on" : "off"); paintKeys(); });
+  addEventListener("keydown", function (e) {
+    if (!keysOn || e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+    var t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    var el = document.querySelector('[data-key="' + e.key.toLowerCase() + '"]');
+    if (el) { e.preventDefault(); el.click(); }
+  });
+
+  function selectAll(node) {
+    var r = document.createRange();
+    r.selectNodeContents(node);
+    var sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+  function flash(node, label) {
+    var was = node.textContent;
+    node.textContent = label;
+    setTimeout(function () { node.textContent = was; }, 1600);
+  }
+  document.querySelectorAll("[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var code = btn.closest("figure").querySelector("pre");
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code.textContent).then(function () { flash(btn, "Copied"); }, function () { selectAll(code); });
+      else selectAll(code);
+    });
+  });
+  var link = document.querySelector("[data-copy-link]");
+  if (link) {
+    if (navigator.clipboard && navigator.clipboard.writeText) link.addEventListener("click", function () {
+      navigator.clipboard.writeText(location.href).then(function () { flash(link.querySelector("[data-copy-label]"), "Copied"); }, function () {});
+    });
+    else link.hidden = true;
+  }
+
+  // reading time from the words on the page, at 230 a minute
+  var post = document.querySelector(".post"), rt = document.getElementById("readtime");
+  if (post && rt) rt.textContent = Math.max(1, Math.round(post.textContent.trim().split(/\s+/).length / 230)) + " min read";
+
+  // the tree follows the scroll, and the bar fills as the article is read
+  var items = [];
+  document.querySelectorAll("#tree a").forEach(function (a) {
+    var h = document.getElementById(a.getAttribute("href").slice(1));
+    if (h) items.push([h, a]);
+  });
+  var bar = document.getElementById("bar"), pct = document.getElementById("pct"), cells = 24, queued = false;
+  function paint() {
+    queued = false;
+    var line = innerHeight * 0.3, current = null;
+    items.forEach(function (it) { if (it[0].getBoundingClientRect().top <= line) current = it[1]; });
+    items.forEach(function (it) {
+      if (it[1] === current) it[1].setAttribute("aria-current", "location");
+      else it[1].removeAttribute("aria-current");
+    });
+    if (!post || !bar) return;
+    var r = post.getBoundingClientRect();
+    var done = Math.max(0, Math.min(1, (innerHeight * 0.5 - r.top) / r.height));
+    var filled = Math.round(done * cells);
+    bar.textContent = "▓".repeat(filled) + "░".repeat(cells - filled);
+    pct.textContent = String(Math.round(done * 100)).padStart(2, "0") + "%";
+  }
+  addEventListener("scroll", function () { if (!queued) { queued = true; requestAnimationFrame(paint); } }, { passive: true });
+  addEventListener("resize", paint);
+  paint();
+})();
+</script>
+</body>
+</html>

@@ -7,10 +7,10 @@ const b=await chromium.launch({channel:'chrome'});
 // usage: node make-thumbs.mjs page.html other.html@light   (@light captures the light scheme; default dark)
 for(const arg of files){
   const [f,scheme='dark']=arg.split('@');
-  if(!existsSync(dir+f)){console.log('skip',f);continue;}
+  if(!existsSync(dir+'pages/'+f)){console.log('skip',f);continue;}
   const ctx=await b.newContext({viewport:{width:1440,height:900},deviceScaleFactor:0.5,colorScheme:scheme});
   const p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));
-  await p.goto('file://'+dir+f,{waitUntil:'load'});
+  await p.goto('file://'+dir+'pages/'+f,{waitUntil:'load'});
   await p.waitForTimeout(f.startsWith('terminal')?6000:1500);
   // smooth scrolling keeps animating after the pass and leaves the page off-top; force instant and re-assert
   await p.addStyleTag({content:'html,body{scroll-behavior:auto!important}'});

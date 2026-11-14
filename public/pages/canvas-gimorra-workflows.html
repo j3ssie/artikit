@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gimorra · Workflows (sample)</title>
+<meta name="description" content="Sample canvas page: agent workflows for Gimorra drawn as loop and swimlane diagrams on a pannable canvas, with a run you can start and an activity feed.">
+<link rel="icon" href="../assets/gimorra-logo.png">
+<meta name="color-scheme" content="dark light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Parser-blocking on purpose: the stored theme has to land before the first paint. -->
+<script>
+(function () {
+  var t = null;
+  try { t = localStorage.getItem("gm-workflows-theme"); } catch (e) {}
+  if (t !== "light" && t !== "dark") t = window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  document.documentElement.dataset.theme = t;
+})();
+</script>
+<style>
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: custom · idea: "a workflow is a loop you can watch close: trigger, steps inside a dashed frame, a pill at each end" · vibe: "near-black, quiet, mono-labelled, keyboard-first"
+ * paper: oklch(14.5% 0.003 255) · accent: oklch(74% 0.19 148) · display: Inter · body: Inter
+ * nav: one-line top bar, workflow list as the master pane · signature: the loop diagram running step by step · states: not run, running, completed, step selected, reduced motion
+ * axes: dark/grotesk/chromatic-green · posture: restrained · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: V, it shares a pannable canvas with the scan-lifecycle page; the vertical loop, the swimlane and the run feed are what set it apart */
+/* Not Hallmark-clean on 67, on purpose: loop-diagram nodes and pills are uppercase because the reference diagram the page was asked to follow sets them that way. Interface labels outside the canvas stay sentence case. Mono on the same labels (gate 64) is kept for the same reason. */
+:root {
+  color-scheme: dark;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px;
+  --text-xs: 0.75rem; --text-sm: 0.8125rem; --text-md: 0.9375rem; --text-lg: 1.125rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-micro: 120ms; --dur-short: 220ms;
+  --color-paper: light-dark(oklch(98.8% 0 0), oklch(14.5% 0.003 255));
+  --color-paper-2: light-dark(oklch(96.8% 0.002 255), oklch(17.5% 0.003 255));
+  --color-paper-3: light-dark(oklch(100% 0 0), oklch(21% 0.004 255));
+  --color-paper-4: light-dark(oklch(94.5% 0.003 255), oklch(25% 0.005 255));
+  --color-ink: light-dark(oklch(22.5% 0.006 265), oklch(97.5% 0.002 200));
+  --color-ink-2: light-dark(oklch(37% 0.008 260), oklch(84% 0.006 260));
+  --color-muted: light-dark(oklch(52% 0.01 260), oklch(67% 0.012 260));
+  --color-rule: light-dark(oklch(92% 0.004 260), oklch(26.5% 0.008 260));
+  --color-rule-2: light-dark(oklch(84% 0.006 260), oklch(36% 0.01 260));
+  --color-edge: light-dark(oklch(62% 0.008 260), oklch(50% 0.01 260));
+  --color-node-rule: light-dark(oklch(86% 0.006 260), oklch(26.5% 0.008 260));
+  --color-accent: light-dark(oklch(49% 0.15 150), oklch(74% 0.19 148));
+  --color-accent-ink: light-dark(oklch(100% 0 0), oklch(14.5% 0.003 255));
+  --color-focus: light-dark(oklch(52% 0.17 258), oklch(74% 0.13 255));
+  --color-accent-2: light-dark(oklch(50% 0.16 275), oklch(77% 0.11 275));
+  --color-run: light-dark(oklch(52% 0.12 75), oklch(83% 0.15 85));
+  --color-error: light-dark(oklch(51% 0.2 25), oklch(72% 0.17 22));
+  --font-display: "Inter", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius-card: 8px; --radius-ctl: 6px; --radius-sharp: 2px; --radius-pill: 999px;
+  --bar-h: 56px; --list-w: 264px; --panel-w: 344px;
+  --z-edges: 1; --z-nodes: 2; --z-marks: 3; --z-hud: 10; --z-bar: 20;
+}
+:root[data-theme="light"] { color-scheme: light; }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { scrollbar-color: var(--color-rule-2) var(--color-paper); }
+body {
+  margin: 0; height: 100dvh; display: grid; grid-template-rows: var(--bar-h) minmax(0, 1fr);
+  background: var(--color-paper); color: var(--color-ink);
+  font-family: var(--font-body); font-size: var(--text-sm); line-height: 1.5; letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: color-mix(in oklab, var(--color-accent) 30%, transparent); }
+:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+h1, h2, h3, p, ol, ul, dl, dd { margin: 0; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
+ul, ol { list-style: none; padding: 0; }
+button { font: inherit; color: inherit; letter-spacing: inherit; }
+a { color: inherit; }
+svg { display: block; }
+[hidden] { display: none !important; }
+.ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.sprite { position: absolute; width: 0; height: 0; }
+kbd { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding-inline: var(--space-2xs); border: 1px solid var(--color-rule-2); border-radius: 4px; font: 500 0.6875rem/1 var(--font-mono); color: var(--color-ink-2); }
+
+/* ── top bar ─────────────────────────────────────────────────────────── */
+.bar {
+  position: relative; z-index: var(--z-bar); display: flex; align-items: center; gap: var(--space-md);
+  padding-inline: var(--space-md); border-bottom: 1px solid var(--color-rule); background: var(--color-paper-2);
+}
+.crumbs { display: flex; align-items: center; gap: var(--space-xs); min-width: 0; }
+.brand { display: inline-flex; align-items: center; gap: var(--space-xs); text-decoration: none; font-weight: 600; border-radius: var(--radius-ctl); }
+.brand img { border-radius: 5px; }
+.crumbs .sep { color: var(--color-rule-2); }
+.crumbs h1 { font-size: var(--text-sm); font-weight: 500; white-space: nowrap; }
+.crumbs .cur { color: var(--color-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar-end { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
+.note { color: var(--color-muted); font-size: var(--text-xs); white-space: nowrap; }
+
+.btn {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs);
+  height: 32px; padding-inline: var(--space-sm); border: 1px solid var(--color-rule-2); border-radius: var(--radius-ctl);
+  background: var(--color-paper-3); color: var(--color-ink); cursor: pointer; white-space: nowrap; font-weight: 500;
+  transition: background-color var(--dur-micro), border-color var(--dur-micro);
+}
+.btn::after { content: ""; position: absolute; inset: -6px -2px; }
+.btn:hover { background: var(--color-paper-4); }
+.btn:active { background: var(--color-rule); }
+.btn.sq { width: 32px; padding: 0; }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn.primary { background: var(--color-ink); color: var(--color-paper); border-color: var(--color-ink); }
+.btn.primary:hover { background: var(--color-ink-2); border-color: var(--color-ink-2); }
+.btn.primary:active { background: var(--color-muted); border-color: var(--color-muted); }
+.btn.primary kbd { border-color: color-mix(in oklab, var(--color-paper) 40%, transparent); color: var(--color-paper); }
+:root[data-theme="dark"] .t-moon, :root[data-theme="light"] .t-sun { display: none; }
+
+/* ── shell ───────────────────────────────────────────────────────────── */
+.shell { display: grid; grid-template-columns: var(--list-w) minmax(0, 1fr) var(--panel-w); min-height: 0; }
+.list { display: flex; flex-direction: column; border-right: 1px solid var(--color-rule); background: var(--color-paper-2); min-height: 0; overflow-y: auto; }
+.list h2 { padding: var(--space-md) var(--space-md) var(--space-xs); font-size: var(--text-xs); font-weight: 500; color: var(--color-muted); }
+.list ul { padding: 0 var(--space-xs); display: grid; gap: var(--space-3xs); }
+.wf {
+  display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 0 var(--space-xs); align-items: center; width: 100%;
+  padding: var(--space-xs); border: 0; border-radius: var(--radius-ctl); background: transparent; text-align: left; cursor: pointer;
+  transition: background-color var(--dur-micro);
+}
+.wf:hover { background: var(--color-paper-3); }
+.wf[aria-current="true"] { background: var(--color-paper-4); }
+.wf .ic { color: var(--color-muted); }
+.wf[aria-current="true"] .ic { color: var(--color-accent-2); }
+.wf[data-run="run"] .ic { color: var(--color-run); }
+.wf[data-run="done"] .ic { color: var(--color-accent); }
+.wf b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wf span { grid-column: 2; color: var(--color-muted); font-size: var(--text-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.keys { margin-top: auto; padding: var(--space-md); display: grid; grid-template-columns: auto 1fr; gap: var(--space-xs) var(--space-sm); align-items: center; color: var(--color-muted); font-size: var(--text-xs); border-top: 1px solid var(--color-rule); }
+.keys dt { display: flex; gap: var(--space-2xs); }
+
+.canvas { position: relative; overflow: hidden; min-height: 0; touch-action: none; cursor: grab; background: var(--color-paper); }
+.canvas.panning { cursor: grabbing; }
+.world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.world.ease { transition: transform var(--dur-short) var(--ease-out); }
+.world::before {
+  content: ""; position: absolute; inset: -1600px; pointer-events: none;
+  background-image: radial-gradient(var(--color-rule) 1px, transparent 1px); background-size: 24px 24px; opacity: 0.6;
+}
+
+/* regions */
+.reg { position: absolute; pointer-events: none; }
+.reg.loop { border: 1px dashed var(--color-rule-2); border-radius: var(--radius-card); transition: border-color var(--dur-short); }
+.reg.loop.on { border-color: color-mix(in oklab, var(--color-accent) 60%, var(--color-rule-2)); }
+.reg.lane { border: 1px solid var(--color-rule-2); border-radius: var(--radius-sharp); }
+.reg.gap { background: var(--color-paper); }
+.glabel { position: absolute; display: inline-flex; align-items: center; gap: var(--space-xs); white-space: nowrap; pointer-events: none; font: 500 var(--text-sm)/1 var(--font-mono); text-transform: uppercase; color: var(--color-muted); }
+
+/* edges */
+.edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: var(--z-edges); }
+.edge .ln { fill: none; stroke: var(--color-edge); stroke-width: 1; transition: stroke var(--dur-short); }
+.edge.dashed .ln { stroke-dasharray: 3 4; }
+.edge .ah { fill: var(--color-edge); transition: fill var(--dur-short); }
+.edge.on .ln { stroke: color-mix(in oklab, var(--color-accent) 78%, var(--color-ink)); }
+.edge.on .ah { fill: color-mix(in oklab, var(--color-accent) 78%, var(--color-ink)); }
+
+/* nodes */
+.node {
+  position: absolute; z-index: var(--z-nodes); display: block; padding: 0; border: 1px solid var(--color-node-rule); border-radius: var(--radius-card);
+  background: var(--color-paper-3); color: var(--color-ink); text-align: left; cursor: pointer; white-space: nowrap;
+  font: 500 var(--text-xs)/18px var(--font-mono);
+  transition: border-color var(--dur-micro), background-color var(--dur-micro), box-shadow var(--dur-micro);
+}
+.node:hover { border-color: var(--color-rule-2); background: var(--color-paper-4); }
+.node[aria-pressed="true"] { border-color: var(--color-accent-2); box-shadow: 0 0 0 1px var(--color-accent-2), 0 0 0 5px color-mix(in oklab, var(--color-accent-2) 20%, transparent); }
+.node[data-state="run"] { border-color: color-mix(in oklab, var(--color-run) 70%, var(--color-rule)); }
+.node[data-state="done"] { border-color: color-mix(in oklab, var(--color-accent) 55%, var(--color-rule)); }
+.node.step { padding: var(--space-sm) var(--space-md); text-transform: uppercase; }
+.nt { display: flex; align-items: center; gap: var(--space-xs); }
+.ni { display: grid; place-items: center; width: 16px; height: 16px; flex: none; color: var(--color-ink-2); }
+.ns { display: block; padding-left: var(--space-lg); line-height: 22px; font-weight: 400; color: var(--color-muted); transition: color var(--dur-micro); }
+.nt + .ns { margin-top: var(--space-xs); }
+.ns.done { color: var(--color-ink-2); }
+.tok { color: var(--color-accent-2); }
+.node.step[data-state="idle"] .ni { color: var(--color-accent-2); }
+.node.step[data-state="idle"][data-id="trigger"] .ni { color: var(--color-run); }
+.world .node[data-state="run"] .ni { color: var(--color-run); }
+.world .node[data-state="done"] .ni { color: var(--color-accent); }
+.node[data-state="run"] .ni .ic { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+/* swimlane nodes: sharp, icon cell, mixed case */
+.node.cell { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: stretch; border-radius: var(--radius-sharp); border-color: var(--color-rule-2); background: var(--color-paper); font-size: var(--text-md); font-weight: 400; }
+.node.cell .ni { width: auto; height: auto; background: var(--color-paper-3); border-right: 1px solid var(--color-rule-2); color: var(--color-ink); }
+.node.cell .ni .ic { width: 24px; height: 24px; }
+.node.cell .ct { display: flex; align-items: center; padding-inline: var(--space-md); }
+.node.big { display: grid; grid-template-rows: 58px minmax(0, 1fr); border-radius: var(--radius-sharp); border-color: var(--color-rule-2); background: var(--color-paper); font-size: var(--text-md); font-weight: 400; }
+.node.big .ct { display: grid; place-items: center; background: var(--color-paper-3); border-bottom: 1px solid var(--color-rule-2); }
+.node.big .ni { width: auto; height: auto; color: var(--color-ink); }
+.node.big .ni .ic { width: 64px; height: 64px; stroke-width: 1.1; }
+.node.agent[data-state="idle"] .ni { color: var(--color-accent-2); background: color-mix(in oklab, var(--color-accent-2) 13%, var(--color-paper-3)); }
+.node.cell:hover, .node.big:hover { background: var(--color-paper); border-color: var(--color-ink-2); }
+
+.pill {
+  position: absolute; z-index: var(--z-marks); transform: translate(-50%, 0); pointer-events: none;
+  display: inline-flex; align-items: center; gap: var(--space-xs); height: 30px; padding: 0 var(--space-md) 0 var(--space-sm); white-space: nowrap;
+  border: 1px solid var(--color-rule-2); border-radius: var(--radius-pill); background: var(--color-paper-3); color: var(--color-ink);
+  font: 500 var(--text-xs)/1 var(--font-mono); text-transform: uppercase;
+  transition: border-color var(--dur-short), background-color var(--dur-short);
+}
+.pill .ic { color: var(--color-accent); }
+.pill.on { border-color: color-mix(in oklab, var(--color-accent) 60%, var(--color-rule-2)); background: color-mix(in oklab, var(--color-accent) 14%, var(--color-paper-3)); }
+
+/* canvas HUD */
+.hud { position: absolute; z-index: var(--z-hud); cursor: default; display: flex; gap: var(--space-2xs); }
+.zoom { left: var(--space-md); top: var(--space-md); }
+.zoom output { display: grid; place-items: center; min-width: 52px; height: 32px; padding-inline: var(--space-xs); border: 1px solid var(--color-rule); border-radius: var(--radius-ctl); background: var(--color-paper-3); color: var(--color-ink-2); font-variant-numeric: tabular-nums; }
+.runbar { right: var(--space-md); top: var(--space-md); align-items: center; gap: var(--space-sm); }
+.runbar p { color: var(--color-muted); font-variant-numeric: tabular-nums; }
+
+/* ── panel ───────────────────────────────────────────────────────────── */
+.panel { border-left: 1px solid var(--color-rule); background: var(--color-paper-2); overflow-y: auto; min-height: 0; }
+.panel section { padding: var(--space-lg); }
+.panel section + section { border-top: 1px solid var(--color-rule); }
+.panel h2 { font-size: var(--text-lg); line-height: 1.3; letter-spacing: -0.012em; }
+.panel h3 { font-size: var(--text-sm); }
+.panel p { color: var(--color-ink-2); margin-top: var(--space-xs); text-wrap: pretty; }
+.props { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: var(--space-sm); margin-top: var(--space-md); }
+.props dt { color: var(--color-muted); }
+.props dd { display: flex; align-items: center; gap: var(--space-xs); min-width: 0; }
+.props dd .ic { color: var(--color-accent); }
+.step-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-sm); }
+.quote { margin-top: var(--space-sm); padding: var(--space-sm); border: 1px solid var(--color-rule); border-radius: var(--radius-ctl); background: var(--color-paper); color: var(--color-ink-2); }
+.tools { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-sm); font: 400 var(--text-xs)/1.6 var(--font-mono); color: var(--color-ink-2); }
+.feed-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-sm); }
+.feed-head span { color: var(--color-muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.feed { margin-top: var(--space-sm); display: grid; gap: var(--space-sm); }
+.feed li { display: grid; grid-template-columns: 16px 40px minmax(0, 1fr); gap: var(--space-xs); align-items: start; color: var(--color-ink-2); }
+.feed .ic { margin-top: var(--space-3xs); color: var(--color-accent); }
+.feed time { color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.empty { color: var(--color-muted); }
+
+.fallback { position: absolute; inset: 0; overflow: auto; padding: var(--space-xl); background: var(--color-paper); }
+.fallback ol { margin-top: var(--space-md); padding-left: var(--space-lg); list-style: decimal; display: grid; gap: var(--space-xs); max-width: 60ch; color: var(--color-ink-2); }
+
+@media (max-width: 68rem) { :root { --list-w: 220px; --panel-w: 304px; } }
+@media (max-width: 60rem) {
+  body { height: auto; display: block; }
+  .bar { height: var(--bar-h); }
+  .shell { display: block; }
+  .list { border-right: 0; border-bottom: 1px solid var(--color-rule); }
+  .list h2, .keys { display: none; }
+  .list ul { display: flex; overflow-x: auto; padding: var(--space-xs); scrollbar-width: none; }
+  .list li { flex: none; }
+  .wf { width: auto; }
+  .canvas { height: 66svh; min-height: 420px; }
+  .panel { border-left: 0; border-top: 1px solid var(--color-rule); }
+  .note, .btn kbd { display: none; }
+}
+@media (max-width: 40rem) {
+  .crumbs .cur, .crumbs .sep.c { display: none; }
+  body { font-size: var(--text-md); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2.500L5 13.500h6l-1 8 8-11h-6z"/></symbol>
+  <symbol id="i-loop" viewBox="0 0 24 24"><rect x="3.500" y="3.500" width="17" height="17" rx="4"/><path d="M8.500 11V9.500h7M13.500 7.500l2 2-2 2M15.500 13v1.500h-7M10.500 16.500l-2-2 2-2"/></symbol>
+  <symbol id="i-donec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.500"/><path d="M8.500 12.200l2.400 2.400 4.600-5"/></symbol>
+  <symbol id="i-spin" viewBox="0 0 24 24"><path d="M12 3.500a8.500 8.500 0 108.500 8.500"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.500l4.500 4.500L19 7.500"/></symbol>
+  <symbol id="i-stack" viewBox="0 0 24 24"><path d="M12 4l8.500 4.500L12 13 3.500 8.500zM3.500 12.500L12 17l8.500-4.500M3.500 16.500L12 21l8.500-4.500"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 1.500V5M12 19v3.500M1.500 12H5M19 12h3.500"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l1-4.500L16.500 4l3.500 3.500L8.500 19zM14 6.500L17.500 10"/></symbol>
+  <symbol id="i-hash" viewBox="0 0 24 24"><path d="M9.500 3.500l-2 17M16.500 3.500l-2 17M4 9h16.500M3.500 15H20"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M3.500 6.500l5.500-2 6 2 5.500-2v13l-5.500 2-6-2-5.500 2zM9 4.500v13M15 6.500v13"/></symbol>
+  <symbol id="i-diff" viewBox="0 0 24 24"><path d="M12 3.500v17M7 8v4M5 10h4M15 14.500h4"/><rect x="3" y="4.500" width="18" height="15" rx="2"/></symbol>
+  <symbol id="i-cursor" viewBox="0 0 24 24"><path d="M5 4l14 6.500-6 2-2.500 6z"/></symbol>
+  <symbol id="i-braces" viewBox="0 0 24 24"><path d="M9 4.500H8a2 2 0 00-2 2v3c0 1.200-.8 2.500-2 2.500 1.200 0 2 1.300 2 2.500v3a2 2 0 002 2h1M15 4.500h1a2 2 0 012 2v3c0 1.200.8 2.500 2 2.500-1.200 0-2 1.300-2 2.500v3a2 2 0 01-2 2h-1"/></symbol>
+  <symbol id="i-bug" viewBox="0 0 24 24"><rect x="8" y="8" width="8" height="11" rx="4"/><path d="M10 8a2 2 0 014 0M4 13h4M16 13h4M5 7.500l3.500 2.500M19 7.500L15.500 10M5 19.500L8.500 17M19 19.500L15.500 17"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3.500 13l3-8h11l3 8v5.500a1 1 0 01-1 1h-15a1 1 0 01-1-1zM3.500 13H9a3 3 0 006 0h5.500"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h12a2 2 0 012 2v9a2 2 0 01-2 2h-6.500L7 20.500V17H6a2 2 0 01-2-2zM8 9h8M8 12.500h5"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3.500 5h17l-6.500 8v5.500l-4 2V13z"/></symbol>
+  <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7.500" ry="3"/><path d="M4.500 6v6c0 1.700 3.400 3 7.500 3s7.500-1.300 7.500-3V6M4.500 12v6c0 1.700 3.400 3 7.500 3s7.500-1.300 7.500-3v-6"/></symbol>
+  <symbol id="i-lanes" viewBox="0 0 24 24"><rect x="3.500" y="4" width="17" height="7" rx="1.500"/><rect x="3.500" y="13" width="17" height="7" rx="1.500"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 011-1h4M15 4h4a1 1 0 011 1v4M20 15v4a1 1 0 01-1 1h-4M9 20H5a1 1 0 01-1-1v-4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.500V5M12 19v2.500M2.500 12H5M19 12h2.500M5.300 5.300L7 7M17 17l1.700 1.700M18.700 5.300L17 7M7 17l-1.700 1.700"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.500A8.500 8.500 0 119.500 4a7 7 0 0010.500 10.500z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7.500 5v14l11-7z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.500" y="6.500" width="11" height="11" rx="1.500"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+</svg>
+
+<header class="bar">
+  <div class="crumbs">
+    <a class="brand" href="#retest" aria-label="Gimorra, workflows"><img src="../assets/gimorra-logo.png" width="22" height="22" alt=""><span>gimorra</span></a>
+    <span class="sep" aria-hidden="true">/</span>
+    <h1>Workflows</h1>
+    <span class="sep c" aria-hidden="true">/</span>
+    <span class="cur" id="curName"></span>
+  </div>
+  <div class="bar-end">
+    <span class="note">Sample data</span>
+    <button class="btn sq" type="button" id="theme" aria-label="Switch between light and dark">
+      <svg class="ic t-sun" aria-hidden="true"><use href="#i-sun"/></svg><svg class="ic t-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="shell">
+  <nav class="list" aria-label="Workflows">
+    <h2>Workflows</h2>
+    <ul id="wfList"></ul>
+    <dl class="keys">
+      <dt><kbd>R</kbd></dt><dd>Run or stop</dd>
+      <dt><kbd>J</kbd><kbd>K</kbd></dt><dd>Next or previous step</dd>
+      <dt><kbd>0</kbd></dt><dd>Fit to canvas</dd>
+    </dl>
+  </nav>
+  <section class="canvas" id="canvas" aria-label="Workflow canvas. Drag to pan, pinch or hold Ctrl and scroll to zoom.">
+    <div class="world" id="world"></div>
+    <div class="hud zoom" role="group" aria-label="Zoom">
+      <button class="btn sq" type="button" id="zout" aria-label="Zoom out"><svg class="ic" aria-hidden="true"><use href="#i-minus"/></svg></button>
+      <output id="zlabel">100%</output>
+      <button class="btn sq" type="button" id="zin" aria-label="Zoom in"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></button>
+      <button class="btn sq" type="button" id="zfit" aria-label="Fit the workflow to the canvas"><svg class="ic" aria-hidden="true"><use href="#i-fit"/></svg></button>
+    </div>
+    <div class="hud runbar">
+      <p id="runStatus" role="status"></p>
+      <button class="btn primary" type="button" id="run"></button>
+    </div>
+    <noscript>
+      <div class="fallback">
+        <h2>Retest on fix</h2>
+        <p>These workflow diagrams are drawn with JavaScript. The first one, in order:</p>
+        <ol>
+          <li>Trigger: a finding moves to Fix shipped.</li>
+          <li>Collect the finding and its proof plan.</li>
+          <li>Re-prove against the target: replay, two-principal differential, negative control.</li>
+          <li>Write the verdict on the finding.</li>
+          <li>Publish to Slack.</li>
+        </ol>
+      </div>
+    </noscript>
+  </section>
+  <aside class="panel" aria-label="Workflow details">
+    <section id="about"></section>
+    <section id="step" aria-live="polite" hidden></section>
+    <section>
+      <div class="feed-head"><h3>Activity</h3><span id="feedMeta"></span></div>
+      <ol class="feed" id="feed"></ol>
+      <p class="empty" id="feedEmpty">No run in this session. Run the workflow and each step reports here.</p>
+    </section>
+  </aside>
+</main>
+
+<script>
+(() => {
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const ic = (n) => `<svg class="ic" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* ── workflows ────────────────────────────────────────────────────────── */
+// Loop workflows are a list of items, laid out top to bottom by build(). A swimlane workflow gives its geometry directly.
+const WF = {
+  retest: {
+    name: "Retest on fix", kind: "loop", trigger: "Finding moves to Fix shipped",
+    about: "When a finding is marked fixed, prove it again against the live target before anyone closes it.",
+    props: [["Trigger", "Status change"], ["Runs as", "Gimorra agent"], ["Autonomy", "Supervised"], ["Scope", "app.sample.test"]],
+    items: [
+      { id: "trigger", i: "bolt", t: "Trigger", subs: ["[Finding] moves to [Fix shipped]"], at: "00:00", log: "GIM-214 moved from In review to Fix shipped",
+        what: "Fires when a finding’s status changes to Fix shipped. The finding and its target come with the event." },
+      { pill: "start" },
+      { id: "collect", i: "stack", t: "Collect finding & proof plan", subs: ["Load the stored evidence"], at: "00:02", log: "Loaded the proof plan and three evidence files for GIM-214",
+        what: "Pulls the finding, its proof plan and the stored evidence from the run folder, so the retest uses the request that proved it the first time.",
+        prompt: "Load the finding. Read its proof plan and the stored request and response. Do not plan new tests.", tools: ["findings.get", "evidence.read"], out: "Proof plan, stored request, first response" },
+      { id: "reprove", i: "target", t: "Re-prove against target", subs: ["Replay the stored request", "Two-principal differential", "Negative control", "Compare with the first proof"], at: "00:31", log: "The second principal now gets 403 and the control still passes. The fix holds.",
+        what: "Runs the proof again against the live target. A fix counts only if the proof fails and the negative control still passes.",
+        prompt: "Replay the stored request as both principals. Run the negative control. Compare each response with the first proof. Report what changed; do not explain it away.", tools: ["http.replay", "session.switch", "diff.response"], out: "Verdict: fixed, still open, or cannot tell" },
+      { id: "verdict", i: "pen", t: "Write verdict on finding", at: "00:33", log: "Verdict on GIM-214 set to Fixed, with the new replay attached",
+        what: "Writes the verdict onto the finding with the new replay attached. The run is supervised, so the status change is asked for first.",
+        prompt: "Set the verdict on the finding and attach the replay. If it is still open, move the finding back to In review.", tools: ["findings.update"], out: "Updated finding" },
+      { id: "publish", i: "hash", t: "Publish to Slack", at: "00:34", log: "Posted the verdict to #sec-triage",
+        what: "Posts one message to the thread where the finding was discussed.",
+        prompt: "Post the verdict in one sentence with a link to the finding. No summary of the method.", tools: ["slack.post"], out: "Message in #sec-triage" },
+      { pill: "done" },
+    ],
+  },
+  nightly: {
+    name: "Nightly surface diff", kind: "loop", trigger: "Every night at 02:00",
+    about: "Every night, map the surface again and spend effort only on what changed since the last run.",
+    props: [["Trigger", "Schedule"], ["Runs as", "Gimorra agent"], ["Autonomy", "Read only"], ["Scope", "*.sample.test"]],
+    items: [
+      { id: "trigger", i: "bolt", t: "Trigger", subs: ["Every night at 02:00"], at: "00:00", log: "Schedule fired for *.sample.test",
+        what: "Fires on a schedule. It is skipped when a run is already in progress on the same scope." },
+      { pill: "start" },
+      { id: "map", i: "map", t: "Map the surface", subs: ["Content discovery", "Headless spider", "Spec ingest"], at: "06:12", log: "Mapped 412 routes, 96 forms and 2 API definitions",
+        what: "Maps the surface from scratch with content discovery, the headless spider and any API definition on file.",
+        prompt: "Map the target inside the boundary list. Record every route, form and parameter. Send nothing that writes.", tools: ["discover.content", "discover.spider", "ingest.spec"], out: "Surface inventory" },
+      { id: "diff", i: "diff", t: "Diff against last run", at: "06:14", log: "14 routes are new or changed since run 7f3a21c",
+        what: "Compares tonight’s inventory with the last run’s and keeps only what is new or changed.",
+        prompt: "Diff against the last completed run. Keep routes whose shape, parameters or auth requirement changed.", tools: ["surface.diff"], out: "New and changed surface" },
+      { row: [
+        { id: "web", i: "cursor", t: "Browser-app tester", at: "19:40", log: "Browser-app tester walked 9 routes behind the login",
+          what: "Drives a real browser through the new routes: login, signup and flows that only exist after JavaScript runs.",
+          prompt: "Explore the new routes the way a user would. File every suspected defect with the least invasive proof.", tools: ["browser.drive", "session.export"], out: "Candidates, authenticated session" },
+        { id: "api", i: "braces", t: "Service-API tester", at: "14:05", log: "Service-API tester checked 5 new operations with two accounts",
+          what: "Tests new operations authorization first, with two accounts, working from the API definition.",
+          prompt: "For each new operation, test object and function-level authorization before anything else.", tools: ["http.send", "session.switch"], out: "Candidates with two-account proofs" },
+        { id: "cve", i: "bug", t: "Tech CVE scout", at: "08:51", log: "Tech CVE scout pinned one product build and found nothing published against it",
+          what: "Pins the exact build of any product it recognises and checks what is publicly known about it.",
+          prompt: "Name the product, pin its build, then check documented defaults before published advisories.", tools: ["fingerprint", "advisories.lookup"], out: "Product note" },
+      ] },
+      { id: "file", i: "inbox", t: "File candidates for proof", subs: ["Each with a proof plan", "Least invasive first"], at: "19:44", log: "Filed 3 candidates for proof. None is a finding yet.",
+        what: "Writes each suspected defect as a candidate with a proof plan. Nothing is called a finding until a validator has proved it.",
+        prompt: "File each candidate with one proof plan. Order them least invasive first.", tools: ["candidates.file"], out: "Candidates queued for proof" },
+      { pill: "done" },
+    ],
+  },
+  thread: {
+    name: "Thread to finding", kind: "lanes", trigger: "Agent mentioned in a Slack thread",
+    about: "A complaint in a shared channel becomes a scoped, proven finding, and the answer goes back to the thread it came from.",
+    props: [["Trigger", "Mention"], ["Runs as", "Gimorra agent"], ["Autonomy", "Supervised"], ["Scope", "app.sample.test"]],
+    w: 1000, h: 640,
+    regs: [
+      { c: "lane", x: 40, y: 40, w: 920, h: 280 }, { c: "lane", x: 40, y: 346, w: 920, h: 254 },
+      { c: "gap", x: 906, y: 316, w: 28, h: 34 }, { c: "gap", x: 86, y: 316, w: 28, h: 34 },
+    ],
+    labels: [{ x: 62, y: 62, t: "Slack", i: "hash" }, { x: 62, y: 566, t: "Gimorra", i: "target" }],
+    nodes: [
+      { id: "disc", k: "big", x: 150, y: 76, w: 270, h: 208, i: "chat", t: "Team discussion" },
+      { id: "agent1", k: "cell agent", x: 610, y: 180, w: 270, h: 58, i: "cursor", t: "Gimorra agent" },
+      { id: "triage", k: "cell", x: 610, y: 387, w: 270, h: 58, i: "filter", t: "Triage" },
+      { id: "agent2", k: "cell agent", x: 240, y: 387, w: 270, h: 58, i: "cursor", t: "Gimorra agent" },
+      { id: "evid", k: "cell", x: 240, y: 500, w: 270, h: 58, i: "db", t: "Evidence store" },
+    ],
+    edges: [
+      { id: "l1", p: [[426, 209], [604, 209]], a: "e", m: [[515, 209, 0]] },
+      { id: "l2", p: [[886, 209], [920, 209], [920, 416], [886, 416]], a: "e", m: [[920, 339, 90]], r: 0 },
+      { id: "l3", p: [[604, 416], [516, 416]], a: "e", m: [[560, 416, 180]] },
+      { id: "l4", p: [[395, 451], [395, 494]], a: "e" },
+      { id: "l5", p: [[355, 494], [355, 451]], a: "e" },
+      { id: "l6", p: [[234, 416], [100, 416], [100, 209], [144, 209]], a: "e", dash: 1, m: [[168, 416, 180], [100, 327, -90]], r: 0 },
+    ],
+    docs: {
+      disc: { what: "A thread in a channel shared with the customer. Someone mentions the agent when a complaint starts to look like a security problem." },
+      agent1: { what: "Reads the thread, asks one question if the target is ambiguous, and files a scoped issue without leaving the channel.",
+        prompt: "Turn this thread into one issue. Name the host, the account and what was observed. Ask before guessing a target.", tools: ["slack.read", "issues.create"], out: "Scoped issue" },
+      triage: { what: "Checks the issue against the boundary list, flags duplicates and routes it to the right queue.",
+        prompt: "Refuse anything out of scope. Link duplicates. Otherwise route to the queue that owns the host.", tools: ["scope.check", "findings.search"], out: "Routed issue" },
+      agent2: { what: "Works the issue inside a run: reproduces it, then proves it or says plainly that it could not.",
+        prompt: "Reproduce first. Prove with the least invasive request that settles it. Keep every request and response.", tools: ["http.send", "http.replay"], out: "Finding, or a note saying why not" },
+      evid: { what: "Every request, response and verdict the agent produced, append only. The agent reads earlier evidence before it sends anything new." },
+    },
+    order: [
+      { ids: ["disc"], via: [], at: "00:00", log: "@gimorra mentioned in #acme-shared" },
+      { ids: ["agent1"], via: ["l1"], at: "00:20", log: "Filed GIM-231 from the thread: invoices visible across accounts" },
+      { ids: ["triage"], via: ["l2"], at: "00:26", log: "In scope, no duplicate. Routed to the API queue." },
+      { ids: ["agent2"], via: ["l3"], at: "03:48", log: "Reproduced with two accounts on /api/v2/invoices" },
+      { ids: ["evid"], via: ["l4"], at: "03:50", log: "Stored 4 requests and their responses" },
+      { ids: ["agent2"], via: ["l5"], at: "04:10", log: "Proved: object-level authorization is missing" },
+      { ids: ["disc"], via: ["l6"], at: "04:12", log: "Replied in the thread with the verdict and a link to GIM-231" },
+    ],
+  },
+};
+const PILLS = { start: ["loop", "Loop started", "Loop started"], done: ["donec", "Loop completed", "Loop completed"] };
+
+/* ── layout for loop workflows ────────────────────────────────────────── */
+const CH = 7.25, GAP = 44;
+const wOf = (n) => Math.ceil(Math.max(n.t.length, ...(n.subs || []).map((s) => s.length)) * CH) + 24 + 32 + 12;
+const hOf = (n) => ((n.subs || []).length ? 52 + 22 * n.subs.length : 44);
+function build(wf) {
+  if (wf.kind !== "loop" || wf.nodes) return wf;
+  const CX = 440, nodes = [], edges = [], pills = [], order = [], docs = {};
+  let y = 40, prev = null, loop = null, inLoop = false, rowW = 0;
+  const place = (n, cx) => { const w = wOf(n), h = hOf(n); nodes.push({ ...n, k: "step", x: Math.round(cx - w / 2), y, w, h }); docs[n.id] = n; return { cx, top: y, bot: y + h, w, id: n.id }; };
+  for (const it of wf.items) {
+    let cur;
+    if (it.pill) {
+      cur = [{ cx: CX, top: y, bot: y + 30, w: 0, id: "pill-" + it.pill }];
+      pills.push({ id: "pill-" + it.pill, x: CX, y, i: PILLS[it.pill][0], t: PILLS[it.pill][1] });
+      if (it.pill === "done" && loop) { loop.y1 = Math.max(...prev.map((c) => c.bot)) + 24; inLoop = false; }
+    } else if (it.row) {
+      const ws = it.row.map(wOf), total = ws.reduce((a, b) => a + b, 0) + 28 * (ws.length - 1);
+      let x = CX - total / 2;
+      cur = it.row.map((n, i) => { const c = place(n, x + ws[i] / 2); x += ws[i] + 28; return c; });
+      rowW = Math.max(rowW, total);
+    } else {
+      cur = [place(it, CX)];
+      if (loop && inLoop) loop.w = Math.max(loop.w, cur[0].w);
+    }
+    if (prev) {
+      const via = [];
+      for (const a of prev) for (const b of cur) {
+        const id = `e-${a.id}-${b.id}`, midY = a.bot + (b.top - a.bot) / 2;
+        edges.push({ id, dash: 1, a: "b", s: 5, p: a.cx === b.cx ? [[a.cx, a.bot + 3], [b.cx, b.top - 3]] : [[a.cx, a.bot + 3], [a.cx, midY], [b.cx, midY], [b.cx, b.top - 3]] });
+        via.push(id);
+      }
+      order.push({ ids: cur.map((c) => c.id), via, pill: it.pill, at: it.at || (it.row && it.row[0].at), log: it.log, row: it.row });
+    } else order.push({ ids: [cur[0].id], via: [], at: it.at, log: it.log });
+    if (it.pill === "start") { loop = { y0: y + 30 + GAP - 24, y1: 0, w: 0 }; inLoop = true; }
+    y = Math.max(...cur.map((c) => c.bot)) + GAP; prev = cur;
+  }
+  const lw = Math.max(loop.w + 150, rowW + 88);
+  Object.assign(wf, { nodes, edges, pills, order, docs, w: 880, h: y, regs: [{ id: "loop", c: "loop", x: CX - lw / 2, y: loop.y0, w: lw, h: loop.y1 - loop.y0 }] });
+  return wf;
+}
+
+/* ── state ────────────────────────────────────────────────────────────── */
+const canvas = $("#canvas"), world = $("#world"), feed = $("#feed"), runBtn = $("#run"), runStatus = $("#runStatus");
+const st = { wf: "retest", node: null };
+const view = { x: 0, y: 0, k: 1 };
+let userMoved = false, runId = 0, running = false;
+const ran = {};
+const cur = () => build(WF[st.wf]);
+const stepIds = () => [...new Set(cur().order.flatMap((o) => o.ids).filter((id) => !id.startsWith("pill-")))];
+
+/* ── drawing ──────────────────────────────────────────────────────────── */
+function pathD(p, r = 10) {
+  let d = `M${p[0][0]},${p[0][1]}`;
+  for (let i = 1; i < p.length - 1; i++) {
+    const [x0, y0] = p[i - 1], [x1, y1] = p[i], [x2, y2] = p[i + 1];
+    const d1 = Math.hypot(x1 - x0, y1 - y0), d2 = Math.hypot(x2 - x1, y2 - y1), rr = Math.min(r, d1 / 2, d2 / 2);
+    d += rr ? ` L${x1 - ((x1 - x0) / d1) * rr},${y1 - ((y1 - y0) / d1) * rr} Q${x1},${y1} ${x1 + ((x2 - x1) / d2) * rr},${y1 + ((y2 - y1) / d2) * rr}` : ` L${x1},${y1}`;
+  }
+  const l = p[p.length - 1];
+  return `${d} L${l[0]},${l[1]}`;
+}
+const tri = (x, y, deg, s) => `<path class="ah" d="M${s * 0.55},0 L${-s * 0.45},${-s * 0.5} L${-s * 0.45},${s * 0.5} Z" transform="translate(${x},${y}) rotate(${deg})"/>`;
+const deg = (a, b) => (Math.atan2(a[1] - b[1], a[0] - b[0]) * 180) / Math.PI;
+function edgeSvg(e) {
+  const p = e.p, n = p.length, s = e.s || 11;
+  let h = `<path class="ln" d="${pathD(p, e.r ?? 10)}"/>`;
+  if (e.a === "e" || e.a === "b") h += tri(p[n - 1][0], p[n - 1][1], deg(p[n - 1], p[n - 2]), s);
+  if (e.a === "b") h += tri(p[0][0], p[0][1], deg(p[0], p[1]), s);
+  for (const m of e.m || []) h += tri(m[0], m[1], m[2], s);
+  return `<g class="edge${e.dash ? " dashed" : ""}" data-id="${e.id}">${h}</g>`;
+}
+const box = (o) => `left:${o.x}px;top:${o.y}px;width:${o.w}px;height:${o.h}px`;
+function nodeHtml(n) {
+  const head = `<span class="ni" data-icon="${n.i}">${ic(n.i)}</span>`;
+  const body = n.k === "step"
+    ? `<span class="nt">${head}<span>${n.t}</span></span>${(n.subs || []).map((s) => `<span class="ns">${s.replace(/\[.+?\]/g, '<span class="tok">$&</span>')}</span>`).join("")}`
+    : n.k === "big" ? `<span class="ct">${n.t}</span>${head}` : `${head}<span class="ct">${n.t}</span>`;
+  return `<button type="button" class="node ${n.k}" data-id="${n.id}" data-state="idle" style="${box(n)}" aria-pressed="false">${body}</button>`;
+}
+function render() {
+  const wf = cur();
+  world.style.width = wf.w + "px"; world.style.height = wf.h + "px";
+  let h = "";
+  for (const r of wf.regs || []) h += `<div class="reg ${r.c}"${r.id ? ` data-id="${r.id}"` : ""} style="${box(r)}"></div>`;
+  for (const l of wf.labels || []) h += `<span class="glabel" style="left:${l.x}px;top:${l.y}px">${ic(l.i)}${l.t}</span>`;
+  h += `<svg class="edges" width="${wf.w}" height="${wf.h}" aria-hidden="true">${wf.edges.map(edgeSvg).join("")}</svg>`;
+  h += wf.nodes.map(nodeHtml).join("");
+  for (const p of wf.pills || []) h += `<span class="pill" data-id="${p.id}" style="left:${p.x}px;top:${p.y}px">${ic(p.i)}${p.t}</span>`;
+  world.innerHTML = h;
+  $("#curName").textContent = wf.name;
+  $("#wfList").innerHTML = Object.entries(WF).map(([id, w]) => `<li><button type="button" class="wf" data-wf="${id}" data-run="${ran[id] || ""}"${id === st.wf ? ' aria-current="true"' : ""}>${ic(ran[id] === "done" ? "donec" : w.kind === "loop" ? "loop" : "lanes")}<b>${w.name}</b><span>${w.trigger}</span></button></li>`).join("");
+  $("#about").innerHTML = `<h2>${wf.name}</h2><p>${wf.about}</p><dl class="props"><dt>Status</dt><dd>${ic("donec")}Enabled</dd>${wf.props.map((p) => `<dt>${p[0]}</dt><dd>${p[1]}</dd>`).join("")}<dt>Last run</dt><dd id="lastRun">Not in this session</dd></dl>`;
+}
+function renderStep() {
+  const wf = cur(), d = st.node && wf.docs[st.node], el = $("#step");
+  world.querySelectorAll(".node").forEach((n) => n.setAttribute("aria-pressed", String(n.dataset.id === st.node)));
+  el.hidden = !d;
+  if (!d) return;
+  const n = wf.nodes.find((x) => x.id === st.node);
+  el.innerHTML = `<div class="step-head"><h3>${n.t}</h3><button class="btn sq" type="button" data-clear aria-label="Close step details">${ic("x")}</button></div><p>${d.what}</p>
+    ${d.prompt ? `<p class="quote">${d.prompt}</p>` : ""}
+    ${d.tools ? `<dl class="props"><dt>Tools</dt><dd class="tools">${d.tools.map((t) => `<span>${t}</span>`).join("")}</dd><dt>Output</dt><dd>${d.out}</dd></dl>` : ""}`;
+}
+
+/* ── the run ──────────────────────────────────────────────────────────── */
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const q = (sel) => world.querySelector(sel);
+function setState(id, state) {
+  const n = q(`.node[data-id="${id}"]`);
+  if (!n) { const p = q(`.pill[data-id="${id}"]`); if (p) p.classList.toggle("on", state !== "idle"); return; }
+  n.dataset.state = state;
+  const i = $(".ni", n);
+  $("use", i).setAttribute("href", `#i-${state === "run" ? "spin" : state === "done" && n.classList.contains("step") ? "check" : i.dataset.icon}`);
+  if (state === "idle") n.querySelectorAll(".ns").forEach((s) => s.classList.remove("done"));
+}
+function setRunning(on) {
+  running = on;
+  runBtn.innerHTML = on ? `${ic("stop")}<span>Stop</span><kbd>R</kbd>` : `${ic("play")}<span>Run workflow</span><kbd>R</kbd>`;
+  const b = $(`.wf[data-wf="${st.wf}"]`); if (b) b.dataset.run = on ? "run" : ran[st.wf] || "";
+}
+function resetRun(bump = true) {
+  if (bump) runId++;
+  world.querySelectorAll(".on").forEach((e) => e.classList.remove("on"));
+  cur().order.forEach((o) => o.ids.forEach((id) => setState(id, "idle")));
+  feed.innerHTML = ""; $("#feedEmpty").hidden = false; $("#feedMeta").textContent = ""; runStatus.textContent = "";
+  if (bump) setRunning(false);
+}
+function logLine(at, text) {
+  $("#feedEmpty").hidden = true;
+  feed.insertAdjacentHTML("beforeend", `<li>${ic("check")}<time>${at}</time><span>${text}</span></li>`);
+}
+async function run() {
+  const my = ++runId, wf = cur(), steps = wf.order.filter((o) => !o.pill).length;
+  resetRun(false); setRunning(true);
+  let done = 0;
+  for (const o of wf.order) {
+    o.via.forEach((id) => q(`.edge[data-id="${id}"]`).classList.add("on"));
+    if (o.pill === "start") q(".reg.loop").classList.add("on");
+    o.ids.forEach((id) => setState(id, "run"));
+    reveal(q(`.node[data-id="${o.ids[0]}"]`));
+    if (!o.pill) runStatus.textContent = `Step ${done + 1} of ${steps}`;
+    const subs = o.ids.length === 1 ? [...(q(`.node[data-id="${o.ids[0]}"]`)?.querySelectorAll(".ns") || [])] : [];
+    for (const s of subs) { await wait(340); if (my !== runId) return; s.classList.add("done"); }
+    if (o.row) {
+      for (const n of [...o.row].sort((a, b) => a.at.localeCompare(b.at))) { await wait(620); if (my !== runId) return; setState(n.id, "done"); logLine(n.at, n.log); }
+    } else {
+      await wait(o.pill ? 320 : 560); if (my !== runId) return;
+      o.ids.forEach((id) => setState(id, "done"));
+      if (o.log) logLine(o.at, o.log);
+    }
+    if (!o.pill) done++;
+  }
+  const last = [...wf.order].reverse().find((o) => o.at).at;
+  if (q(".reg.loop")) q(".reg.loop").classList.remove("on");
+  ran[st.wf] = "done"; setRunning(false);
+  $("use", $(`.wf[data-wf="${st.wf}"]`)).setAttribute("href", "#i-donec");
+  runStatus.textContent = `Completed in ${last}`;
+  $("#feedMeta").textContent = `${feed.children.length} events`;
+  const lr = $("#lastRun"); if (lr) lr.textContent = `Completed in ${last}`;
+}
+
+/* ── view: pan, zoom, fit ─────────────────────────────────────────────── */
+function apply(ease) {
+  world.classList.toggle("ease", !!ease);
+  world.style.transform = `translate(${view.x}px,${view.y}px) scale(${view.k})`;
+  $("#zlabel").textContent = Math.round(view.k * 100) + "%";
+}
+function fit(ease) {
+  const wf = cur(), W = canvas.clientWidth, H = canvas.clientHeight, all = [...wf.nodes, ...(wf.regs || [])];
+  const x0 = Math.min(...all.map((n) => n.x)), x1 = Math.max(...all.map((n) => n.x + n.w));
+  const b = { x: x0, y: 28, w: x1 - x0, h: wf.h - 40 };
+  const pad = { l: 24, r: 24, t: 64, b: 28 };
+  // On a narrow canvas a whole-diagram fit is unreadable: hold a floor and start at the top-left instead.
+  view.k = clamp(Math.min((W - pad.l - pad.r) / b.w, (H - pad.t - pad.b) / b.h), W < 640 ? 0.55 : 0.2, 1.15);
+  view.x = pad.l + Math.max(0, W - pad.l - pad.r - b.w * view.k) / 2 - b.x * view.k;
+  view.y = pad.t + Math.max(0, H - pad.t - pad.b - b.h * view.k) / 2 - b.y * view.k;
+  userMoved = false; apply(ease);
+}
+function zoomAt(cx, cy, f, ease) {
+  const k = clamp(view.k * f, 0.2, 2.5), r = k / view.k;
+  view.x = cx - (cx - view.x) * r; view.y = cy - (cy - view.y) * r; view.k = k; userMoved = true; apply(ease);
+}
+const mid = () => [canvas.clientWidth / 2, canvas.clientHeight / 2];
+
+const ptrs = new Map(); let drag = null, pinch = null, moved = false;
+canvas.addEventListener("pointerdown", (e) => {
+  if (e.target.closest(".hud") || e.button > 0) return;
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]); moved = false;
+  if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
+  else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), k: view.k }; drag = null; }
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pinch && ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()], r = canvas.getBoundingClientRect();
+    zoomAt((a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top, clamp((pinch.k * Math.hypot(a[0] - b[0], a[1] - b[1])) / pinch.d, 0.2, 2.5) / view.k);
+    moved = true; return;
+  }
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!moved && Math.hypot(dx, dy) < 5) return;
+  if (!moved) { moved = true; canvas.setPointerCapture(e.pointerId); canvas.classList.add("panning"); }
+  view.x = drag.vx + dx; view.y = drag.vy + dy; userMoved = true; apply();
+});
+const endPtr = (e) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) { drag = null; canvas.classList.remove("panning"); } };
+canvas.addEventListener("pointerup", endPtr); canvas.addEventListener("pointercancel", endPtr);
+canvas.addEventListener("click", (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+canvas.addEventListener("wheel", (e) => {
+  if (e.target.closest(".hud")) return;
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  if (e.ctrlKey || e.metaKey) zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.01));
+  else { view.x -= e.deltaX; view.y -= e.deltaY; userMoved = true; apply(); }
+}, { passive: false });
+$("#zin").addEventListener("click", () => zoomAt(...mid(), 1.25, true));
+$("#zout").addEventListener("click", () => zoomAt(...mid(), 0.8, true));
+$("#zfit").addEventListener("click", () => fit(true));
+new ResizeObserver(() => { if (!userMoved) fit(); }).observe(canvas);
+
+/* ── selection, routing, keys ─────────────────────────────────────────── */
+function writeHash() {
+  const h = `#${st.wf}${st.node ? "/" + st.node : ""}`;
+  if (location.hash !== h) history.replaceState(null, "", h);
+}
+// Pan a node into view when it is hidden by the canvas edge or the HUD.
+function reveal(n) {
+  if (!n) return;
+  const r = n.getBoundingClientRect(), c = canvas.getBoundingClientRect();
+  if (r.left < c.left + 8 || r.right > c.right - 8 || r.top < c.top + 56 || r.bottom > c.bottom - 8) {
+    view.x += c.left + c.width / 2 - (r.left + r.width / 2); view.y += c.top + c.height / 2 - (r.top + r.height / 2); userMoved = true; apply(true);
+  }
+}
+function select(id) {
+  st.node = id; renderStep(); writeHash();
+  reveal(id && q(`.node[data-id="${id}"]`));
+}
+function open(id, node) {
+  const changed = id !== st.wf || !world.firstChild;
+  st.wf = WF[id] ? id : "retest";
+  st.node = cur().docs[node] ? node : null;
+  if (changed) { render(); resetRun(); fit(); }
+  renderStep(); writeHash();
+}
+const readHash = () => { const [w, n] = location.hash.slice(1).split("/"); open(w, n); };
+world.addEventListener("click", (e) => { const n = e.target.closest(".node"); if (n) select(n.dataset.id === st.node ? null : n.dataset.id); });
+$("#wfList").addEventListener("click", (e) => { const b = e.target.closest("[data-wf]"); if (b) open(b.dataset.wf); });
+$("#step").addEventListener("click", (e) => { if (e.target.closest("[data-clear]")) select(null); });
+runBtn.addEventListener("click", () => (running ? resetRun() : run()));
+addEventListener("hashchange", readHash);
+addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  const k = e.key.toLowerCase(), ids = stepIds(), i = ids.indexOf(st.node);
+  if (k === "escape") { if (st.node) select(null); }
+  else if (k === "r") running ? resetRun() : run();
+  else if (k === "j") select(ids[Math.min(ids.length - 1, i + 1)]);
+  else if (k === "k") select(ids[Math.max(0, i - 1)]);
+  else if (k === "+" || k === "=") zoomAt(...mid(), 1.25, true);
+  else if (k === "-") zoomAt(...mid(), 0.8, true);
+  else if (k === "0") fit(true);
+  else if (/^[1-9]$/.test(k) && Object.keys(WF)[k - 1]) open(Object.keys(WF)[k - 1]);
+  else if (k.startsWith("arrow") && (e.target === document.body || canvas.contains(e.target))) {
+    const d = { arrowleft: [48, 0], arrowright: [-48, 0], arrowup: [0, 48], arrowdown: [0, -48] }[k];
+    view.x += d[0]; view.y += d[1]; userMoved = true; apply(true); e.preventDefault();
+  }
+});
+$("#theme").addEventListener("click", () => {
+  const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("gm-workflows-theme", t); } catch (e) {}
+});
+
+readHash();
+})();
+</script>
+</body>
+</html>

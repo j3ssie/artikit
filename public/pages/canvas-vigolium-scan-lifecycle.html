@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vigolium · Scan lifecycle (sample)</title>
+<meta name="description" content="Sample canvas page: the path of one scan request through Vigolium, drawn as a pannable infrastructure diagram you can send a request through.">
+<link rel="icon" href="../assets/vigolium-mark.png">
+<meta name="color-scheme" content="dark light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Parser-blocking on purpose: the stored theme has to land before the first paint. -->
+<script>
+(function () {
+  var t = null;
+  try { t = localStorage.getItem("vg-lifecycle-theme"); } catch (e) {}
+  if (t !== "light" && t !== "dark") t = window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  document.documentElement.dataset.theme = t;
+})();
+</script>
+<style>
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: custom · idea: "a scan request drawn the way an edge platform draws its request path, and you can send one through" · vibe: "black ground, hairlines, hatching, exact"
+ * paper: oklch(0% 0 0) · accent: oklch(94.6% 0 0) · display: Geist · body: Geist
+ * nav: one-line top bar with scene tabs · signature: the request trace travelling the diagram · states: no selection, node selected, tracing, blocked, reduced motion
+ * axes: dark/grotesk/neutral · posture: restrained · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: S, the frame is a known diagram idiom; the record lookup with seen, new and changed outcomes is the part only a scanner has, so the trace is built on it */
+/* Not Hallmark-clean on 67, on purpose: diagram group labels are uppercase because the reference diagrams the page was asked to follow set them that way. Interface labels outside the canvas stay sentence case. Mono on the same labels (gate 64) is kept for the same reason. */
+:root {
+  color-scheme: dark;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px;
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-node: 0.9375rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-micro: 120ms; --dur-short: 220ms;
+  --color-paper: light-dark(oklch(98.5% 0 0), oklch(0% 0 0));
+  --color-paper-2: light-dark(oklch(100% 0 0), oklch(14.5% 0 0));
+  --color-paper-3: light-dark(oklch(96% 0 0), oklch(20.5% 0 0));
+  --color-ink: light-dark(oklch(20.5% 0 0), oklch(94.6% 0 0));
+  --color-ink-2: light-dark(oklch(42% 0 0), oklch(74% 0 0));
+  --color-muted: light-dark(oklch(51% 0 0), oklch(66% 0 0));
+  --color-rule: light-dark(oklch(91.5% 0 0), oklch(25% 0 0));
+  --color-rule-2: light-dark(oklch(80% 0 0), oklch(36% 0 0));
+  --color-edge: light-dark(oklch(45% 0 0), oklch(94.6% 0 0));
+  --color-hatch: light-dark(oklch(0% 0 0 / 0.055), oklch(100% 0 0 / 0.075));
+  --color-accent: var(--color-ink); --color-accent-ink: var(--color-paper);
+  --color-focus: light-dark(oklch(55% 0.2 255), oklch(74% 0.14 250));
+  --color-ok: light-dark(oklch(46% 0.1 175), oklch(80% 0.13 178));
+  --color-warn: light-dark(oklch(49% 0.12 65), oklch(82% 0.14 78));
+  --color-info: light-dark(oklch(49% 0.17 255), oklch(77% 0.12 250));
+  --color-error: light-dark(oklch(51% 0.2 25), oklch(72% 0.17 22));
+  --color-alt: light-dark(oklch(48% 0.17 300), oklch(77% 0.12 300));
+  --color-select: var(--color-info);
+  --font-display: "Geist", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Geist", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius-card: 6px; --radius-ctl: 6px; --radius-pill: 999px;
+  --bar-h: 56px; --side-w: 360px;
+  --shadow-hud: 0 8px 24px -12px oklch(0% 0 0 / 0.5);
+  --z-edges: 1; --z-nodes: 2; --z-marks: 3; --z-hud: 10; --z-bar: 20;
+}
+:root[data-theme="light"] { color-scheme: light; }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { scrollbar-color: var(--color-rule-2) var(--color-paper); }
+body {
+  margin: 0; height: 100dvh; display: grid; grid-template-rows: var(--bar-h) minmax(0, 1fr);
+  background: var(--color-paper); color: var(--color-ink);
+  font-family: var(--font-body); font-size: var(--text-sm); line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: color-mix(in oklab, var(--color-info) 30%, transparent); }
+:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+h1, h2, h3, p, ol, ul, dl, dd, pre { margin: 0; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
+button { font: inherit; color: inherit; }
+a { color: inherit; }
+svg { display: block; }
+[hidden] { display: none !important; }
+.ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.sprite { position: absolute; width: 0; height: 0; }
+
+/* ── top bar ─────────────────────────────────────────────────────────── */
+.bar {
+  position: relative; z-index: var(--z-bar); display: flex; align-items: stretch; gap: var(--space-lg);
+  padding-inline: var(--space-md); border-bottom: 1px solid var(--color-rule); background: var(--color-paper);
+}
+.crumbs { display: flex; align-items: center; gap: var(--space-xs); min-width: 0; }
+.brand { display: inline-flex; align-items: center; gap: var(--space-xs); text-decoration: none; font-weight: 600; border-radius: var(--radius-ctl); }
+.brand img { border-radius: 5px; }
+.crumbs .sep { color: var(--color-rule-2); font-size: var(--text-lg); font-weight: 400; }
+.crumbs .proj { color: var(--color-ink-2); font-family: var(--font-mono); font-size: var(--text-xs); white-space: nowrap; }
+.crumbs h1 { font-size: var(--text-sm); font-weight: 500; white-space: nowrap; }
+.tabs { display: flex; align-items: stretch; gap: var(--space-2xs); overflow-x: auto; scrollbar-width: none; }
+.tabs a {
+  position: relative; display: inline-flex; align-items: center; padding-inline: var(--space-sm);
+  color: var(--color-muted); text-decoration: none; white-space: nowrap;
+  transition: color var(--dur-micro);
+}
+.tabs a:hover { color: var(--color-ink); }
+.tabs a[aria-current="page"] { color: var(--color-ink); }
+.tabs a[aria-current="page"]::after { content: ""; position: absolute; inset: auto var(--space-sm) -1px; height: 2px; background: var(--color-ink); }
+.tabs a:focus-visible { outline-offset: -4px; border-radius: var(--radius-ctl); }
+.bar-end { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
+.note { color: var(--color-muted); font-size: var(--text-xs); white-space: nowrap; }
+
+.btn {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs);
+  height: 32px; padding-inline: var(--space-sm); border: 1px solid var(--color-rule-2); border-radius: var(--radius-ctl);
+  background: var(--color-paper); color: var(--color-ink); cursor: pointer; white-space: nowrap; font-weight: 500;
+  transition: background-color var(--dur-micro), border-color var(--dur-micro), color var(--dur-micro);
+}
+.btn::after { content: ""; position: absolute; inset: -6px -2px; }
+.btn:hover { background: var(--color-paper-3); border-color: var(--color-ink-2); }
+.btn:active { background: var(--color-rule); }
+.btn.sq { width: 32px; padding: 0; }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn.primary { background: var(--color-accent); color: var(--color-accent-ink); border-color: var(--color-accent); }
+.btn.primary:hover { background: var(--color-ink-2); border-color: var(--color-ink-2); }
+.btn.primary:active { background: var(--color-muted); border-color: var(--color-muted); }
+:root[data-theme="dark"] .t-moon, :root[data-theme="light"] .t-sun { display: none; }
+
+/* ── stage ───────────────────────────────────────────────────────────── */
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w); min-height: 0; }
+.canvas { position: relative; overflow: hidden; min-height: 0; touch-action: none; cursor: grab; background: var(--color-paper); }
+.canvas.panning { cursor: grabbing; }
+.world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.world.ease { transition: transform var(--dur-short) var(--ease-out); }
+.world::before {
+  content: ""; position: absolute; inset: -1600px; pointer-events: none;
+  background-image: radial-gradient(var(--color-rule) 1px, transparent 1px); background-size: 24px 24px;
+}
+
+/* regions */
+.reg { position: absolute; border: 1px solid var(--color-rule-2); border-radius: var(--radius-card); pointer-events: none; }
+.reg.hatch { background: repeating-linear-gradient(-45deg, var(--color-hatch) 0 1px, transparent 1px 7px), var(--color-paper); }
+.reg.grp { background: repeating-linear-gradient(-45deg, var(--color-hatch) 0 1px, transparent 1px 7px), var(--color-paper-3); }
+.reg.dash { border-style: dashed; background: var(--color-paper); }
+.reg.dash.inner { background: var(--color-paper-2); }
+.reg.tint { border: 0; border-radius: 5px 5px 0 0; background: repeating-linear-gradient(-45deg, color-mix(in oklab, var(--color-info) 24%, transparent) 0 1px, transparent 1px 7px), color-mix(in oklab, var(--color-info) 5%, transparent); }
+.reg.line { height: 0; border: 0; border-top: 1px solid var(--color-rule-2); border-radius: 0; }
+.glabel {
+  position: absolute; display: inline-flex; align-items: center; gap: var(--space-xs); white-space: nowrap; pointer-events: none;
+  font: 500 var(--text-sm)/1 var(--font-mono); text-transform: uppercase; color: var(--color-ink);
+}
+.glabel .ic { color: var(--tone, currentColor); }
+.glabel.plain { font: 500 var(--text-md)/1 var(--font-body); text-transform: none; }
+.glabel.plain .ic { width: 18px; height: 18px; color: var(--color-ink-2); }
+.glabel img { border-radius: 4px; }
+
+/* edges */
+.edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: var(--z-edges); }
+.edge .ln { fill: none; stroke: var(--tone, var(--color-edge)); stroke-width: 1; transition: stroke-width var(--dur-micro); }
+.edge.dashed .ln { stroke-dasharray: 4 4; }
+.edge .ah { fill: var(--tone, var(--color-edge)); }
+.edge.on .ln { stroke: var(--trace, var(--tone, var(--color-edge))); stroke-width: 2.25; }
+.edge.on .ah { fill: var(--trace, var(--tone, var(--color-edge))); }
+.tone-ok { --tone: var(--color-ok); } .tone-warn { --tone: var(--color-warn); }
+.tone-info { --tone: var(--color-info); } .tone-bad { --tone: var(--color-error); } .tone-alt { --tone: var(--color-alt); }
+
+/* nodes */
+.node {
+  position: absolute; z-index: var(--z-nodes); display: grid; place-content: center; justify-items: center; gap: var(--space-3xs);
+  padding: 0 var(--space-xs); border: 1px solid var(--color-rule-2); border-radius: var(--radius-card);
+  background: var(--color-paper); color: var(--color-ink); text-align: center; cursor: pointer;
+  font: 500 var(--text-node)/1.3 var(--font-body);
+  transition: border-color var(--dur-micro), background-color var(--dur-micro), box-shadow var(--dur-micro);
+}
+.node:hover { border-color: var(--color-ink-2); }
+.node.on { border-color: var(--trace, var(--color-ink)); background: light-dark(color-mix(in oklab, var(--trace, var(--color-ink)) 7%, var(--color-paper-2)), color-mix(in oklab, var(--trace, var(--color-ink)) 13%, var(--color-paper))); }
+.node.bad { border-color: var(--color-error); background: color-mix(in oklab, var(--color-error) 16%, var(--color-paper)); }
+.node[aria-pressed="true"] { border-color: var(--color-select); box-shadow: 0 0 0 1px var(--color-select), 0 0 0 5px color-mix(in oklab, var(--color-select) 20%, transparent); }
+.node.dashed { border-style: dashed; }
+.node code { font: 400 var(--text-xs)/1.3 var(--font-mono); color: var(--color-muted); }
+.node small { font: 400 var(--text-xs)/1.3 var(--font-body); color: var(--color-muted); }
+.node.path { font: 400 var(--text-sm)/1.3 var(--font-mono); }
+.node .or { display: block; margin-block: var(--space-2xs); color: var(--color-muted); font-weight: 400; }
+.node.tile .ic, .node.round .ic { width: 26px; height: 26px; }
+.node.round { border-radius: 50%; }
+.node.round.tint { border-color: color-mix(in oklab, var(--color-info) 60%, var(--color-paper)); background: color-mix(in oklab, var(--color-info) 14%, var(--color-paper)); color: var(--color-info); }
+.node.row { grid-auto-flow: column; align-items: center; gap: var(--space-xs); text-align: left; }
+.node.row .ic { width: 18px; height: 18px; color: var(--tone, var(--color-ink-2)); }
+.deco { position: absolute; z-index: var(--z-nodes); display: grid; place-items: center; border: 1px solid var(--color-rule-2); border-radius: var(--radius-card); background: var(--color-paper); pointer-events: none; }
+.deco .ic { width: 26px; height: 26px; }
+
+/* pills and badges on edges */
+.pill {
+  position: absolute; z-index: var(--z-marks); transform: translate(-50%, -50%); pointer-events: none;
+  display: inline-flex; align-items: center; gap: var(--space-xs); height: 26px; padding: 0 var(--space-sm) 0 var(--space-xs); white-space: nowrap;
+  border: 1px solid color-mix(in oklab, var(--tone, var(--color-ink)) 62%, var(--color-paper)); border-radius: var(--radius-pill);
+  background: color-mix(in oklab, var(--tone, var(--color-ink)) 15%, var(--color-paper)); color: var(--tone, var(--color-ink));
+  font: 400 var(--text-xs)/1 var(--font-mono);
+}
+.pill.plain { background: var(--color-paper); }
+.pill .ic { width: 13px; height: 13px; }
+.badge {
+  position: absolute; z-index: var(--z-marks); transform: translate(-50%, -50%); pointer-events: none;
+  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  background: color-mix(in oklab, var(--tone, var(--color-info)) 20%, var(--color-paper)); color: var(--tone, var(--color-info));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tone, var(--color-info)) 65%, var(--color-paper));
+  transition: background-color var(--dur-micro), color var(--dur-micro), box-shadow var(--dur-micro);
+}
+.badge.bad { --tone: var(--color-error); }
+.pkt {
+  position: absolute; left: 0; top: 0; z-index: var(--z-marks); width: var(--space-sm); height: var(--space-sm); margin: calc(var(--space-sm) / -2) 0 0 calc(var(--space-sm) / -2); border-radius: 50%;
+  background: var(--trace, var(--color-ink)); box-shadow: 0 0 0 4px color-mix(in oklab, var(--trace, var(--color-ink)) 30%, transparent);
+  pointer-events: none; opacity: 0; transition: opacity var(--dur-micro);
+}
+.pkt.show { opacity: 1; }
+
+/* canvas HUD */
+.hud { position: absolute; z-index: var(--z-hud); cursor: default; }
+.zoom { left: var(--space-md); top: var(--space-md); display: flex; gap: var(--space-2xs); }
+.zoom output { display: grid; place-items: center; min-width: 52px; height: 32px; padding-inline: var(--space-xs); border: 1px solid var(--color-rule); border-radius: var(--radius-ctl); background: var(--color-paper); color: var(--color-ink-2); font-variant-numeric: tabular-nums; }
+.trace {
+  left: 50%; bottom: var(--space-md); transform: translateX(-50%); width: min(820px, calc(100% - 2 * var(--space-md)));
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-sm);
+  padding: var(--space-xs); border: 1px solid var(--color-rule-2); border-radius: 10px; background: var(--color-paper-2);
+  box-shadow: var(--shadow-hud);
+}
+.trace-status { flex: 1 1 100%; min-width: 0; padding: var(--space-2xs) var(--space-xs) 0; color: var(--color-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trace-status b { color: var(--color-ink); font-weight: 500; }
+.trace-status .n { font-variant-numeric: tabular-nums; color: var(--color-muted); margin-right: var(--space-xs); }
+.seg { display: flex; margin-right: auto; padding: var(--space-3xs); border: 1px solid var(--color-rule); border-radius: var(--radius-ctl); background: var(--color-paper); overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+.seg button {
+  position: relative; display: inline-flex; align-items: center; gap: var(--space-xs); height: 28px; padding-inline: var(--space-sm); border: 0; border-radius: 4px;
+  background: transparent; color: var(--color-muted); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--dur-micro), color var(--dur-micro);
+}
+.seg button::after { content: ""; position: absolute; inset: -8px 0; }
+.seg button .ic { width: 14px; height: 14px; color: var(--tone, var(--color-ink-2)); }
+.seg button:hover { color: var(--color-ink); }
+.seg button[aria-pressed="true"] { background: var(--color-paper-3); color: var(--color-ink); }
+
+/* ── side panel ──────────────────────────────────────────────────────── */
+.side { border-left: 1px solid var(--color-rule); background: var(--color-paper); overflow-y: auto; min-height: 0; }
+.side section { padding: var(--space-lg); }
+.side section + section { border-top: 1px solid var(--color-rule); }
+.side h2 { font-size: var(--text-lg); line-height: 1.25; }
+.side h3 { font-size: var(--text-sm); }
+.side p { color: var(--color-ink-2); margin-top: var(--space-xs); text-wrap: pretty; }
+.props { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: var(--space-xs) var(--space-sm); margin-top: var(--space-md); }
+.props dt { color: var(--color-muted); }
+.facts { list-style: none; padding: 0; margin-top: var(--space-md); display: grid; gap: var(--space-xs); }
+.facts li { padding-left: var(--space-md); position: relative; color: var(--color-ink-2); }
+.facts li::before { content: ""; position: absolute; left: 0; top: 0.72em; width: 8px; height: 1px; background: var(--color-rule-2); }
+.code { margin-top: var(--space-md); padding: var(--space-sm); border: 1px solid var(--color-rule); border-radius: var(--radius-card); background: var(--color-paper-2); font: 400 var(--text-xs)/1.7 var(--font-mono); overflow-x: auto; white-space: pre; }
+.legend { list-style: none; padding: 0; margin-top: var(--space-md); display: grid; gap: var(--space-sm); }
+.legend li { display: grid; gap: var(--space-2xs); color: var(--color-ink-2); }
+.legend .pill { position: static; transform: none; justify-self: start; }
+.side .btn { margin-top: var(--space-md); }
+.route-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-sm); }
+.route-head span { color: var(--color-muted); font-size: var(--text-xs); }
+.route { list-style: none; padding: 0; margin: var(--space-sm) calc(-1 * var(--space-xs)) 0; counter-reset: s; }
+.route button {
+  counter-increment: s; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 0 var(--space-xs); width: 100%; padding: var(--space-xs);
+  border: 0; border-radius: var(--radius-ctl); background: transparent; text-align: left; cursor: pointer;
+  transition: background-color var(--dur-micro);
+}
+.route button::before { content: counter(s); grid-row: span 2; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.route button:hover { background: var(--color-paper-3); }
+.route b { font-weight: 500; }
+.route span { grid-column: 2; color: var(--color-muted); font-size: var(--text-xs); line-height: 1.45; }
+.route li.done b { color: var(--color-ink-2); }
+.route li[aria-current="step"] button { background: var(--color-paper-3); box-shadow: inset 2px 0 0 var(--trace, var(--color-ink)); }
+.route li.bad[aria-current="step"] button { box-shadow: inset 2px 0 0 var(--color-error); }
+.route li.bad[aria-current="step"] b { color: var(--color-error); }
+
+.fallback { position: absolute; inset: 0; overflow: auto; padding: var(--space-xl); background: var(--color-paper); }
+.fallback ol { margin-top: var(--space-md); padding-left: var(--space-lg); display: grid; gap: var(--space-xs); max-width: 60ch; color: var(--color-ink-2); }
+
+@media (max-width: 60rem) {
+  body { height: auto; display: block; }
+  .bar { height: var(--bar-h); gap: var(--space-sm); }
+  .stage { display: block; }
+  .canvas { height: 68svh; min-height: 420px; }
+  .side { border-left: 0; border-top: 1px solid var(--color-rule); }
+  .crumbs .proj, .crumbs .sep.p, .note { display: none; }
+}
+@media (max-width: 40rem) {
+  .crumbs .word, .crumbs .sep { display: none; }
+  .btn, .seg button { font-size: var(--text-md); }
+  .trace-status { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-terminal" viewBox="0 0 24 24"><path d="M5 17l6-5-6-5M13 18.5h7"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.500-7-10V6z"/><path d="M9.200 12l2 2 3.600-4"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.500"/><path d="M3.500 12h17M12 3.500c2.600 2.400 3.900 5.200 3.900 8.500s-1.300 6.100-3.900 8.500c-2.600-2.400-3.900-5.200-3.900-8.500s1.300-6.100 3.900-8.500z"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.500 12S6 5.500 12 5.500 21.500 12 21.500 12 18 18.500 12 18.500 2.500 12 2.500 12z"/><circle cx="12" cy="12" r="2.800"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2.500L5 13.500h6l-1 8 8-11h-6z"/></symbol>
+  <symbol id="i-fuzz" viewBox="0 0 24 24"><path d="M3 7h3.500c2 0 3.200 1 4.300 2.700l2.400 4.600c1.100 1.700 2.300 2.700 4.300 2.700H21M3 17h3.500c1.400 0 2.400-.5 3.300-1.400M21 7h-3.500c-1.400 0-2.400.5-3.300 1.400M18.500 4.500L21 7l-2.500 2.500M18.500 14.500L21 17l-2.500 2.500"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.200"/><circle cx="18" cy="6" r="2.200"/><path d="M8.200 18H15a3 3 0 000-6H9a3 3 0 010-6h6.800"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.500"/><path d="M12 7.500V12l3 2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.500l4.500 4.500L19 7.500"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 011-1h4M15 4h4a1 1 0 011 1v4M20 15v4a1 1 0 01-1 1h-4M9 20H5a1 1 0 01-1-1v-4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.500V5M12 19v2.500M2.500 12H5M19 12h2.500M5.300 5.300L7 7M17 17l1.700 1.700M18.700 5.300L17 7M7 17l-1.700 1.700"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.500A8.500 8.500 0 119.500 4a7 7 0 0010.500 10.500z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7.500 5v14l11-7z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.500" y="6.500" width="11" height="11" rx="1.500"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.500" r="3.500"/><path d="M5 20c.8-3.600 3.600-5.500 7-5.500s6.200 1.900 7 5.500"/></symbol>
+  <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.500"/><path d="M6 6l12 12"/></symbol>
+  <symbol id="i-form" viewBox="0 0 24 24"><rect x="3.500" y="5" width="17" height="14" rx="2"/><path d="M7 10h6M7 14h10"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8M11 6H7a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-4"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.500"/><path d="M16 16l4.500 4.500"/></symbol>
+</svg>
+
+<header class="bar">
+  <div class="crumbs">
+    <a class="brand" href="#lifecycle" aria-label="Vigolium, scan lifecycle"><img src="../assets/vigolium-mark.png" width="22" height="22" alt=""><span class="word">vigolium</span></a>
+    <span class="sep p" aria-hidden="true">/</span>
+    <span class="proj">app.sample.test</span>
+    <span class="sep" aria-hidden="true">/</span>
+    <h1>Scan lifecycle</h1>
+  </div>
+  <nav class="tabs" aria-label="Scenes">
+    <a href="#lifecycle" data-scene="lifecycle">Lifecycle</a>
+    <a href="#discovery" data-scene="discovery">Discovery</a>
+  </nav>
+  <div class="bar-end">
+    <span class="note">Sample data</span>
+    <button class="btn sq" type="button" id="theme" aria-label="Switch between light and dark">
+      <svg class="ic t-sun" aria-hidden="true"><use href="#i-sun"/></svg><svg class="ic t-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="stage">
+  <section class="canvas" id="canvas" aria-label="Diagram canvas. Drag to pan, pinch or hold Ctrl and scroll to zoom.">
+    <div class="world" id="world"></div>
+    <div class="hud zoom" role="group" aria-label="Zoom">
+      <button class="btn sq" type="button" id="zout" aria-label="Zoom out"><svg class="ic" aria-hidden="true"><use href="#i-minus"/></svg></button>
+      <output id="zlabel" aria-live="off">100%</output>
+      <button class="btn sq" type="button" id="zin" aria-label="Zoom in"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></button>
+      <button class="btn sq" type="button" id="zfit" aria-label="Fit the diagram to the canvas"><svg class="ic" aria-hidden="true"><use href="#i-fit"/></svg></button>
+    </div>
+    <div class="hud trace">
+      <p class="trace-status" id="status" role="status">Pick an outcome, then send a request.</p>
+      <div class="seg" id="seg" role="group" aria-label="Outcome"></div>
+      <button class="btn primary" type="button" id="send"><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg><span>Send request</span></button>
+    </div>
+    <noscript>
+      <div class="fallback">
+        <h2>Life of a scan request</h2>
+        <p>This diagram is drawn with JavaScript. The path it shows, in order:</p>
+        <ol>
+          <li>The scan request is resolved into seed requests.</li>
+          <li>The session broker attaches a session and checks the host against the boundary list.</li>
+          <li>Discovery expands each seed with content discovery and a headless spider, held to the rate and budget limits.</li>
+          <li>The traffic DB looks each request up: seen, new or changed.</li>
+          <li>New and changed records go to the scan engine’s passive, active and fuzz modules.</li>
+          <li>Verdicts are stored with the record and reported as findings.</li>
+        </ol>
+      </div>
+    </noscript>
+  </section>
+  <aside class="side" aria-label="Details">
+    <section id="detail" aria-live="polite"></section>
+    <section>
+      <div class="route-head"><h3>Route</h3><span id="routeName"></span></div>
+      <ol class="route" id="route"></ol>
+    </section>
+  </aside>
+</main>
+
+<script>
+(() => {
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const ic = (n) => `<svg class="ic" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const RM = matchMedia("(prefers-reduced-motion: reduce)");
+
+/* ── content: what each node is ───────────────────────────────────────── */
+const DOC = {
+  req: { t: "Scan request", stage: "Operator", kind: "Command", lead: "One command starts a run. It names a target; everything else has a default.", code: ["$ vigolium scan -t https://app.sample.test"] },
+  resolve: { t: "Input resolver", stage: "Operator", kind: "Parser", lead: "Turns whatever it is handed into seed requests: a URL, a host list, an API definition or a capture.",
+    facts: ["OpenAPI, Swagger, WSDL, Postman and HAR become one seed per operation.", "A bare URL becomes one GET seed.", "Every seed keeps a pointer to where it came from."] },
+  broker: { t: "Session broker", stage: "Run", kind: "Egress", lead: "Every outgoing request passes through it. It attaches the stored session, pools connections per host, and is where a blocked request stops.",
+    facts: ["Signs in again when a response looks logged out.", "One pool per host, so a slow target cannot starve the rest.", "Blocks are enforced here, before a socket opens."] },
+  bounds: { t: "Boundary list", stage: "Scope guard", kind: "Control", lead: "Allow and deny rules compiled from the scope before the first request. Deny wins, and a host that matches nothing is out.",
+    code: ["allow  app.sample.test", "allow  *.sample.test", "deny   cdn.vendor.test"] },
+  limits: { t: "Rate and budget limits", stage: "Scope guard", kind: "Control", lead: "Caps how fast and how much. Discovery and the modules draw from the same budget.",
+    code: ["rate     20 req/s per host", "budget   45m or 12,000 requests", "backoff  on 429 and 503"] },
+  seeds: { t: "Seed queue", stage: "Discovery", kind: "Queue", lead: "Holds seeds waiting to be expanded. Operations from a spec go first, because they are known to exist." },
+  crawl: { t: "Content discovery", stage: "Discovery", kind: "Worker", lead: "Finds paths the app never links to: wordlists, backup names, predictable API versions. Each hit is a new seed.",
+    facts: ["Learns the app’s 404 shape first, so soft 404s are not counted as hits.", "Recurses into directories it finds."] },
+  spider: { t: "Headless spider", stage: "Discovery", kind: "Worker", lead: "Drives a real browser through the app to reach routes that only exist after JavaScript runs.",
+    facts: ["Clicks, submits forms and follows client-side navigation.", "Records every request the page makes on the way."] },
+  lookup: { t: "Record lookup", stage: "Traffic DB", kind: "Store", lead: "Fingerprints each request by method, route shape and parameter names, then looks it up. The answer decides how much work the request costs.",
+    facts: ["Seen: unchanged since the last scan, so the stored verdict is returned.", "New: never recorded, so it is scanned now.", "Changed: the response differs from the record, so the old verdict is returned and a re-scan is queued."] },
+  fresh: { t: "Scanned now", stage: "Traffic DB", kind: "Path for a new record", lead: "A new record is sent to the target once, stored with its response, and handed to the module router. The verdict is written back beside it." },
+  rescan: { t: "Re-scanned in the background", stage: "Traffic DB", kind: "Path for a changed record", lead: "The run does not wait. The old verdict is returned and the record is re-scanned behind it, so the next scan reads the fresh one." },
+  router: { t: "Module router", stage: "Scan engine", kind: "Scheduler", lead: "Decides which modules a record is worth. A JSON endpoint is not given the DOM checks; a static file gets passive checks only." },
+  passive: { t: "Passive modules", stage: "Scan engine", kind: "Worker", lead: "Read the stored response and send nothing: headers, leaked secrets, verbose errors, version banners." },
+  active: { t: "Active modules", stage: "Scan engine", kind: "Worker", lead: "Send changed requests to prove a behaviour: injection, access control, request forgery. Each one still leaves through the session broker." },
+  fuzz: { t: "Fuzz workers", stage: "Scan engine", kind: "Worker", lead: "Payloads at one insertion point, scored by how far the response moves from its baseline. They emit signals, never verdicts." },
+  target: { t: "Target app", stage: "Outside the run", kind: "External", lead: "The only thing the run does not own. Everything in the frame reaches it through the session broker, inside the limits." },
+  findings: { t: "Findings", stage: "Output", kind: "Report", lead: "Verdicts that held up, each with the request and response that prove it.",
+    facts: ["A finding points at its record, so it can be replayed.", "Signals that did not confirm are kept, marked as such."] },
+  op: { t: "Operator", stage: "Outside the run", kind: "Person", lead: "Whoever started the scan. Anything discovery refuses to follow is reported back here, not dropped silently." },
+  entry: { t: "Target origin", stage: "Outside the run", kind: "External", lead: "The origin the seed points at. Discovery starts from its root and from every operation the spec names." },
+  guard: { t: "Scope guard", stage: "Vigolium", kind: "Control", lead: "The boundary list and the rate limits, drawn as one gate. Open the lifecycle scene to see both halves.", jump: ["lifecycle", "bounds", "Open the boundary list"] },
+  disc2: { t: "Content discovery or headless spider", stage: "Discovery", kind: "Worker", lead: "Two ways to expand a seed. Content discovery guesses paths; the spider runs the page. A route found by either is recorded once." },
+  routes: { t: "Routes", stage: "Discovery", kind: "Result", lead: "Paths that answered, grouped by shape so that 400 product pages count as one route with one parameter." },
+  r1: { t: "/api/v2/*", stage: "Discovery", kind: "Route group", lead: "Found by content discovery: the spec lists v3, and v2 still answers." },
+  r2: { t: "/app/*", stage: "Discovery", kind: "Route group", lead: "Client-side routes. They exist only after the bundle runs, so only the spider reaches them." },
+  r3: { t: "/admin/*", stage: "Discovery", kind: "Route group", lead: "Answers 403 without a session. Recorded anyway: access control is tested later, with two sessions." },
+  forms: { t: "Forms and inputs", stage: "Discovery", kind: "Result", lead: "Every input the pages accept, with its name, type and where it is sent. These become insertion points for the modules." },
+  off: { t: "Off-scope links", stage: "Discovery", kind: "Result", lead: "Links to hosts the boundary list does not allow. They are written to the coverage table and never requested." },
+};
+
+/* ── scenes: absolute geometry, explicit edge waypoints ───────────────── */
+const pre = (host) => [
+  ["req", [], `vigolium scan -t https://${host}`],
+  ["resolve", ["a1", "a2"], "The URL becomes one GET seed."],
+  ["broker", ["a3"], "Session attached, connection taken from the pool."],
+  ["bounds", ["a4"], "Host checked against the allow and deny rules."],
+];
+const mid = [
+  ["seeds", ["-a4", "a5"], "In scope. Queued as a seed, inside the rate limit.", ["limits", "a6"]],
+  ["crawl", ["a7"], "Unlinked paths found and added as new seeds."],
+  ["lookup", ["a9"], "Fingerprint looked up in the traffic DB."],
+];
+const SCENES = {
+  lifecycle: {
+    title: "Life of a scan request", w: 1400, h: 880,
+    lead: "What happens between pressing enter on a scan and a finding you can act on. Pick an outcome below the diagram and send a request through.",
+    regs: [
+      { c: "hatch", x: 250, y: 60, w: 900, h: 760 },
+      { c: "tint", x: 251, y: 61, w: 898, h: 145 },
+      { c: "line", x: 250, y: 206, w: 900 },
+      { c: "grp", x: 640, y: 246, w: 490, h: 184 },
+      { c: "grp", x: 270, y: 520, w: 270, h: 270 },
+      { c: "grp", x: 556, y: 520, w: 574, h: 270 },
+    ],
+    labels: [
+      { x: 270, y: 80, t: "Scope guard", i: "shield", tone: "info" }, { x: 270, y: 226, t: "Run 7f3a21c" },
+      { x: 660, y: 266, t: "Discovery" }, { x: 290, y: 540, t: "Scan engine" }, { x: 576, y: 540, t: "Traffic DB" },
+    ],
+    decos: [{ x: 88, y: 184, w: 64, h: 64, i: "terminal" }],
+    nodes: [
+      { id: "req", x: 40, y: 60, w: 160, h: 92, s: "vigolium scan" },
+      { id: "resolve", x: 40, y: 284, w: 160, h: 116 },
+      { id: "bounds", x: 270, y: 108, w: 420, h: 60 },
+      { id: "limits", x: 706, y: 108, w: 424, h: 60 },
+      { id: "broker", x: 392, y: 308, w: 160, h: 68 },
+      { id: "seeds", x: 660, y: 300, w: 230, h: 110, d: "Spec operations first" },
+      { id: "crawl", x: 940, y: 300, w: 170, h: 46 },
+      { id: "spider", x: 940, y: 364, w: 170, h: 46 },
+      { id: "router", x: 290, y: 590, w: 230, h: 68 },
+      { id: "passive", x: 292, y: 700, w: 66, h: 64, k: "tile", i: "eye" },
+      { id: "active", x: 372, y: 700, w: 66, h: 64, k: "tile", i: "bolt" },
+      { id: "fuzz", x: 452, y: 700, w: 66, h: 64, k: "tile", i: "fuzz" },
+      { id: "fresh", x: 576, y: 586, w: 262, h: 80, k: "dashed", t: "Scanned now and stored with its verdict" },
+      { id: "rescan", x: 576, y: 684, w: 262, h: 80, k: "dashed", t: "Re-scanned in the background, verdict refreshed" },
+      { id: "lookup", x: 1004, y: 586, w: 106, h: 178 },
+      { id: "target", x: 1200, y: 420, w: 160, h: 92, s: "app.sample.test" },
+      { id: "findings", x: 1200, y: 629, w: 160, h: 92 },
+    ],
+    edges: [
+      { id: "a1", p: [[120, 152], [120, 184]], a: "e" }, { id: "a2", p: [[120, 248], [120, 284]], a: "e" },
+      { id: "a3", p: [[200, 342], [392, 342]], a: "e" },
+      { id: "a4", p: [[472, 308], [472, 168]], a: "b" },
+      { id: "a5", p: [[552, 342], [660, 342]], a: "e" },
+      { id: "a6", p: [[918, 168], [918, 246]], a: "b" },
+      { id: "a7", p: [[890, 323], [940, 323]], a: "e" }, { id: "a8", p: [[890, 387], [940, 387]], a: "e" },
+      { id: "a9", p: [[918, 430], [918, 476], [1057, 476], [1057, 586]], a: "e" },
+      { id: "b1", p: [[1004, 626], [838, 626]], a: "e", tone: "warn" },
+      { id: "b2", p: [[1004, 724], [838, 724]], a: "e", tone: "alt" },
+      { id: "b3", p: [[1110, 675], [1200, 675]], a: "e", tone: "ok" },
+      { id: "b4", p: [[576, 626], [520, 626]], a: "e" },
+      { id: "b5", p: [[576, 724], [548, 724], [548, 626], [520, 626]], a: "e" },
+      { id: "c1", p: [[405, 658], [405, 700]], a: "e" },
+      { id: "c2", p: [[405, 678], [325, 678], [325, 700]], a: "e" },
+      { id: "c3", p: [[405, 678], [485, 678], [485, 700]], a: "e" },
+      { id: "t1", p: [[1200, 466], [1150, 466]], a: "b" },
+    ],
+    pills: [
+      { x: 296, y: 342, t: "In scope", i: "shield", tone: "info" },
+      { x: 921, y: 626, t: "New", i: "plus", tone: "warn" },
+      { x: 921, y: 724, t: "Changed", i: "clock", tone: "alt" },
+      { x: 1155, y: 675, t: "Seen", i: "check", tone: "ok" },
+    ],
+    badges: [{ id: "g1", x: 472, y: 206, i: "shield" }, { id: "g2", x: 918, y: 206, i: "shield" }],
+    traces: [
+      { id: "new", label: "New", i: "plus", tone: "warn", sum: "Never recorded. Scanned now, and the verdict is stored beside the record.", steps: [...pre("app.sample.test"), ...mid,
+        ["fresh", ["b1"], "Never recorded. Sent to the target once and stored."],
+        ["router", ["b4"], "Matched to the modules this record is worth."],
+        ["active", ["c1"], "Changed requests prove the behaviour against the target."],
+        ["lookup", ["-c1", "-b4", "-b1"], "Verdict written back beside the record."],
+        ["findings", ["b3"], "Reported with the request and response that prove it."]] },
+      { id: "seen", label: "Seen", i: "check", tone: "ok", sum: "Unchanged since the last scan. The stored verdict is returned and nothing is sent.", steps: [...pre("app.sample.test"), ...mid,
+        ["findings", ["b3"], "Unchanged since the last scan. The stored verdict is returned and nothing is sent."]] },
+      { id: "changed", label: "Changed", i: "clock", tone: "alt", sum: "The response moved. The old verdict is returned now and refreshed in the background.", steps: [...pre("app.sample.test"), ...mid,
+        ["findings", ["b3"], "The response differs from the record. The old verdict is returned straight away."],
+        ["rescan", ["b2"], "Meanwhile the record is queued for a re-scan."],
+        ["router", ["b5"], "Matched to modules again, off the critical path."],
+        ["fuzz", ["c3"], "Payloads replayed at each insertion point and scored against baseline."],
+        ["rescan", ["-c3", "-b5"], "Verdict refreshed for the next scan."]] },
+      { id: "blocked", label: "Out of scope", i: "ban", tone: "bad", bad: "g1", sum: "Denied by the boundary list. Never sent, and logged to coverage.", steps: [...pre("cdn.vendor.test").slice(0, 3),
+        ["bounds", ["a4"], "Denied by the rule for cdn.vendor.test. The request is never sent, and the host is logged to coverage."]] },
+    ],
+  },
+  discovery: {
+    title: "How discovery expands one seed", w: 1180, h: 570,
+    lead: "The discovery stage on its own. One seed goes in; routes, inputs and a list of links it refused to follow come out.",
+    regs: [
+      { c: "dash", x: 190, y: 70, w: 950, h: 400 },
+      { c: "dash inner", x: 440, y: 130, w: 676, h: 316 },
+    ],
+    labels: [{ x: 216, y: 94, t: "Vigolium", img: 1, plain: 1 }, { x: 462, y: 152, t: "Discovery", i: "route", plain: 1 }],
+    nodes: [
+      { id: "op", x: 40, y: 238, w: 48, h: 48, k: "round", i: "user" },
+      { id: "entry", x: 154, y: 226, w: 72, h: 72, k: "round tint", i: "globe" },
+      { id: "guard", x: 244, y: 216, w: 156, h: 92, k: "dashed row tone-info", i: "shield", t: "Scope guard" },
+      { id: "disc2", x: 462, y: 196, w: 196, h: 228, k: "dashed", t: `Content discovery<span class="or">or</span>Headless spider` },
+      { id: "routes", x: 700, y: 238, w: 130, h: 46, k: "dashed" },
+      { id: "r1", x: 890, y: 186, w: 204, h: 44, k: "dashed path" },
+      { id: "r2", x: 890, y: 239, w: 204, h: 44, k: "dashed path" },
+      { id: "r3", x: 890, y: 292, w: 204, h: 44, k: "dashed path" },
+      { id: "forms", x: 700, y: 362, w: 174, h: 46, k: "dashed", t: "Forms and inputs" },
+      { id: "off", x: 912, y: 362, w: 182, h: 46, k: "dashed" },
+    ],
+    edges: [
+      { id: "d1", p: [[88, 262], [150, 262]], a: "e" },
+      { id: "d2", p: [[400, 262], [462, 262]], a: "e" },
+      { id: "d3", p: [[658, 261], [700, 261]], a: "e" },
+      { id: "d4", p: [[830, 261], [860, 261], [860, 208], [890, 208]], a: "e" },
+      { id: "d5", p: [[830, 261], [890, 261]], a: "e" },
+      { id: "d6", p: [[830, 261], [860, 261], [860, 314], [890, 314]], a: "e" },
+      { id: "d7", p: [[658, 385], [700, 385]], a: "e" },
+      { id: "d8", p: [[874, 385], [912, 385]], a: "e" },
+      { id: "d9", p: [[1003, 408], [1003, 520], [64, 520], [64, 290]], a: "e" },
+    ],
+    pills: [{ x: 540, y: 520, t: "Logged, not followed", i: "out", plain: 1 }],
+    traces: [
+      { id: "api", label: "API route", i: "search", tone: "ok", sum: "A path nothing links to, found by guessing.", steps: [
+        ["op", [], "A scan of app.sample.test starts."],
+        ["entry", ["d1"], "The seed points at the origin."],
+        ["guard", [], "In scope, inside the rate limit."],
+        ["disc2", ["d2"], "Content discovery tries predictable API versions."],
+        ["routes", ["d3"], "A path answers and is grouped by shape."],
+        ["r1", ["d4"], "/api/v2 still answers, though the spec lists only v3."]] },
+      { id: "spa", label: "Client route", i: "globe", tone: "info", sum: "A route that exists only after the bundle runs.", steps: [
+        ["op", [], "A scan of app.sample.test starts."],
+        ["entry", ["d1"], "The seed points at the origin."],
+        ["guard", [], "In scope, inside the rate limit."],
+        ["disc2", ["d2"], "The spider loads the page and runs its bundle."],
+        ["routes", ["d3"], "The client router reveals routes no link points to."],
+        ["r2", ["d5"], "/app/* is recorded, with every request the page made."]] },
+      { id: "off", label: "Off-scope link", i: "ban", tone: "bad", sum: "A link to a denied host: logged, never followed.", steps: [
+        ["op", [], "A scan of app.sample.test starts."],
+        ["entry", ["d1"], "The seed points at the origin."],
+        ["guard", [], "In scope, inside the rate limit."],
+        ["disc2", ["d2"], "The spider reads every link and form on the page."],
+        ["forms", ["d7"], "Inputs are recorded as insertion points."],
+        ["off", ["d8"], "One link points at cdn.vendor.test, which the boundary list denies."],
+        ["op", ["d9"], "Written to the coverage table and reported. Never requested."]] },
+    ],
+  },
+};
+
+/* ── state ────────────────────────────────────────────────────────────── */
+const canvas = $("#canvas"), world = $("#world"), detail = $("#detail"), routeEl = $("#route");
+const statusEl = $("#status"), seg = $("#seg"), send = $("#send");
+const st = { scene: "lifecycle", trace: "new", node: null };
+const view = { x: 0, y: 0, k: 1 };
+let userMoved = false, runId = 0, playing = false, sent = false, pkt = null;
+const scene = () => SCENES[st.scene];
+const trace = () => scene().traces.find((t) => t.id === st.trace) || scene().traces[0];
+const title = (n) => n.t || DOC[n.id].t;
+
+/* ── drawing ──────────────────────────────────────────────────────────── */
+function pathD(p, r = 10) {
+  let d = `M${p[0][0]},${p[0][1]}`;
+  for (let i = 1; i < p.length - 1; i++) {
+    const [x0, y0] = p[i - 1], [x1, y1] = p[i], [x2, y2] = p[i + 1];
+    const d1 = Math.hypot(x1 - x0, y1 - y0), d2 = Math.hypot(x2 - x1, y2 - y1), rr = Math.min(r, d1 / 2, d2 / 2);
+    d += ` L${x1 - ((x1 - x0) / d1) * rr},${y1 - ((y1 - y0) / d1) * rr} Q${x1},${y1} ${x1 + ((x2 - x1) / d2) * rr},${y1 + ((y2 - y1) / d2) * rr}`;
+  }
+  const l = p[p.length - 1];
+  return `${d} L${l[0]},${l[1]}`;
+}
+const head = (tip, from) => `<path class="ah" d="M0,0 L-8,-4 L-8,4 Z" transform="translate(${tip[0]},${tip[1]}) rotate(${(Math.atan2(tip[1] - from[1], tip[0] - from[0]) * 180) / Math.PI})"/>`;
+function edgeSvg(e) {
+  const p = e.p, n = p.length, a = e.a || "";
+  return `<g class="edge${e.tone ? " tone-" + e.tone : ""}${e.dash ? " dashed" : ""}" data-id="${e.id}"><path class="ln" d="${pathD(p)}"/>${a === "e" || a === "b" ? head(p[n - 1], p[n - 2]) : ""}${a === "b" ? head(p[0], p[1]) : ""}</g>`;
+}
+const box = (o) => `left:${o.x}px;top:${o.y}px;width:${o.w}px;${o.h ? `height:${o.h}px` : ""}`;
+function render() {
+  const sc = scene();
+  world.style.width = sc.w + "px"; world.style.height = sc.h + "px";
+  let h = "";
+  for (const r of sc.regs || []) h += `<div class="reg ${r.c}" style="${box(r)}"></div>`;
+  for (const l of sc.labels || []) h += `<span class="glabel${l.plain ? " plain" : ""}${l.tone ? " tone-" + l.tone : ""}" style="left:${l.x}px;top:${l.y}px">${l.img ? `<img src="../assets/vigolium-mark.png" width="18" height="18" alt="">` : ""}${l.i ? ic(l.i) : ""}${l.t}</span>`;
+  h += `<svg class="edges" width="${sc.w}" height="${sc.h}" aria-hidden="true">${sc.edges.map(edgeSvg).join("")}</svg>`;
+  for (const d of sc.decos || []) h += `<div class="deco" style="${box(d)}">${ic(d.i)}</div>`;
+  for (const n of sc.nodes) {
+    const iconOnly = /tile|round/.test(n.k || "");
+    h += `<button type="button" class="node ${n.k || ""}" data-id="${n.id}" style="${box(n)}" aria-pressed="false"${iconOnly ? ` aria-label="${DOC[n.id].t}" title="${DOC[n.id].t}"` : ""}>${n.i ? ic(n.i) : ""}${iconOnly ? "" : `<span>${title(n)}</span>`}${n.s ? `<code>${n.s}</code>` : ""}${n.d ? `<small>${n.d}</small>` : ""}</button>`;
+  }
+  for (const p of sc.pills || []) h += `<span class="pill${p.tone ? " tone-" + p.tone : ""}${p.plain ? " plain" : ""}" style="left:${p.x}px;top:${p.y}px">${ic(p.i)}${p.t}</span>`;
+  for (const b of sc.badges || []) h += `<span class="badge" data-id="${b.id}" style="left:${b.x}px;top:${b.y}px">${ic(b.i)}</span>`;
+  world.innerHTML = h + `<div class="pkt"></div>`;
+  pkt = $(".pkt", world);
+  setTone();
+  seg.innerHTML = sc.traces.map((t) => `<button type="button" class="tone-${t.tone}" data-trace="${t.id}" aria-pressed="${t.id === trace().id}">${ic(t.i)}${t.label}</button>`).join("");
+  document.querySelectorAll(".tabs a").forEach((a) => a.dataset.scene === st.scene ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+}
+
+/* ── side panel ───────────────────────────────────────────────────────── */
+// The selected outcome's colour, read by the packet, the visited path and the route list.
+const TONE = { ok: "ok", warn: "warn", info: "info", alt: "alt", bad: "error" };
+const setTone = () => $(".stage").style.setProperty("--trace", `var(--color-${TONE[trace().tone]})`);
+
+function renderDetail() {
+  const sc = scene(), d = st.node && DOC[st.node];
+  world.querySelectorAll(".node").forEach((n) => n.setAttribute("aria-pressed", String(n.dataset.id === st.node)));
+  if (!d) {
+    detail.innerHTML = `<h2>${sc.title}</h2><p>${sc.lead}</p><ul class="legend">${sc.traces.map((t) => `<li><span class="pill tone-${t.tone}">${ic(t.i)}${t.label}</span><span>${t.sum}</span></li>`).join("")}</ul>`;
+    return;
+  }
+  detail.innerHTML = `<h2>${d.t}</h2><p>${d.lead}</p>
+    <dl class="props"><dt>Stage</dt><dd>${d.stage}</dd><dt>Kind</dt><dd>${d.kind}</dd></dl>
+    ${d.facts ? `<ul class="facts">${d.facts.map((f) => `<li>${f}</li>`).join("")}</ul>` : ""}
+    ${d.code ? `<pre class="code">${d.code.join("\n")}</pre>` : ""}
+    ${d.jump ? `<a class="btn" href="#${d.jump[0]}/${SCENES[d.jump[0]].traces[0].id}/${d.jump[1]}">${d.jump[2]}</a> ` : ""}<button class="btn" type="button" data-clear>Back to overview</button>`;
+}
+function renderRoute(cur = -1, bad = false) {
+  const t = trace();
+  $("#routeName").textContent = t.label;
+  routeEl.innerHTML = t.steps.map((s, i) => `<li class="${i < cur ? "done" : ""}${bad && i === cur ? " bad" : ""}"${i === cur ? ' aria-current="step"' : ""}><button type="button" data-node="${s[0]}"><b>${DOC[s[0]].t}</b><span>${s[2]}</span></button></li>`).join("");
+  const side = routeEl.closest(".side"), li = routeEl.children[cur];
+  if (li && side.scrollHeight > side.clientHeight + 1) li.scrollIntoView({ block: "nearest" });
+}
+
+/* ── the trace ────────────────────────────────────────────────────────── */
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const edgeEl = (id) => world.querySelector(`.edge[data-id="${id}"]`);
+const nodeEl = (id) => world.querySelector(`.node[data-id="${id}"]`);
+function clearMarks() {
+  world.querySelectorAll(".on, .bad").forEach((e) => e.classList.remove("on", "bad"));
+  pkt.classList.remove("show");
+}
+function travel(v, my) {
+  return new Promise((res) => {
+    const rev = v[0] === "-", g = edgeEl(rev ? v.slice(1) : v), ln = $(".ln", g), len = ln.getTotalLength();
+    const dur = Math.max(240, len / 0.55), t0 = performance.now();
+    const tick = (now) => {
+      if (my !== runId) return res();
+      const t = Math.min(1, (now - t0) / dur), p = ln.getPointAtLength(len * (rev ? 1 - t : t));
+      pkt.style.transform = `translate(${p.x}px,${p.y}px)`;
+      pkt.classList.add("show");
+      if (t < 1) requestAnimationFrame(tick); else { g.classList.add("on"); res(); }
+    };
+    requestAnimationFrame(tick);
+  });
+}
+function setStatus(i, t, bad) {
+  const s = t.steps[i];
+  statusEl.innerHTML = `<span class="n">${i + 1} / ${t.steps.length}</span><b>${DOC[s[0]].t}</b> ${s[2]}`;
+  renderRoute(i, bad);
+}
+function arrive(i, t) {
+  const s = t.steps[i], last = i === t.steps.length - 1, bad = last && !!t.bad;
+  pkt.classList.remove("show");
+  nodeEl(s[0]).classList.add(bad ? "bad" : "on");
+  reveal(nodeEl(s[0]));
+  for (const id of s[3] || []) (nodeEl(id) || edgeEl(id)).classList.add("on");
+  if (bad) { world.querySelector(`.badge[data-id="${t.bad}"]`).classList.add("bad"); s[1].forEach((v) => edgeEl(v.replace("-", "")).classList.add("tone-bad")); }
+  setStatus(i, t, bad);
+}
+function setPlaying(on) {
+  playing = on;
+  send.innerHTML = on ? `${ic("stop")}<span>Stop</span>` : `${ic("play")}<span>${sent ? "Send again" : "Send request"}</span>`;
+}
+async function play() {
+  const my = ++runId, t = trace();
+  resetTrace(false); sent = true; setPlaying(true);
+  for (let i = 0; i < t.steps.length; i++) {
+    if (!RM.matches) for (const v of t.steps[i][1]) { await travel(v, my); if (my !== runId) return; }
+    else t.steps[i][1].forEach((v) => edgeEl(v.replace("-", "")).classList.add("on"));
+    arrive(i, t);
+    if (!RM.matches) { await wait(i === t.steps.length - 1 ? 0 : 620); if (my !== runId) return; }
+  }
+  setPlaying(false);
+}
+function resetTrace(bump = true) {
+  if (bump) runId++;
+  world.querySelectorAll(".edge.tone-bad").forEach((e) => { const d = scene().edges.find((x) => x.id === e.dataset.id); if (d.tone !== "bad") e.classList.remove("tone-bad"); });
+  clearMarks(); renderRoute();
+  if (bump) { sent = false; setPlaying(false); statusEl.textContent = "Pick an outcome, then send a request."; }
+}
+
+/* ── view: pan, zoom, fit ─────────────────────────────────────────────── */
+function apply(ease) {
+  world.classList.toggle("ease", !!ease);
+  world.style.transform = `translate(${view.x}px,${view.y}px) scale(${view.k})`;
+  $("#zlabel").textContent = Math.round(view.k * 100) + "%";
+}
+function bounds() {
+  const sc = scene(), all = [...sc.nodes, ...(sc.regs || []).filter((r) => r.h)];
+  const x0 = Math.min(...all.map((n) => n.x)), y0 = Math.min(...all.map((n) => n.y));
+  const x1 = Math.max(...all.map((n) => n.x + n.w)), y1 = Math.max(...all.map((n) => n.y + n.h));
+  return { x: x0, y: Math.min(y0, 40), w: x1 - x0, h: Math.max(y1, ...sc.edges.flatMap((e) => e.p.map((p) => p[1]))) - Math.min(y0, 40) };
+}
+function fit(ease) {
+  const W = canvas.clientWidth, H = canvas.clientHeight, b = bounds();
+  const pad = { l: 24, r: 24, t: 64, b: 128 };
+  // On a narrow canvas a whole-diagram fit is unreadable: hold a floor and start at the top-left instead.
+  view.k = clamp(Math.min((W - pad.l - pad.r) / b.w, (H - pad.t - pad.b) / b.h), W < 640 ? 0.5 : 0.2, 1.4);
+  view.x = pad.l + Math.max(0, W - pad.l - pad.r - b.w * view.k) / 2 - b.x * view.k;
+  view.y = pad.t + Math.max(0, H - pad.t - pad.b - b.h * view.k) / 2 - b.y * view.k;
+  userMoved = false; apply(ease);
+}
+function zoomAt(cx, cy, f, ease) {
+  const k = clamp(view.k * f, 0.2, 2.5), r = k / view.k;
+  view.x = cx - (cx - view.x) * r; view.y = cy - (cy - view.y) * r; view.k = k; userMoved = true; apply(ease);
+}
+const mid2 = () => [canvas.clientWidth / 2, canvas.clientHeight / 2];
+
+const ptrs = new Map(); let drag = null, pinch = null, moved = false;
+canvas.addEventListener("pointerdown", (e) => {
+  if (e.target.closest(".hud") || e.button > 0) return;
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]); moved = false;
+  if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
+  else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), k: view.k }; drag = null; }
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pinch && ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()], r = canvas.getBoundingClientRect();
+    zoomAt((a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top, clamp((pinch.k * Math.hypot(a[0] - b[0], a[1] - b[1])) / pinch.d, 0.2, 2.5) / view.k);
+    moved = true; return;
+  }
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!moved && Math.hypot(dx, dy) < 5) return;
+  if (!moved) { moved = true; canvas.setPointerCapture(e.pointerId); canvas.classList.add("panning"); }
+  view.x = drag.vx + dx; view.y = drag.vy + dy; userMoved = true; apply();
+});
+const endPtr = (e) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) { drag = null; canvas.classList.remove("panning"); } };
+canvas.addEventListener("pointerup", endPtr); canvas.addEventListener("pointercancel", endPtr);
+canvas.addEventListener("click", (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+canvas.addEventListener("wheel", (e) => {
+  if (e.target.closest(".hud")) return;
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  if (e.ctrlKey || e.metaKey) zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.01));
+  else { view.x -= e.deltaX; view.y -= e.deltaY; userMoved = true; apply(); }
+}, { passive: false });
+$("#zin").addEventListener("click", () => zoomAt(...mid2(), 1.25, true));
+$("#zout").addEventListener("click", () => zoomAt(...mid2(), 0.8, true));
+$("#zfit").addEventListener("click", () => fit(true));
+new ResizeObserver(() => { if (!userMoved) fit(); }).observe(canvas);
+
+/* ── selection, routing, keys ─────────────────────────────────────────── */
+function writeHash() {
+  const h = `#${st.scene}/${trace().id}${st.node ? "/" + st.node : ""}`;
+  if (location.hash !== h) history.replaceState(null, "", h);
+}
+function select(id) { st.node = id; renderDetail(); writeHash(); }
+function readHash() {
+  const [s, t, n] = location.hash.slice(1).split("/");
+  const next = SCENES[s] ? s : "lifecycle", changed = next !== st.scene;
+  st.scene = next;
+  st.trace = scene().traces.some((x) => x.id === t) ? t : scene().traces[0].id;
+  st.node = scene().nodes.some((x) => x.id === n) ? n : null;
+  render(); resetTrace(); renderDetail();
+  if (changed || !userMoved) fit();
+  writeHash();
+}
+world.addEventListener("click", (e) => { const n = e.target.closest(".node"); if (n) select(n.dataset.id === st.node ? null : n.dataset.id); });
+// Pan a node into view when it is hidden by the canvas edge or the HUD.
+function reveal(n) {
+  const r = n.getBoundingClientRect(), c = canvas.getBoundingClientRect(), hud = $(".trace").offsetHeight + 24;
+  if (r.left < c.left + 8 || r.right > c.right - 8 || r.top < c.top + 56 || r.bottom > c.bottom - hud) {
+    view.x += c.left + c.width / 2 - (r.left + r.width / 2); view.y += c.top + (c.height - hud + 56) / 2 - (r.top + r.height / 2); userMoved = true; apply(true);
+  }
+}
+world.addEventListener("focusin", (e) => { const n = e.target.closest(".node"); if (n && n.matches(":focus-visible")) reveal(n); });
+detail.addEventListener("click", (e) => { if (e.target.closest("[data-clear]")) select(null); });
+routeEl.addEventListener("click", (e) => { const b = e.target.closest("[data-node]"); if (b) select(b.dataset.node); });
+seg.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-trace]"); if (!b) return;
+  st.trace = b.dataset.trace;
+  seg.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  setTone(); resetTrace(); if (!st.node) renderDetail(); writeHash();
+});
+send.addEventListener("click", () => (playing ? resetTrace() : play()));
+addEventListener("hashchange", readHash);
+addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  const inCanvas = e.target === document.body || canvas.contains(e.target);
+  if (e.key === "Escape") { if (st.node) select(null); }
+  else if (e.key === "+" || e.key === "=") zoomAt(...mid2(), 1.25, true);
+  else if (e.key === "-") zoomAt(...mid2(), 0.8, true);
+  else if (e.key === "0") fit(true);
+  else if (inCanvas && e.key.startsWith("Arrow")) {
+    const d = { ArrowLeft: [48, 0], ArrowRight: [-48, 0], ArrowUp: [0, 48], ArrowDown: [0, -48] }[e.key];
+    view.x += d[0]; view.y += d[1]; userMoved = true; apply(true); e.preventDefault();
+  }
+});
+$("#theme").addEventListener("click", () => {
+  const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("vg-lifecycle-theme", t); } catch (e) {}
+});
+
+readHash();
+})();
+</script>
+</body>
+</html>

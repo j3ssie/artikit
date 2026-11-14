@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en" id="top">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The measure of this page</title>
+<meta name="description" content="A research note template: the line length of this page counted at nine window widths, with numbered figures, a table and footnotes.">
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;700&family=DM+Mono&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<script>
+(function () {
+  var d = document.documentElement;
+  d.classList.add("js");
+  try {
+    var t = localStorage.getItem("artikit-blog-theme");
+    if (t === "light" || t === "dark") d.setAttribute("data-theme", t);
+  } catch (e) {}
+})();
+</script>
+<!--
+  Artikit, blog-research-note.html
+  A research note: a centred title, a colour plate, a meta rail, serif prose,
+  numbered figures wider than the text, a table and footnotes.
+  To write your own document, replace what is inside <article class="post">.
+
+  Blocks
+    h1                  title, centred, 34px
+    figure.plate        opening picture, as wide as the text: a drawing on a
+                        colour field (div.field) or a plain image element
+    aside.rail          published, author, topics; a sidebar from 1152px,
+                        rows under the plate below that
+    h2, h3, p, ul, ol   serif body in the 560px column
+    sup.fn              footnote marker; link it to an item in ol.notes
+    blockquote          quotation, with a <footer> for the source
+    figure.code         code with a name and a copy button
+    figure.wide         numbered figure in a tinted frame, 848px; the caption
+                        is a label and a sentence
+    div.table-wrap      numbered table; add .wide to break out
+    div.notes           footnotes, each with a link back to the text
+
+  Figures with plots: figure.wide > div.frame > div.panels > div.panel
+    div.panel           a cream card: p.panel-title, the plot, p.panel-note
+    div.chart           wraps one plot, an svg with viewBox="0 0 360 284"
+    in the svg          .plot-band (shaded range), .plot-grid, .plot-axis,
+                        .plot-tick and .plot-title (axis text), .plot-value,
+                        .plot-whisker, .plot-ref; fills .s1 .s2 .s3 are the
+                        three series, .h1 .h2 .h3 their hatched twins, and
+                        .l1 .l2 .l3 the same colours as line strokes
+    g.mark              one readable mark; give it data-value and data-label
+                        (or data-rows for several series) and the script
+                        shows a readout on hover, touch and arrow keys
+    details.data        the same numbers as tables, under the caption
+    Two panels sit side by side from 768px and stack below that.
+
+  Colours, faces, sizes and spacing are tokens in :root. The dark scheme
+  overrides only the colour tokens.
+-->
+<style>
+/* Hallmark · shape: Long Document · genre: editorial · theme: custom · job: try · idea: "a claim, the method, the figure and the limits, each in its own place, about the page you are reading" · vibe: "cream paper, bold sans heads, serif prose, tan frames"
+ * paper: oklch(98.2% 0.005 95) · accent: oklch(56.5% 0.141 39) · display: Albert Sans · body: Source Serif 4 · hero: a centred title over a colour plate that draws sixteen lines of this page as rows, with a meta rail beside it · nav: a centred wordmark and a scheme switch · footer: one line, the wordmark and a way back up · imagery: one picture drawn from the page's own lines and two figures of four plots of counted line lengths · signature: the picture in the plate, redrawn from the lines of the window you have open
+ * axes: light/grotesk-sans/warm · posture: restrained, with one committed plate, the hero field in blue, green and pink · contrast: pass · fold: pass · modes: light+dark · v2.0.0 */
+/* Hallmark · pre-emit critique: P5 H4 E4 S5 R4 V4 · weakest: H, the title is 34px by the reference's rule, so the colour plate carries the first screen instead of the type */
+/* Hallmark · waive 39b · the copy button is 32px tall with a 44px hit target from its ::after · it sits in the caption row of a code block, where a taller control would outweigh the code under it */
+/* Hallmark · dismissed 77 · the page is one article by design; a Long Document has no landing sections to count */
+/* Hallmark · waive 79 · the opening paragraph of the article starts inside that band and is in view at 1440 by 900 · the linter reads the header as a landing hero, while this Long Document runs straight on below it */
+/* Hallmark · hero-review: not run, the page was built in one pass · finish-review: subagent · 8 findings · 7 resolved 1 partial (the six-column table still scrolls on a phone, now as a focusable region with the first column pinned) · gap: none · revised after that review: a new plate picture and the plots rebuilt as panels after the reference's figures, checked in render but not re-reviewed */
+/* Not Hallmark-clean on 58, on purpose: this is an article template, running prose is its material, and one screen of an article holds more than 80 words. */
+:root {
+  color-scheme: light;
+  --color-paper: oklch(98.2% 0.005 95);
+  --color-paper-2: oklch(95.4% 0.011 95);
+  --color-paper-3: oklch(92.4% 0.014 97);
+  --color-ink: oklch(19.1% 0.005 107);
+  --color-ink-2: oklch(35.9% 0.005 107);
+  --color-muted: oklch(47.8% 0.006 95);
+  --color-rule: oklch(87.7% 0.016 99);
+  --color-accent: oklch(56.5% 0.141 39);
+  --color-accent-ink: oklch(98.2% 0.005 95);
+  --color-focus: oklch(56.5% 0.18 39);
+  --color-field: oklch(71.6% 0.105 250);
+  --color-field-2: oklch(67.4% 0.118 152);
+  --color-field-3: oklch(75.8% 0.098 3);
+  --color-field-ink: oklch(19.1% 0.005 107);
+  --color-series-1: oklch(67.1% 0.175 40.6);
+  --color-series-2: oklch(57.5% 0.163 255.5);
+  --color-series-3: oklch(66.9% 0.141 162.1);
+
+  --font-display: "Albert Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Source Serif 4", ui-serif, Georgia, serif;
+  --font-outlier: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-title: clamp(1.75rem, 1vw + 1.45rem, 2.125rem);
+  --text-head: 1.375rem;
+  --text-subhead: 1.125rem;
+  --text-body: 1.0625rem;
+  --text-small: 0.9375rem;
+  --text-label: 0.8125rem;
+  --text-code: 0.8125rem;
+  --leading-body: 1.55;
+
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px;
+  --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --space-para: 24px;
+  --space-head: 48px;
+  --space-figure: 56px;
+  --gutter: 24px;
+
+  --measure: 35rem;
+  --measure-wide: 53rem;
+  --rail: 12.8125rem;
+  --container: 82rem;
+  --bar-h: 72px;
+  --control: 44px;
+  --control-s: 32px;
+
+  --radius-plate: 4px;
+  --radius-panel: 12px;
+  --radius-chip: 4px;
+  --radius-pill: 999px;
+  --rule-hair: 1px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-micro: 120ms;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: oklch(20.5% 0.005 95);
+  --color-paper-2: oklch(24.4% 0.005 95);
+  --color-paper-3: oklch(28.5% 0.006 95);
+  --color-ink: oklch(96.6% 0.008 99);
+  --color-ink-2: oklch(85% 0.012 96);
+  --color-muted: oklch(70.8% 0.012 95);
+  --color-rule: oklch(34.8% 0.007 95);
+  --color-accent: oklch(72.8% 0.118 39);
+  --color-accent-ink: oklch(20.5% 0.005 95);
+  --color-focus: oklch(72.8% 0.14 39);
+  --color-field: oklch(65% 0.107 250);
+  --color-field-2: oklch(62.2% 0.113 152);
+  --color-field-3: oklch(70.3% 0.102 3);
+  --color-series-1: oklch(62.2% 0.173 40.1);
+  --color-series-2: oklch(62.2% 0.161 255.1);
+  --color-series-3: oklch(62.1% 0.128 163.1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --color-paper: oklch(20.5% 0.005 95);
+    --color-paper-2: oklch(24.4% 0.005 95);
+    --color-paper-3: oklch(28.5% 0.006 95);
+    --color-ink: oklch(96.6% 0.008 99);
+    --color-ink-2: oklch(85% 0.012 96);
+    --color-muted: oklch(70.8% 0.012 95);
+    --color-rule: oklch(34.8% 0.007 95);
+    --color-accent: oklch(72.8% 0.118 39);
+    --color-accent-ink: oklch(20.5% 0.005 95);
+    --color-focus: oklch(72.8% 0.14 39);
+    --color-field: oklch(65% 0.107 250);
+    --color-field-2: oklch(62.2% 0.113 152);
+    --color-field-3: oklch(70.3% 0.102 3);
+    --color-series-1: oklch(62.2% 0.173 40.1);
+    --color-series-2: oklch(62.2% 0.161 255.1);
+    --color-series-3: oklch(62.1% 0.128 163.1);
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { scroll-padding-top: var(--space-lg); scrollbar-color: var(--color-muted) var(--color-paper); -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: var(--text-small);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: color-mix(in oklab, var(--color-accent) 24%, transparent); color: var(--color-ink); }
+:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+h1, h2, h3 { margin: 0; font-family: var(--font-display); font-weight: 700; font-synthesis: none; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
+p, figure, blockquote, ul, ol, dl, dd { margin: 0; }
+p { text-wrap: pretty; }
+a { color: inherit; text-decoration-line: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; transition: color var(--dur-micro) var(--ease-out); }
+a:hover { color: var(--color-accent); }
+svg { display: block; }
+button { font: inherit; }
+[hidden] { display: none !important; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* bar */
+.bar-in { max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); height: var(--bar-h); display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; }
+.mark { grid-column: 2; display: inline-flex; align-items: center; min-height: var(--control); font-size: var(--text-subhead); font-weight: 700; letter-spacing: -0.01em; text-decoration-line: none; }
+.mark:hover { color: inherit; }
+.iconbtn { grid-column: 3; justify-self: end; display: inline-grid; place-items: center; width: var(--control); height: var(--control); padding: 0; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-muted); cursor: pointer; transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out); }
+.iconbtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.iconbtn svg .half { fill: currentColor; stroke: none; }
+.iconbtn:hover { color: var(--color-ink); background: var(--color-paper-2); }
+.iconbtn:active { background: var(--color-paper-3); }
+.iconbtn:disabled { opacity: 0.55; cursor: not-allowed; }
+html:not(.js) .iconbtn, html:not(.js) .copy { display: none; }
+
+/* post */
+.post { max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); padding-bottom: var(--space-4xl); }
+h1 { max-width: var(--measure-wide); margin-inline: auto; padding-top: var(--space-3xl); font-size: var(--text-title); line-height: 1.14; text-align: center; }
+.post-body { position: relative; margin-top: var(--space-2xl); }
+.post-body > * { max-width: var(--measure); margin-inline: auto; }
+.post-body > .prose { max-width: none; }
+
+/* plate: a drawing on a colour field, or a plain image element */
+.field { overflow: hidden; border-radius: var(--radius-plate); background: var(--color-field); }
+.picture { width: 100%; height: auto; }
+.plate img { display: block; width: 100%; height: auto; border-radius: var(--radius-plate); }
+.pic-used { fill: var(--color-field-2); }
+.pic-room { fill: var(--color-field-3); }
+.pic-grid { fill: none; stroke: var(--color-field-ink); stroke-width: 1; vector-effect: non-scaling-stroke; }
+
+figcaption { margin-top: var(--space-sm); font-size: var(--text-label); line-height: 1.45; color: var(--color-muted); }
+.plate figcaption { max-width: 27rem; }
+.cap-label + span { max-width: 32rem; }
+.wide figcaption, .table-wrap + .cap { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: var(--space-md); margin-top: var(--space-md); font-size: var(--text-small); color: var(--color-ink-2); }
+.cap-label { color: var(--color-muted); }
+
+/* rail */
+.rail { margin-top: var(--space-xl); font-size: var(--text-label); line-height: 1.5; }
+.rail dl > div { display: grid; grid-template-columns: 5.25rem minmax(0, 1fr); gap: var(--space-xs); padding-block: var(--space-sm); border-top: var(--rule-hair) solid var(--color-rule); }
+.rail dd { color: var(--color-muted); }
+.rail dd + dd { grid-column: 2; }
+.rail a { text-decoration-line: none; }
+.rail a:hover { text-decoration-line: underline; }
+
+/* prose */
+.prose { margin-top: var(--space-2xl); }
+.prose > * { max-width: var(--measure); margin-inline: auto; }
+.prose > * + * { margin-top: var(--space-para); }
+.prose > .wide { max-width: var(--measure-wide); }
+.prose > p, .prose > ul, .prose > ol, .prose blockquote p { font-family: var(--font-body); font-size: var(--text-body); line-height: var(--leading-body); }
+.prose > h2 { margin-top: var(--space-head); font-size: var(--text-head); line-height: 1.25; }
+.prose > h3 { margin-top: var(--space-xl); font-size: var(--text-subhead); line-height: 1.3; }
+.prose > ul, .prose > ol { padding-left: var(--space-lg); }
+.prose > ul > li + li, .prose > ol > li + li { margin-top: var(--space-xs); }
+.prose li { text-wrap: pretty; }
+.prose > ul > li::marker, .prose > ol > li::marker { color: var(--color-muted); }
+.prose > figure, .prose > blockquote, .prose > .table-block { margin-block: var(--space-figure); }
+strong { font-weight: 600; }
+.fn { font-family: var(--font-display); font-size: 0.75em; line-height: 0; font-variant-numeric: tabular-nums; }
+.fn a { padding: var(--space-2xs) var(--space-3xs); text-decoration-line: none; color: var(--color-accent); }
+.fn a:hover { text-decoration-line: underline; }
+
+blockquote { padding-left: var(--space-lg); border-left: var(--space-3xs) solid var(--color-ink); }
+blockquote footer { margin-top: var(--space-xs); font-size: var(--text-label); color: var(--color-muted); }
+blockquote cite { font-style: normal; }
+
+/* figures: a tinted frame holding one or two cream panels, each with a plot drawn in SVG */
+.frame { padding: var(--space-md); border-radius: var(--radius-plate); background: var(--color-paper-3); }
+.panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
+.panel { min-width: 0; padding: var(--space-lg) var(--space-lg) var(--space-md); border-radius: var(--radius-panel); background: var(--color-paper); color: var(--color-ink); }
+.panel-title { margin-bottom: var(--space-sm); font-size: var(--text-label); font-weight: 700; line-height: 1.3; color: var(--color-ink-2); text-align: center; }
+.panel-note { margin-top: var(--space-xs); font-size: 0.75rem; line-height: 1.4; color: var(--color-muted); }
+.chart { position: relative; border-radius: var(--radius-chip); }
+.chart svg { width: 100%; height: auto; overflow: visible; }
+.defs { position: absolute; }
+
+/* plot parts */
+.plot-band { fill: var(--color-paper-2); }
+.plot-grid { stroke: var(--color-rule); stroke-width: 1; }
+.plot-axis { fill: none; stroke: var(--color-muted); stroke-width: 1; }
+.plot-tick { fill: var(--color-muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.plot-title { fill: var(--color-muted); font-size: 11.5px; }
+.plot-name { fill: var(--color-ink-2); font-size: 11.5px; font-weight: 700; }
+.plot-key { fill: var(--color-ink-2); font-size: 11.5px; }
+.plot-value { fill: var(--color-ink-2); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.plot-whisker { fill: none; stroke: var(--color-ink); stroke-width: 1.25; }
+.plot-ref { stroke: var(--color-ink-2); stroke-width: 1; }
+.plot-leader { fill: none; stroke: var(--color-muted); stroke-width: 1; }
+.plot-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.plot-dot { stroke: var(--color-paper); stroke-width: 2; }
+.plot-cross { stroke: var(--color-muted); stroke-width: 1; }
+.plot-hit { fill: none; pointer-events: all; }
+.s0 { fill: var(--color-muted); }
+.s1 { fill: var(--color-series-1); }
+.s2 { fill: var(--color-series-2); }
+.s3 { fill: var(--color-series-3); }
+.l1 { stroke: var(--color-series-1); }
+.l2 { stroke: var(--color-series-2); }
+.l3 { stroke: var(--color-series-3); }
+.h0 { fill: url(#hatch-0); }
+.h1 { fill: url(#hatch-1); }
+.h2 { fill: url(#hatch-2); }
+.h3 { fill: url(#hatch-3); }
+.hb-0 { fill: color-mix(in oklab, var(--color-muted) 20%, var(--color-paper)); }
+.hl-0 { fill: color-mix(in oklab, var(--color-muted) 75%, var(--color-paper)); }
+.hb-1 { fill: color-mix(in oklab, var(--color-series-1) 20%, var(--color-paper)); }
+.hl-1 { fill: color-mix(in oklab, var(--color-series-1) 75%, var(--color-paper)); }
+.hb-2 { fill: color-mix(in oklab, var(--color-series-2) 20%, var(--color-paper)); }
+.hl-2 { fill: color-mix(in oklab, var(--color-series-2) 75%, var(--color-paper)); }
+.hb-3 { fill: color-mix(in oklab, var(--color-series-3) 20%, var(--color-paper)); }
+.hl-3 { fill: color-mix(in oklab, var(--color-series-3) 75%, var(--color-paper)); }
+.xband .plot-cross, .xband .plot-dot { opacity: 0; }
+.xband.is-on .plot-cross, .xband.is-on .plot-dot { opacity: 1; }
+.is-reading .mark.col:not(.is-on) { opacity: 0.45; }
+
+/* readout and data tables */
+.tip { position: absolute; top: 0; left: 0; z-index: 1; display: grid; padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-chip); background: var(--color-ink); color: var(--color-paper); font-size: var(--text-label); line-height: 1.4; white-space: nowrap; pointer-events: none; }
+.tip strong { font-weight: 700; font-variant-numeric: tabular-nums; }
+.tip > strong { font-size: var(--text-small); }
+.tip-row { display: flex; align-items: center; gap: var(--space-xs); }
+.tip-key { display: block; width: 0.625rem; height: var(--space-3xs); border-radius: var(--radius-pill); background: var(--color-series-1); }
+.tip-key.k2 { background: var(--color-series-2); }
+.tip-key.k3 { background: var(--color-series-3); }
+.data { margin-top: var(--space-xs); font-size: var(--text-label); }
+.data summary { width: fit-content; padding-block: var(--space-sm); color: var(--color-muted); cursor: pointer; }
+.data summary:hover { color: var(--color-ink); }
+.data-tables { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-md) var(--space-2xl); margin-bottom: var(--space-sm); }
+.data table { width: auto; min-width: 14rem; font-size: var(--text-label); }
+
+/* code */
+code { font-family: var(--font-outlier); font-size: var(--text-code); }
+:not(pre) > code { padding: var(--space-3xs) var(--space-2xs); border-radius: var(--radius-chip); background: var(--color-paper-3); }
+.code { border-radius: var(--radius-plate); background: var(--color-paper-2); }
+.code figcaption { display: flex; align-items: center; justify-content: space-between; min-height: var(--control); margin: 0; padding: var(--space-2xs) var(--space-xs) var(--space-2xs) var(--space-md); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.code pre { margin: 0; padding: var(--space-md); overflow-x: auto; line-height: 1.6; tab-size: 2; }
+.copy { position: relative; height: var(--control-s); padding: 0 var(--space-sm); border: 0; border-radius: var(--radius-chip); background: transparent; color: var(--color-muted); font-size: var(--text-label); white-space: nowrap; cursor: pointer; transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out); }
+.copy::after { content: ""; position: absolute; inset: calc(var(--space-2xs) * -1.5) 0; }
+.copy:hover { color: var(--color-ink); background: var(--color-paper-3); }
+.copy:active { background: var(--color-rule); }
+.copy:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* table */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: var(--text-small); font-variant-numeric: tabular-nums; }
+th, td { padding: var(--space-xs) var(--space-md); border-bottom: var(--rule-hair) solid var(--color-rule); text-align: right; white-space: nowrap; }
+th:first-child { padding-left: 0; text-align: left; }
+td:last-child, th:last-child { padding-right: 0; }
+thead th { border-bottom-color: var(--color-ink); font-weight: 400; color: var(--color-muted); }
+tbody th { font-weight: 700; }
+th:first-child { position: sticky; left: 0; background: var(--color-paper); }
+
+/* notes */
+.notes { margin-top: var(--space-2xl); padding-top: var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); font-size: var(--text-small); color: var(--color-ink-2); }
+.notes h2 { font-size: var(--text-small); color: var(--color-ink); }
+.notes ol { margin-top: var(--space-sm); padding-left: var(--space-lg); }
+.notes li + li { margin-top: var(--space-xs); }
+.notes li::marker { color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.notes cite { font-style: italic; }
+.back { display: inline-grid; place-items: center; width: var(--space-lg); height: var(--space-lg); vertical-align: middle; border-radius: var(--radius-chip); color: var(--color-muted); }
+.back svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+
+/* foot */
+.foot { border-top: var(--rule-hair) solid var(--color-rule); }
+.foot-in { max-width: var(--container); margin-inline: auto; padding: var(--space-lg) var(--gutter); display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); font-size: var(--text-label); color: var(--color-muted); }
+.foot a { text-decoration-line: none; white-space: nowrap; }
+.foot a:hover { color: var(--color-ink); }
+
+@media (min-width: 72rem) {
+  .post-body > .rail { position: absolute; top: 0; right: 0; width: var(--rail); max-width: none; margin: 0; }
+  .rail dl > div:last-child { border-bottom: var(--rule-hair) solid var(--color-rule); }
+}
+@media (max-width: 48rem) {
+  .panels { grid-template-columns: minmax(0, 1fr); }
+  .panel { width: 100%; max-width: 26rem; margin-inline: auto; }
+}
+@media (max-width: 40rem) {
+  :root { --gutter: 16px; --space-figure: 40px; }
+  h1 { padding-top: var(--space-2xl); }
+  .post-body, .prose { margin-top: var(--space-xl); }
+  .frame { padding: var(--space-xs); }
+  .panel { padding: var(--space-md) var(--space-sm) var(--space-sm); }
+  table { font-size: var(--text-label); }
+  th, td { padding-inline: var(--space-xs); }
+  .wide figcaption, .table-wrap + .cap { grid-template-columns: minmax(0, 1fr); gap: var(--space-2xs); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-in">
+    <a class="mark" href="../index.html" aria-label="Artikit, all pages">Artikit</a>
+    <button class="iconbtn" id="scheme" type="button" aria-label="Switch between light and dark">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="6.25"/><path class="half" d="M9 2.75a6.25 6.25 0 0 1 0 12.5z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+<article class="post">
+
+  <h1>The measure of this page</h1>
+
+  <div class="post-body">
+
+    <figure class="plate">
+      <div class="field">
+        <svg class="picture chart" viewBox="0 0 560 320" role="img" aria-labelledby="picture-title">
+          <title id="picture-title">Diagram: sixteen lines of this page drawn as rows. Green is the text of each line and pink is the room left before 75 characters.</title>
+          <g id="picture-rows"><!--HERO--><rect class="pic-used" x="92.5" y="40" width="355" height="15"/><rect class="pic-room" x="447.5" y="40" width="20" height="15"/><rect class="pic-used" x="92.5" y="55" width="340" height="15"/><rect class="pic-room" x="432.5" y="55" width="35" height="15"/><rect class="pic-used" x="92.5" y="70" width="360" height="15"/><rect class="pic-room" x="452.5" y="70" width="15" height="15"/><rect class="pic-used" x="92.5" y="85" width="350" height="15"/><rect class="pic-room" x="442.5" y="85" width="25" height="15"/><rect class="pic-used" x="92.5" y="100" width="350" height="15"/><rect class="pic-room" x="442.5" y="100" width="25" height="15"/><rect class="pic-used" x="92.5" y="115" width="355" height="15"/><rect class="pic-room" x="447.5" y="115" width="20" height="15"/><rect class="pic-used" x="92.5" y="130" width="345" height="15"/><rect class="pic-room" x="437.5" y="130" width="30" height="15"/><rect class="pic-used" x="92.5" y="145" width="350" height="15"/><rect class="pic-room" x="442.5" y="145" width="25" height="15"/><rect class="pic-used" x="92.5" y="160" width="325" height="15"/><rect class="pic-room" x="417.5" y="160" width="50" height="15"/><rect class="pic-used" x="92.5" y="175" width="365" height="15"/><rect class="pic-room" x="457.5" y="175" width="10" height="15"/><rect class="pic-used" x="92.5" y="190" width="360" height="15"/><rect class="pic-room" x="452.5" y="190" width="15" height="15"/><rect class="pic-used" x="92.5" y="205" width="320" height="15"/><rect class="pic-room" x="412.5" y="205" width="55" height="15"/><rect class="pic-used" x="92.5" y="220" width="335" height="15"/><rect class="pic-room" x="427.5" y="220" width="40" height="15"/><rect class="pic-used" x="92.5" y="235" width="330" height="15"/><rect class="pic-room" x="422.5" y="235" width="45" height="15"/><rect class="pic-used" x="92.5" y="250" width="360" height="15"/><rect class="pic-room" x="452.5" y="250" width="15" height="15"/><rect class="pic-used" x="92.5" y="265" width="325" height="15"/><rect class="pic-room" x="417.5" y="265" width="50" height="15"/><!--/HERO--></g>
+          <path class="pic-grid" d="M92.5 40V280M117.5 40V280M142.5 40V280M167.5 40V280M192.5 40V280M217.5 40V280M242.5 40V280M267.5 40V280M292.5 40V280M317.5 40V280M342.5 40V280M367.5 40V280M392.5 40V280M417.5 40V280M442.5 40V280M467.5 40V280M92.5 40H467.5M92.5 55H467.5M92.5 70H467.5M92.5 85H467.5M92.5 100H467.5M92.5 115H467.5M92.5 130H467.5M92.5 145H467.5M92.5 160H467.5M92.5 175H467.5M92.5 190H467.5M92.5 205H467.5M92.5 220H467.5M92.5 235H467.5M92.5 250H467.5M92.5 265H467.5M92.5 280H467.5"/>
+        </svg>
+      </div>
+      <figcaption>The first sixteen lines of this page in the window you have open. Green is the text of each line, pink is the room left before 75 characters, and the grid is ruled every five.</figcaption>
+    </figure>
+
+    <aside class="rail" aria-label="About this note">
+      <dl>
+        <div><dt>Published</dt><dd><time datetime="2026-11-14">14 Nov 2026</time></dd></div>
+        <div><dt>Author</dt><dd><a href="https://github.com/j3ssie" rel="author">j3ssie</a></dd></div>
+        <div><dt>Topics</dt><dd>Typography</dd><dd>Line length</dd></div>
+        <div><dt>This window</dt><dd id="live">70 characters a line at 1440px</dd></div>
+      </dl>
+    </aside>
+
+    <div class="prose">
+
+      <p>A line of text can be too long to follow and too short to settle into. Robert Bringhurst put the comfortable range at 45 to 75 characters, with 66 as the ideal.<sup class="fn"><a href="#fn1" id="fnref1">1</a></sup> The accessibility guidelines draw a harder limit.<sup class="fn"><a href="#fn2" id="fnref2">2</a></sup></p>
+
+      <blockquote>
+        <p>&ldquo;Width is no more than 80 characters or glyphs (40 if CJK).&rdquo;</p>
+        <footer>Success criterion 1.4.8, <cite>Web Content Accessibility Guidelines 2.2</cite></footer>
+      </blockquote>
+
+      <svg class="defs" width="0" height="0" aria-hidden="true" focusable="false">
+        <defs>
+          <pattern id="hatch-0" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hb-0" width="5" height="5"/><rect class="hl-0" width="2" height="5"/></pattern>
+          <pattern id="hatch-1" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hb-1" width="5" height="5"/><rect class="hl-1" width="2" height="5"/></pattern>
+          <pattern id="hatch-2" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hb-2" width="5" height="5"/><rect class="hl-2" width="2" height="5"/></pattern>
+          <pattern id="hatch-3" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hb-3" width="5" height="5"/><rect class="hl-3" width="2" height="5"/></pattern>
+        </defs>
+      </svg>
+
+      <h2>Pulled in from 78 characters to 70</h2>
+
+      <p>The three posts this set of templates was modelled on run a little past the range: at a 1440px window they average 76, 78 and 79 characters a line.<sup class="fn"><a href="#fn3" id="fnref3">3</a></sup> Each template keeps the look of its reference and gives up some column width, until a line averages near 70.</p>
+
+      <figure class="wide">
+        <div class="frame">
+          <div class="panels">
+            <!--FIG1-->
+            <div class="panel">
+              <p class="panel-title">Reference post and template</p>
+              <div class="chart" data-chart="x" tabindex="0" role="group" aria-label="Figure 1, left panel: average characters a line for three reference posts and three templates. Use the arrow keys to read each value.">
+                <svg viewBox="0 0 360 284" aria-hidden="true"><rect class="plot-band" x="46" y="67" width="306" height="66"/><line class="plot-axis" x1="42" x2="46" y1="232" y2="232"/><text class="plot-tick" x="38" y="232" dy="0.35em" text-anchor="end">0</text><line class="plot-grid" x1="46" x2="352" y1="199" y2="199"/><line class="plot-axis" x1="42" x2="46" y1="199" y2="199"/><text class="plot-tick" x="38" y="199" dy="0.35em" text-anchor="end">15</text><line class="plot-grid" x1="46" x2="352" y1="166" y2="166"/><line class="plot-axis" x1="42" x2="46" y1="166" y2="166"/><text class="plot-tick" x="38" y="166" dy="0.35em" text-anchor="end">30</text><line class="plot-grid" x1="46" x2="352" y1="133" y2="133"/><line class="plot-axis" x1="42" x2="46" y1="133" y2="133"/><text class="plot-tick" x="38" y="133" dy="0.35em" text-anchor="end">45</text><line class="plot-grid" x1="46" x2="352" y1="100" y2="100"/><line class="plot-axis" x1="42" x2="46" y1="100" y2="100"/><text class="plot-tick" x="38" y="100" dy="0.35em" text-anchor="end">60</text><line class="plot-grid" x1="46" x2="352" y1="67" y2="67"/><line class="plot-axis" x1="42" x2="46" y1="67" y2="67"/><text class="plot-tick" x="38" y="67" dy="0.35em" text-anchor="end">75</text><line class="plot-grid" x1="46" x2="352" y1="34" y2="34"/><line class="plot-axis" x1="42" x2="46" y1="34" y2="34"/><text class="plot-tick" x="38" y="34" dy="0.35em" text-anchor="end">90</text><path class="plot-axis" d="M46 34V232H352"/><text class="plot-title" transform="translate(11 133) rotate(-90)" text-anchor="middle">Characters a line</text><rect class="h0" x="88.9" y="7" width="10" height="10" rx="2"/><text class="plot-key" x="104.9" y="16">Reference post</text><rect class="s0" x="206.3" y="7" width="10" height="10" rx="2"/><text class="plot-key" x="222.3" y="16">Template</text><g class="mark col" data-value="75.9 characters a line" data-label="Linear, reference post. Lines of 66 to 87"><path class="h3" d="M65 232V68Q65 65 68 65H92Q95 65 95 68V232Z"/><path class="plot-whisker" d="M80 86.8V40.6M76 86.8H84M76 40.6H84"/><text class="plot-value" x="80" y="34.6" text-anchor="middle">75.9</text></g><g class="mark col" data-value="70.5 characters a line" data-label="Narrative, template. Lines of 62 to 76"><path class="s3" d="M99 232V79.9Q99 76.9 102 76.9H126Q129 76.9 129 79.9V232Z"/><path class="plot-whisker" d="M114 95.6V64.8M110 95.6H118M110 64.8H118"/><text class="plot-value" x="114" y="58.8" text-anchor="middle">70.5</text></g><text class="plot-name" x="97" y="249" text-anchor="middle">Narrative</text><text class="plot-tick" x="97" y="264" text-anchor="middle">after Linear</text><g class="mark col" data-value="79.3 characters a line" data-label="Vercel, reference post. Lines of 75 to 87"><path class="h2" d="M167 232V60.5Q167 57.5 170 57.5H194Q197 57.5 197 60.5V232Z"/><path class="plot-whisker" d="M182 67V40.6M178 67H186M178 40.6H186"/><text class="plot-value" x="182" y="34.6" text-anchor="middle">79.3</text></g><g class="mark col" data-value="70.0 characters a line" data-label="Release, template. Lines of 62 to 75"><path class="s2" d="M201 232V81Q201 78 204 78H228Q231 78 231 81V232Z"/><path class="plot-whisker" d="M216 95.6V67M212 95.6H220M212 67H220"/><text class="plot-value" x="216" y="61" text-anchor="middle">70.0</text></g><text class="plot-name" x="199" y="249" text-anchor="middle">Release</text><text class="plot-tick" x="199" y="264" text-anchor="middle">after Vercel</text><g class="mark col" data-value="78.0 characters a line" data-label="Anthropic, reference post. Lines of 68 to 86"><path class="h1" d="M269 232V63.4Q269 60.4 272 60.4H296Q299 60.4 299 63.4V232Z"/><path class="plot-whisker" d="M284 82.4V42.8M280 82.4H288M280 42.8H288"/><text class="plot-value" x="284" y="36.8" text-anchor="middle">78.0</text></g><g class="mark col" data-value="69.5 characters a line" data-label="Research note, template. Lines of 64 to 74"><path class="s1" d="M303 232V82.1Q303 79.1 306 79.1H330Q333 79.1 333 82.1V232Z"/><path class="plot-whisker" d="M318 91.2V69.2M314 91.2H322M314 69.2H322"/><text class="plot-value" x="318" y="63.2" text-anchor="middle">69.5</text></g><text class="plot-name" x="301" y="249" text-anchor="middle">Research note</text><text class="plot-tick" x="301" y="264" text-anchor="middle">after Anthropic</text></svg>
+              </div>
+              <p class="panel-note">Whiskers run from the shortest full line to the longest.</p>
+            </div>
+            <div class="panel">
+              <p class="panel-title">Line length against column width</p>
+              <div class="chart" data-chart="x" tabindex="0" role="group" aria-label="Figure 1, right panel: characters a line for the three templates at eleven column widths. Use the arrow keys to read each value.">
+                <svg viewBox="0 0 360 284" aria-hidden="true"><rect class="plot-band" x="46" y="83.5" width="200" height="99"/><line class="plot-axis" x1="42" x2="46" y1="232" y2="232"/><text class="plot-tick" x="38" y="232" dy="0.35em" text-anchor="end">30</text><line class="plot-grid" x1="46" x2="246" y1="182.5" y2="182.5"/><line class="plot-axis" x1="42" x2="46" y1="182.5" y2="182.5"/><text class="plot-tick" x="38" y="182.5" dy="0.35em" text-anchor="end">45</text><line class="plot-grid" x1="46" x2="246" y1="133" y2="133"/><line class="plot-axis" x1="42" x2="46" y1="133" y2="133"/><text class="plot-tick" x="38" y="133" dy="0.35em" text-anchor="end">60</text><line class="plot-grid" x1="46" x2="246" y1="83.5" y2="83.5"/><line class="plot-axis" x1="42" x2="46" y1="83.5" y2="83.5"/><text class="plot-tick" x="38" y="83.5" dy="0.35em" text-anchor="end">75</text><line class="plot-grid" x1="46" x2="246" y1="34" y2="34"/><line class="plot-axis" x1="42" x2="46" y1="34" y2="34"/><text class="plot-tick" x="38" y="34" dy="0.35em" text-anchor="end">90</text><path class="plot-axis" d="M46 34V232H246"/><text class="plot-title" transform="translate(11 133) rotate(-90)" text-anchor="middle">Characters a line</text><text class="plot-title" x="146" y="272" text-anchor="middle">Column width in pixels</text><line class="plot-line l3" x1="45.6" x2="59.6" y1="12" y2="12"/><text class="plot-key" x="65.6" y="16">Narrative</text><line class="plot-line l2" x1="136.5" x2="150.5" y1="12" y2="12"/><text class="plot-key" x="156.5" y="16">Release</text><line class="plot-line l1" x1="215.2" x2="229.2" y1="12" y2="12"/><text class="plot-key" x="235.2" y="16">Research note</text><line class="plot-axis" x1="46" x2="46" y1="232" y2="236"/><text class="plot-tick" x="46" y="249" text-anchor="middle">280</text><line class="plot-axis" x1="96" x2="96" y1="232" y2="236"/><text class="plot-tick" x="96" y="249" text-anchor="middle">380</text><line class="plot-axis" x1="146" x2="146" y1="232" y2="236"/><text class="plot-tick" x="146" y="249" text-anchor="middle">480</text><line class="plot-axis" x1="196" x2="196" y1="232" y2="236"/><text class="plot-tick" x="196" y="249" text-anchor="middle">580</text><line class="plot-axis" x1="246" x2="246" y1="232" y2="236"/><text class="plot-tick" x="246" y="249" text-anchor="middle">680</text><polyline class="plot-line l3" points="46,224.7 66,207.5 86,188.9 106,174.3 126,154.8 146,137.5 166,126.4 186,110.4 194,98.3 206,91.6 226,71.7 246,56.5"/><polyline class="plot-line l2" points="46,226.9 66,214.5 86,197 106,182.7 126,163.6 146,153 166,133.6 186,121.3 206,102.6 210,100 226,83.5 246,68.4"/><polyline class="plot-line l1" points="46,221.3 66,202.4 86,186.2 106,170 126,151.2 146,134.2 166,118.3 186,101.6 206,85.7 226,67.6 246,52.8"/><circle class="plot-dot s3" cx="194" cy="98.3" r="4.5"/><circle class="plot-dot s2" cx="210" cy="100" r="4.5"/><circle class="plot-dot s1" cx="186" cy="101.6" r="4.5"/><path class="plot-leader" d="M249 52.8L257 44H261"/><text class="plot-name" x="265" y="48">Research note</text><text class="plot-tick" x="265" y="62">560px, 69.5</text><path class="plot-leader" d="M249 56.5L257 74H261"/><text class="plot-name" x="265" y="78">Narrative</text><text class="plot-tick" x="265" y="92">576px, 70.5</text><path class="plot-leader" d="M249 68.4L257 104H261"/><text class="plot-name" x="265" y="108">Release</text><text class="plot-tick" x="265" y="122">608px, 70.0</text><g class="mark xband" data-label="280px column" data-rows='[["Narrative", "32.2", 3], ["Release", "31.6", 2], ["Research note", "33.3", 1]]'><rect class="plot-hit" x="46" y="34" width="10" height="198"/><line class="plot-cross" x1="46" x2="46" y1="34" y2="232"/><circle class="plot-dot s3" cx="46" cy="224.7" r="4.5"/><circle class="plot-dot s2" cx="46" cy="226.9" r="4.5"/><circle class="plot-dot s1" cx="46" cy="221.3" r="4.5" data-anchor/></g><g class="mark xband" data-label="320px column" data-rows='[["Narrative", "37.4", 3], ["Release", "35.3", 2], ["Research note", "39.0", 1]]'><rect class="plot-hit" x="56" y="34" width="20" height="198"/><line class="plot-cross" x1="66" x2="66" y1="34" y2="232"/><circle class="plot-dot s3" cx="66" cy="207.5" r="4.5"/><circle class="plot-dot s2" cx="66" cy="214.5" r="4.5"/><circle class="plot-dot s1" cx="66" cy="202.4" r="4.5" data-anchor/></g><g class="mark xband" data-label="360px column" data-rows='[["Narrative", "43.0", 3], ["Release", "40.6", 2], ["Research note", "43.9", 1]]'><rect class="plot-hit" x="76" y="34" width="20" height="198"/><line class="plot-cross" x1="86" x2="86" y1="34" y2="232"/><circle class="plot-dot s3" cx="86" cy="188.9" r="4.5"/><circle class="plot-dot s2" cx="86" cy="197" r="4.5"/><circle class="plot-dot s1" cx="86" cy="186.2" r="4.5" data-anchor/></g><g class="mark xband" data-label="400px column" data-rows='[["Narrative", "47.5", 3], ["Release", "44.9", 2], ["Research note", "48.8", 1]]'><rect class="plot-hit" x="96" y="34" width="20" height="198"/><line class="plot-cross" x1="106" x2="106" y1="34" y2="232"/><circle class="plot-dot s3" cx="106" cy="174.3" r="4.5"/><circle class="plot-dot s2" cx="106" cy="182.7" r="4.5"/><circle class="plot-dot s1" cx="106" cy="170" r="4.5" data-anchor/></g><g class="mark xband" data-label="440px column" data-rows='[["Narrative", "53.4", 3], ["Release", "50.7", 2], ["Research note", "54.5", 1]]'><rect class="plot-hit" x="116" y="34" width="20" height="198"/><line class="plot-cross" x1="126" x2="126" y1="34" y2="232"/><circle class="plot-dot s3" cx="126" cy="154.8" r="4.5"/><circle class="plot-dot s2" cx="126" cy="163.6" r="4.5"/><circle class="plot-dot s1" cx="126" cy="151.2" r="4.5" data-anchor/></g><g class="mark xband" data-label="480px column" data-rows='[["Narrative", "58.6", 3], ["Release", "53.9", 2], ["Research note", "59.6", 1]]'><rect class="plot-hit" x="136" y="34" width="20" height="198"/><line class="plot-cross" x1="146" x2="146" y1="34" y2="232"/><circle class="plot-dot s3" cx="146" cy="137.5" r="4.5"/><circle class="plot-dot s2" cx="146" cy="153" r="4.5"/><circle class="plot-dot s1" cx="146" cy="134.2" r="4.5" data-anchor/></g><g class="mark xband" data-label="520px column" data-rows='[["Narrative", "62.0", 3], ["Release", "59.8", 2], ["Research note", "64.5", 1]]'><rect class="plot-hit" x="156" y="34" width="20" height="198"/><line class="plot-cross" x1="166" x2="166" y1="34" y2="232"/><circle class="plot-dot s3" cx="166" cy="126.4" r="4.5"/><circle class="plot-dot s2" cx="166" cy="133.6" r="4.5"/><circle class="plot-dot s1" cx="166" cy="118.3" r="4.5" data-anchor/></g><g class="mark xband" data-label="560px column" data-rows='[["Narrative", "66.8", 3], ["Release", "63.5", 2], ["Research note", "69.5", 1]]'><rect class="plot-hit" x="176" y="34" width="20" height="198"/><line class="plot-cross" x1="186" x2="186" y1="34" y2="232"/><circle class="plot-dot s3" cx="186" cy="110.4" r="4.5"/><circle class="plot-dot s2" cx="186" cy="121.3" r="4.5"/><circle class="plot-dot s1" cx="186" cy="101.6" r="4.5" data-anchor/></g><g class="mark xband" data-label="600px column" data-rows='[["Narrative", "72.5", 3], ["Release", "69.2", 2], ["Research note", "74.3", 1]]'><rect class="plot-hit" x="196" y="34" width="20" height="198"/><line class="plot-cross" x1="206" x2="206" y1="34" y2="232"/><circle class="plot-dot s3" cx="206" cy="91.6" r="4.5"/><circle class="plot-dot s2" cx="206" cy="102.6" r="4.5"/><circle class="plot-dot s1" cx="206" cy="85.7" r="4.5" data-anchor/></g><g class="mark xband" data-label="640px column" data-rows='[["Narrative", "78.6", 3], ["Release", "75.0", 2], ["Research note", "79.8", 1]]'><rect class="plot-hit" x="216" y="34" width="20" height="198"/><line class="plot-cross" x1="226" x2="226" y1="34" y2="232"/><circle class="plot-dot s3" cx="226" cy="71.7" r="4.5"/><circle class="plot-dot s2" cx="226" cy="83.5" r="4.5"/><circle class="plot-dot s1" cx="226" cy="67.6" r="4.5" data-anchor/></g><g class="mark xband" data-label="680px column" data-rows='[["Narrative", "83.2", 3], ["Release", "79.6", 2], ["Research note", "84.3", 1]]'><rect class="plot-hit" x="236" y="34" width="10" height="198"/><line class="plot-cross" x1="246" x2="246" y1="34" y2="232"/><circle class="plot-dot s3" cx="246" cy="56.5" r="4.5"/><circle class="plot-dot s2" cx="246" cy="68.4" r="4.5"/><circle class="plot-dot s1" cx="246" cy="52.8" r="4.5" data-anchor/></g></svg>
+              </div>
+              <p class="panel-note">The window stays at 1440px. Each dot is the width that template ships.</p>
+            </div>
+            <!--/FIG1-->
+          </div>
+        </div>
+        <figcaption><span class="cap-label">Figure 1</span><span>Left: each template beside the post it was modelled on, at a 1440px window. Right: characters a line as the column widens, with a dot at the width each template ships. The shaded band is the 45 to 75 range.</span></figcaption>
+        <details class="data">
+          <summary>Data for figure 1</summary>
+          <div class="data-tables"><!--DATA1--><table><thead><tr><th scope="col">Page</th><th scope="col">Average</th><th scope="col">Shortest</th><th scope="col">Longest</th></tr></thead><tbody><tr><th scope="row">Linear</th><td>75.9</td><td>66</td><td>87</td></tr><tr><th scope="row">Narrative</th><td>70.5</td><td>62</td><td>76</td></tr><tr><th scope="row">Vercel</th><td>79.3</td><td>75</td><td>87</td></tr><tr><th scope="row">Release</th><td>70.0</td><td>62</td><td>75</td></tr><tr><th scope="row">Anthropic</th><td>78.0</td><td>68</td><td>86</td></tr><tr><th scope="row">Research note</th><td>69.5</td><td>64</td><td>74</td></tr></tbody></table><table><thead><tr><th scope="col">Column</th><th scope="col">Narrative</th><th scope="col">Release</th><th scope="col">Research note</th></tr></thead><tbody><tr><th scope="row">280px</th><td>32.2</td><td>31.6</td><td>33.3</td></tr><tr><th scope="row">320px</th><td>37.4</td><td>35.3</td><td>39.0</td></tr><tr><th scope="row">360px</th><td>43.0</td><td>40.6</td><td>43.9</td></tr><tr><th scope="row">400px</th><td>47.5</td><td>44.9</td><td>48.8</td></tr><tr><th scope="row">440px</th><td>53.4</td><td>50.7</td><td>54.5</td></tr><tr><th scope="row">480px</th><td>58.6</td><td>53.9</td><td>59.6</td></tr><tr><th scope="row">520px</th><td>62.0</td><td>59.8</td><td>64.5</td></tr><tr><th scope="row">560px</th><td>66.8</td><td>63.5</td><td>69.5</td></tr><tr><th scope="row">600px</th><td>72.5</td><td>69.2</td><td>74.3</td></tr><tr><th scope="row">640px</th><td>78.6</td><td>75.0</td><td>79.8</td></tr><tr><th scope="row">680px</th><td>83.2</td><td>79.6</td><td>84.3</td></tr></tbody></table><!--/DATA1--></div>
+        </details>
+      </figure>
+
+      <p id="result-s">Column width is the lever. With the window fixed at 1440px, the column of each template was changed from 280px to 680px, and the count rose in a nearly straight line each time. On this page every 7.8 pixels of column add about one character, so the range of 45 to 75 maps to columns of 369px to 605px.</p>
+
+      <p id="result-3">The first draft of this page sat at 600px and averaged 74 characters, at the very top of the range. It was pulled in to 560px, which averages 70 and leaves room for a wider face.</p>
+
+      <h2>Counted at nine widths</h2>
+
+      <p>A fixed column still shrinks on a small screen, so the question for this page is narrower. Does it stay between 45 and 75 at every window width?</p>
+
+      <p>The page was opened in Chrome at nine window widths from 320px to 1920px. At each width a script counted the characters, spaces included, on every full line of the body paragraphs. The last line of each paragraph was left out, since it is rarely full.</p>
+
+      <p>The function is short enough to print. The same one runs on this page: it draws the picture at the top and fills the row named This window.</p>
+
+      <figure class="code">
+        <figcaption><span>Counting function</span><button class="copy" type="button" data-copy>Copy</button></figcaption>
+<pre><code>function charactersPerLine(paragraph) {
+  const range = document.createRange();
+  const walker = document.createTreeWalker(
+    paragraph, NodeFilter.SHOW_TEXT);
+  const words = [];
+  for (let node; (node = walker.nextNode()); ) {
+    for (const m of node.data.matchAll(/\S+\s*/g)) {
+      range.setStart(node, m.index);
+      range.setEnd(node, m.index + m[0].trimEnd().length);
+      const box = range.getClientRects()[0];
+      if (box) words.push([box.top, m[0].length]);
+    }
+  }
+  const lines = [];
+  let top = -Infinity;
+  words.sort((a, b) =&gt; a[0] - b[0]);
+  for (const [y, n] of words) {
+    if (y - top &gt; 10) { lines.push(0); top = y; }
+    lines[lines.length - 1] += n;
+  }
+  return lines.slice(0, -1);
+}</code></pre>
+      </figure>
+
+      <h2>In range from 480px up</h2>
+
+      <p id="result-1">From a 480px window up, the average stays inside the range. It is 55 characters at 480px and 70 from 640px on, where the column reaches its full 560px and stops growing.</p>
+
+      <figure class="wide">
+        <div class="frame">
+          <div class="panels">
+            <!--FIG2-->
+            <div class="panel">
+              <p class="panel-title">This page at nine window widths</p>
+              <div class="chart" data-chart="x" tabindex="0" role="group" aria-label="Figure 2, left panel: average characters a line on this page at nine window widths. Use the arrow keys to read each value.">
+                <svg viewBox="0 0 360 284" aria-hidden="true"><rect class="plot-band" x="46" y="67" width="306" height="66"/><line class="plot-axis" x1="42" x2="46" y1="232" y2="232"/><text class="plot-tick" x="38" y="232" dy="0.35em" text-anchor="end">0</text><line class="plot-grid" x1="46" x2="352" y1="199" y2="199"/><line class="plot-axis" x1="42" x2="46" y1="199" y2="199"/><text class="plot-tick" x="38" y="199" dy="0.35em" text-anchor="end">15</text><line class="plot-grid" x1="46" x2="352" y1="166" y2="166"/><line class="plot-axis" x1="42" x2="46" y1="166" y2="166"/><text class="plot-tick" x="38" y="166" dy="0.35em" text-anchor="end">30</text><line class="plot-grid" x1="46" x2="352" y1="133" y2="133"/><line class="plot-axis" x1="42" x2="46" y1="133" y2="133"/><text class="plot-tick" x="38" y="133" dy="0.35em" text-anchor="end">45</text><line class="plot-grid" x1="46" x2="352" y1="100" y2="100"/><line class="plot-axis" x1="42" x2="46" y1="100" y2="100"/><text class="plot-tick" x="38" y="100" dy="0.35em" text-anchor="end">60</text><line class="plot-grid" x1="46" x2="352" y1="67" y2="67"/><line class="plot-axis" x1="42" x2="46" y1="67" y2="67"/><text class="plot-tick" x="38" y="67" dy="0.35em" text-anchor="end">75</text><line class="plot-grid" x1="46" x2="352" y1="34" y2="34"/><line class="plot-axis" x1="42" x2="46" y1="34" y2="34"/><text class="plot-tick" x="38" y="34" dy="0.35em" text-anchor="end">90</text><path class="plot-axis" d="M46 34V232H352"/><text class="plot-title" transform="translate(11 133) rotate(-90)" text-anchor="middle">Characters a line</text><text class="plot-title" x="199" y="272" text-anchor="middle">Window width in pixels</text><rect class="s1" x="85.9" y="7" width="10" height="10" rx="2"/><text class="plot-key" x="101.9" y="16">Inside the range</text><rect class="h1" x="215.4" y="7" width="10" height="10" rx="2"/><text class="plot-key" x="231.4" y="16">Outside</text><g class="mark col" data-value="34.3 characters a line" data-label="320px window, 288px column. Lines of 26 to 39"><path class="h1" d="M53 232V159.6Q53 156.6 56 156.6H70Q73 156.6 73 159.6V232Z"/><path class="plot-whisker" d="M63 174.8V146.2M59 174.8H67M59 146.2H67"/><text class="plot-value" x="63" y="140.2" text-anchor="middle">34</text></g><text class="plot-tick" x="63" y="249" text-anchor="middle">320</text><g class="mark col" data-value="41.6 characters a line" data-label="375px window, 343px column. Lines of 35 to 47"><path class="h1" d="M87 232V143.5Q87 140.5 90 140.5H104Q107 140.5 107 143.5V232Z"/><path class="plot-whisker" d="M97 155V128.6M93 155H101M93 128.6H101"/><text class="plot-value" x="97" y="122.6" text-anchor="middle">42</text></g><text class="plot-tick" x="97" y="249" text-anchor="middle">375</text><g class="mark col" data-value="55.2 characters a line" data-label="480px window, 448px column. Lines of 49 to 61"><path class="s1" d="M121 232V113.6Q121 110.6 124 110.6H138Q141 110.6 141 113.6V232Z"/><path class="plot-whisker" d="M131 124.2V97.8M127 124.2H135M127 97.8H135"/><text class="plot-value" x="131" y="91.8" text-anchor="middle">55</text></g><text class="plot-tick" x="131" y="249" text-anchor="middle">480</text><g class="mark col" data-value="69.5 characters a line" data-label="640px window, 560px column. Lines of 64 to 74"><path class="s1" d="M155 232V82.1Q155 79.1 158 79.1H172Q175 79.1 175 82.1V232Z"/><path class="plot-whisker" d="M165 91.2V69.2M161 91.2H169M161 69.2H169"/><text class="plot-value" x="165" y="63.2" text-anchor="middle">70</text></g><text class="plot-tick" x="165" y="249" text-anchor="middle">640</text><g class="mark col" data-value="69.5 characters a line" data-label="768px window, 560px column. Lines of 64 to 74"><path class="s1" d="M189 232V82.1Q189 79.1 192 79.1H206Q209 79.1 209 82.1V232Z"/><path class="plot-whisker" d="M199 91.2V69.2M195 91.2H203M195 69.2H203"/><text class="plot-value" x="199" y="63.2" text-anchor="middle">70</text></g><text class="plot-tick" x="199" y="249" text-anchor="middle">768</text><g class="mark col" data-value="69.5 characters a line" data-label="1024px window, 560px column. Lines of 64 to 74"><path class="s1" d="M223 232V82.1Q223 79.1 226 79.1H240Q243 79.1 243 82.1V232Z"/><path class="plot-whisker" d="M233 91.2V69.2M229 91.2H237M229 69.2H237"/><text class="plot-value" x="233" y="63.2" text-anchor="middle">70</text></g><text class="plot-tick" x="233" y="249" text-anchor="middle">1024</text><g class="mark col" data-value="69.5 characters a line" data-label="1280px window, 560px column. Lines of 64 to 74"><path class="s1" d="M257 232V82.1Q257 79.1 260 79.1H274Q277 79.1 277 82.1V232Z"/><path class="plot-whisker" d="M267 91.2V69.2M263 91.2H271M263 69.2H271"/><text class="plot-value" x="267" y="63.2" text-anchor="middle">70</text></g><text class="plot-tick" x="267" y="249" text-anchor="middle">1280</text><g class="mark col" data-value="69.5 characters a line" data-label="1440px window, 560px column. Lines of 64 to 74"><path class="s1" d="M291 232V82.1Q291 79.1 294 79.1H308Q311 79.1 311 82.1V232Z"/><path class="plot-whisker" d="M301 91.2V69.2M297 91.2H305M297 69.2H305"/><text class="plot-value" x="301" y="63.2" text-anchor="middle">70</text></g><text class="plot-tick" x="301" y="249" text-anchor="middle">1440</text><g class="mark col" data-value="69.5 characters a line" data-label="1920px window, 560px column. Lines of 64 to 74"><path class="s1" d="M325 232V82.1Q325 79.1 328 79.1H342Q345 79.1 345 82.1V232Z"/><path class="plot-whisker" d="M335 91.2V69.2M331 91.2H339M331 69.2H339"/><text class="plot-value" x="335" y="63.2" text-anchor="middle">70</text></g><text class="plot-tick" x="335" y="249" text-anchor="middle">1920</text></svg>
+              </div>
+              <p class="panel-note">Whiskers run from the shortest full line to the longest.</p>
+            </div>
+            <div class="panel">
+              <p class="panel-title">Every full line at 1440px</p>
+              <div class="chart" data-chart="x" tabindex="0" role="group" aria-label="Figure 2, right panel: a histogram of line lengths on this page at a 1440px window. Use the arrow keys to read each value.">
+                <svg viewBox="0 0 360 284" aria-hidden="true"><line class="plot-axis" x1="42" x2="46" y1="232" y2="232"/><text class="plot-tick" x="38" y="232" dy="0.35em" text-anchor="end">0</text><line class="plot-grid" x1="46" x2="352" y1="192.4" y2="192.4"/><line class="plot-axis" x1="42" x2="46" y1="192.4" y2="192.4"/><text class="plot-tick" x="38" y="192.4" dy="0.35em" text-anchor="end">2</text><line class="plot-grid" x1="46" x2="352" y1="152.8" y2="152.8"/><line class="plot-axis" x1="42" x2="46" y1="152.8" y2="152.8"/><text class="plot-tick" x="38" y="152.8" dy="0.35em" text-anchor="end">4</text><line class="plot-grid" x1="46" x2="352" y1="113.2" y2="113.2"/><line class="plot-axis" x1="42" x2="46" y1="113.2" y2="113.2"/><text class="plot-tick" x="38" y="113.2" dy="0.35em" text-anchor="end">6</text><line class="plot-grid" x1="46" x2="352" y1="73.6" y2="73.6"/><line class="plot-axis" x1="42" x2="46" y1="73.6" y2="73.6"/><text class="plot-tick" x="38" y="73.6" dy="0.35em" text-anchor="end">8</text><line class="plot-grid" x1="46" x2="352" y1="34" y2="34"/><line class="plot-axis" x1="42" x2="46" y1="34" y2="34"/><text class="plot-tick" x="38" y="34" dy="0.35em" text-anchor="end">10</text><path class="plot-axis" d="M46 34V232H352"/><text class="plot-title" transform="translate(11 133) rotate(-90)" text-anchor="middle">Lines</text><text class="plot-title" x="199" y="272" text-anchor="middle">Characters in a line, in bins of two</text><g class="mark col" data-value="3 lines" data-label="64 or 65 characters"><rect class="plot-hit" x="47" y="34" width="49" height="198"/><path class="s1" d="M47 232V175.6Q47 172.6 50 172.6H93Q96 172.6 96 175.6V232Z"/><text class="plot-value" x="71.5" y="166.6" text-anchor="middle">3</text></g><text class="plot-tick" x="71.5" y="249" text-anchor="middle">64</text><g class="mark col" data-value="2 lines" data-label="66 or 67 characters"><rect class="plot-hit" x="98" y="34" width="49" height="198"/><path class="s1" d="M98 232V195.4Q98 192.4 101 192.4H144Q147 192.4 147 195.4V232Z"/><text class="plot-value" x="122.5" y="186.4" text-anchor="middle">2</text></g><text class="plot-tick" x="122.5" y="249" text-anchor="middle">66</text><g class="mark col" data-value="7 lines" data-label="68 or 69 characters"><rect class="plot-hit" x="149" y="34" width="49" height="198"/><path class="s1" d="M149 232V96.4Q149 93.4 152 93.4H195Q198 93.4 198 96.4V232Z"/><text class="plot-value" x="173.5" y="87.4" text-anchor="middle">7</text></g><text class="plot-tick" x="173.5" y="249" text-anchor="middle">68</text><g class="mark col" data-value="9 lines" data-label="70 or 71 characters"><rect class="plot-hit" x="200" y="34" width="49" height="198"/><path class="s1" d="M200 232V56.8Q200 53.8 203 53.8H246Q249 53.8 249 56.8V232Z"/><text class="plot-value" x="224.5" y="47.8" text-anchor="middle">9</text></g><text class="plot-tick" x="224.5" y="249" text-anchor="middle">70</text><g class="mark col" data-value="5 lines" data-label="72 or 73 characters"><rect class="plot-hit" x="251" y="34" width="49" height="198"/><path class="s1" d="M251 232V136Q251 133 254 133H297Q300 133 300 136V232Z"/><text class="plot-value" x="275.5" y="127" text-anchor="middle">5</text></g><text class="plot-tick" x="275.5" y="249" text-anchor="middle">72</text><g class="mark col" data-value="1 line" data-label="74 or 75 characters"><rect class="plot-hit" x="302" y="34" width="49" height="198"/><path class="s1" d="M302 232V215.2Q302 212.2 305 212.2H348Q351 212.2 351 215.2V232Z"/><text class="plot-value" x="326.5" y="206.2" text-anchor="middle">1</text></g><text class="plot-tick" x="326.5" y="249" text-anchor="middle">74</text></svg>
+              </div>
+            </div>
+            <!--/FIG2-->
+          </div>
+        </div>
+        <figcaption><span class="cap-label">Figure 2</span><span id="fig2-cap">Left: this page at nine window widths. Right: its 27 full lines at a 1440px window, by length. Hatched columns fall outside the 45 to 75 range.</span></figcaption>
+        <details class="data">
+          <summary>Data for figure 2</summary>
+          <div class="data-tables"><!--DATA2--><table><thead><tr><th scope="col">Characters</th><th scope="col">Lines</th></tr></thead><tbody><tr><th scope="row">64 to 65</th><td>3</td></tr><tr><th scope="row">66 to 67</th><td>2</td></tr><tr><th scope="row">68 to 69</th><td>7</td></tr><tr><th scope="row">70 to 71</th><td>9</td></tr><tr><th scope="row">72 to 73</th><td>5</td></tr><tr><th scope="row">74 to 75</th><td>1</td></tr></tbody></table><!--/DATA2--></div>
+        </details>
+      </figure>
+
+      <p id="result-2">Below 480px the page falls short. At 375px, a common phone width, a line averages 42 characters, and at 320px it averages 34. Those short lines come from the width of the screen, not from the measure. They were left alone: lifting them into the range would take type smaller than 17px, and on a phone the size of the text matters more than the length of the line.</p>
+
+      <div class="table-block">
+        <div class="table-wrap" role="region" aria-label="Table 1, the counts behind figure 2" tabindex="0">
+          <table>
+            <thead>
+              <tr><th scope="col">Window</th><th scope="col">Column</th><th scope="col">Lines</th><th scope="col">Average</th><th scope="col">Shortest</th><th scope="col">Longest</th></tr>
+            </thead>
+            <tbody>
+              <!--ROWS-->
+              <tr><th scope="row">320</th><td>288</td><td>61</td><td>34.3</td><td>26</td><td>39</td></tr>
+              <tr><th scope="row">375</th><td>343</td><td>49</td><td>41.6</td><td>35</td><td>47</td></tr>
+              <tr><th scope="row">480</th><td>448</td><td>36</td><td>55.2</td><td>49</td><td>61</td></tr>
+              <tr><th scope="row">640 to 1920</th><td>560</td><td>27</td><td>69.5</td><td>64</td><td>74</td></tr>
+              <!--/ROWS-->
+            </tbody>
+          </table>
+        </div>
+        <p class="cap"><span class="cap-label">Table 1</span><span>The counts behind the left panel of figure 2. Widths are in pixels, the rest in characters a line.</span></p>
+      </div>
+
+      <h3 id="edge">No line passes 75</h3>
+
+      <p id="result-h">An average can hide its edges, so the full lines at a 1440px window were also counted one by one. There are 27 of them. The shortest holds 64 characters and the longest 74. None passes the top of the range.</p>
+
+      <h2>What the result does not show</h2>
+
+      <p>The count holds for one face, one browser and one language. Each of the three can move it.</p>
+
+      <ul>
+        <li><strong>One face.</strong> Source Serif 4 at 17px. A wider face fits fewer characters in the same column, and so does the fallback serif the page shows before the web font arrives.</li>
+        <li><strong>One browser.</strong> Chrome on macOS. Other engines break lines a little differently.</li>
+        <li><strong>One language.</strong> English prose. Longer words leave a more ragged edge and a lower count.</li>
+      </ul>
+
+      <div class="notes" role="group" aria-labelledby="notes-h">
+        <h2 id="notes-h">Notes</h2>
+        <ol>
+          <li id="fn1">Robert Bringhurst, <cite>The Elements of Typographic Style</cite>, section 2.1.2. <a class="back" href="#fnref1" aria-label="Back to the text"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M5 9.5 2 6.5l3-3M2 6.5h6.5a3.5 3.5 0 0 1 0 7H7"/></svg></a></li>
+          <li id="fn2">W3C, <a href="https://www.w3.org/TR/WCAG22/#visual-presentation"><cite>Web Content Accessibility Guidelines 2.2</cite></a>, success criterion 1.4.8, Visual Presentation. <a class="back" href="#fnref2" aria-label="Back to the text"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M5 9.5 2 6.5l3-3M2 6.5h6.5a3.5 3.5 0 0 1 0 7H7"/></svg></a></li>
+          <li id="fn3"><a href="blog-narrative.html">Three blog posts, measured</a>, the narrative post in this set. <a class="back" href="#fnref3" aria-label="Back to the text"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M5 9.5 2 6.5l3-3M2 6.5h6.5a3.5 3.5 0 0 1 0 7H7"/></svg></a></li>
+        </ol>
+      </div>
+
+    </div>
+  </div>
+
+</article>
+</main>
+
+<footer class="foot">
+  <div class="foot-in">
+    <a href="../index.html">Artikit</a>
+    <a href="#top">Back to top</a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var scheme = document.getElementById("scheme");
+  if (scheme) scheme.addEventListener("click", function () {
+    var now = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    var next = now === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("artikit-blog-theme", next); } catch (e) {}
+  });
+
+  document.querySelectorAll("[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var code = btn.closest("figure").querySelector("pre");
+      var done = function () {
+        btn.textContent = "Copied";
+        setTimeout(function () { btn.textContent = "Copy"; }, 1600);
+      };
+      var select = function () {
+        var r = document.createRange();
+        r.selectNodeContents(code);
+        var sel = getSelection();
+        sel.removeAllRanges();
+        sel.addRange(r);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code.textContent).then(done, select);
+      else select();
+    });
+  });
+
+  // the function printed in the note, run on the note
+  function charactersPerLine(paragraph) {
+    const range = document.createRange();
+    const walker = document.createTreeWalker(
+      paragraph, NodeFilter.SHOW_TEXT);
+    const words = [];
+    for (let node; (node = walker.nextNode()); ) {
+      for (const m of node.data.matchAll(/\S+\s*/g)) {
+        range.setStart(node, m.index);
+        range.setEnd(node, m.index + m[0].trimEnd().length);
+        const box = range.getClientRects()[0];
+        if (box) words.push([box.top, m[0].length]);
+      }
+    }
+    const lines = [];
+    let top = -Infinity;
+    words.sort((a, b) => a[0] - b[0]);
+    for (const [y, n] of words) {
+      if (y - top > 10) { lines.push(0); top = y; }
+      lines[lines.length - 1] += n;
+    }
+    return lines.slice(0, -1);
+  }
+  window.charactersPerLine = charactersPerLine;
+
+  // the plate: the first sixteen lines as rows, green for the text and pink for the room left before 75
+  var rowsEl = document.getElementById("picture-rows");
+  function draw(lines) {
+    if (!rowsEl) return;
+    var NS = "http://www.w3.org/2000/svg";
+    while (rowsEl.firstChild) rowsEl.removeChild(rowsEl.firstChild);
+    lines.slice(0, 16).forEach(function (n, i) {
+      var used = Math.min(88, n), y = 40 + i * 15;
+      var parts = [["pic-used", 92.5, used * 5]];
+      if (used < 75) parts.push(["pic-room", 92.5 + used * 5, (75 - used) * 5]);
+      parts.forEach(function (part) {
+        var r = document.createElementNS(NS, "rect");
+        r.setAttribute("class", part[0]);
+        r.setAttribute("x", part[1]);
+        r.setAttribute("y", y);
+        r.setAttribute("width", part[2]);
+        r.setAttribute("height", 15);
+        rowsEl.appendChild(r);
+      });
+    });
+  }
+
+  var live = document.getElementById("live");
+  var paragraphs = document.querySelectorAll(".prose > p");
+  function recount() {
+    var lines = [];
+    paragraphs.forEach(function (p) { lines = lines.concat(charactersPerLine(p)); });
+    if (!lines.length || !live) return;
+    var avg = Math.round(lines.reduce(function (a, b) { return a + b; }, 0) / lines.length);
+    var column = Math.round(paragraphs[0].getBoundingClientRect().width);
+    live.textContent = avg + " characters a line in a " + column + "px column";
+    draw(lines);
+  }
+  // recount in the same frame the column changes width, and again once the web font is in
+  var queued = false;
+  function schedule() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(function () { queued = false; recount(); });
+  }
+  if ("ResizeObserver" in window && paragraphs.length) new ResizeObserver(schedule).observe(paragraphs[0].parentNode);
+  else addEventListener("resize", schedule);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(recount);
+  else addEventListener("load", recount);
+
+  // plots: one readout per plot, for the mark nearest the pointer or picked with the arrow keys
+  document.querySelectorAll("[data-chart]").forEach(function (chart) {
+    var marks = [].slice.call(chart.querySelectorAll(".mark"));
+    if (!marks.length) return;
+    var tip = document.createElement("div");
+    tip.className = "tip";
+    tip.setAttribute("role", "status");
+    tip.hidden = true;
+    chart.appendChild(tip);
+    var active = -1;
+    function fill(mark) {
+      while (tip.firstChild) tip.removeChild(tip.firstChild);
+      var rows = mark.getAttribute("data-rows");
+      var value = document.createElement("strong"), label = document.createElement("span");
+      label.textContent = mark.getAttribute("data-label");
+      if (!rows) {
+        value.textContent = mark.getAttribute("data-value");
+        tip.appendChild(value);
+        tip.appendChild(label);
+        return;
+      }
+      tip.appendChild(label);
+      JSON.parse(rows).forEach(function (row) {
+        var line = document.createElement("span"), key = document.createElement("i"), number = document.createElement("strong");
+        line.className = "tip-row";
+        key.className = "tip-key k" + row[2];
+        number.textContent = row[1];
+        line.appendChild(key);
+        line.appendChild(number);
+        line.appendChild(document.createTextNode(row[0]));
+        tip.appendChild(line);
+      });
+    }
+    function show(i) {
+      if (active > -1) marks[active].classList.remove("is-on");
+      active = i;
+      chart.classList.toggle("is-reading", i > -1);
+      if (i < 0) { tip.hidden = true; return; }
+      var mark = marks[i];
+      mark.classList.add("is-on");
+      fill(mark);
+      tip.hidden = false;
+      var box = chart.getBoundingClientRect();
+      var at = (mark.querySelector("[data-anchor]") || mark).getBoundingClientRect();
+      var half = tip.offsetWidth / 2;
+      var x = Math.max(half, Math.min(box.width - half, at.left + at.width / 2 - box.left));
+      var y = Math.max(0, at.top - box.top - tip.offsetHeight - 8);
+      tip.style.transform = "translate(" + Math.round(x - half) + "px," + Math.round(y) + "px)";
+    }
+    function nearest(e) {
+      var best = -1, gap = Infinity;
+      marks.forEach(function (mark, i) {
+        var r = mark.getBoundingClientRect();
+        var d = Math.abs(r.left + r.width / 2 - e.clientX);
+        if (d < gap) { gap = d; best = i; }
+      });
+      return best;
+    }
+    function point(e) { var i = nearest(e); if (i !== active) show(i); }
+    chart.addEventListener("pointermove", point);
+    chart.addEventListener("pointerdown", point);
+    chart.addEventListener("pointerleave", function () { if (document.activeElement !== chart) show(-1); });
+    chart.addEventListener("focus", function () { if (active < 0) show(0); });
+    chart.addEventListener("blur", function () { show(-1); });
+    chart.addEventListener("keydown", function (e) {
+      var step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      if (!step) return;
+      e.preventDefault();
+      show((Math.max(0, active) + step + marks.length) % marks.length);
+    });
+  });
+})();
+</script>
+</body>
+</html>
