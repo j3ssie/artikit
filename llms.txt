@@ -1,0 +1,47 @@
+# Artikit
+
+> Artikit is a set of standalone HTML sample pages (landing pages, dashboards, data pages and a terminal design system) to use as starting points for new UI. Each page is one self-contained file with its CSS and JavaScript inline and sample data only. There is no build step and nothing to install.
+
+How to use this file:
+
+- Paths are relative to the directory this file is served from. The same paths work in the repository root.
+- File names start with the kind of page: `landing-page-`, `dashboard-`, `data-` or `terminal-`.
+- To reuse a page, fetch its HTML file and adapt it. Colours, fonts and radii are CSS custom properties declared in `:root` near the top of the page's `<style>` block.
+- Most pages load web fonts from Google Fonts and fall back to system fonts without them. The Gimorra and Vigolium pages also load a logo from `assets/`.
+- Each page has a 720×450 preview image at `thumbs/<file-name>.png`.
+- `index.html` is the visual chooser. It builds its catalogue with JavaScript, so read this file for the list instead of scraping it. `index.html#list` opens it as a table.
+- All names, numbers and install commands in the pages are invented sample content. Gimorra and Vigolium are the author's own products.
+
+## Landing pages
+
+- [Gimorra · Copperplate](landing-page-gimorra-copperplate.html): Copperplate and porcelain marketing page: one 920px column, panel figures, an install line and a live terminal replay. Details: sans + mono, dark + light, animated SVG. Size: about 60 KB. Preview: thumbs/landing-page-gimorra-copperplate.png
+- [Gimorra · Verdicts](landing-page-gimorra-verdicts.html): White product page framed by hairline rails: paper-textured hero with a live verdict flow, a draggable threshold, benchmarks, quickstart tabs and a human or machine view. Details: Instrument Sans + DM Mono, light only, animated widgets. Size: about 80 KB. Preview: thumbs/landing-page-gimorra-verdicts.png
+- [Gimorra · Stage](landing-page-gimorra-stage.html): Near-black product page built around a playable run: a centred hero, a target switch, a staged demo with a five-step scrubber and a stop key, illustration cards, a command grid and install blocks. Details: system sans + mono, dark only, scripted demo. Size: about 60 KB. Preview: thumbs/landing-page-gimorra-stage.png
+- [Coding agents](landing-page-coding-agents.html): Dark landing page over a landscape painting redrawn live in ASCII glyphs: a centred prompt box with an autonomy switch, a permission matrix, a scripted session replay and an install block. Details: Geist + Geist Mono, dark only, canvas ASCII + replay. Size: about 50 KB. Preview: thumbs/landing-page-coding-agents.png
+
+## Dashboards
+
+- [Gimorra · Console](dashboard-gimorra-console.html): All-monospace operations console: top-bar tabs, stat tiles, runs and issues tables, and a run detail with transcript. Details: JetBrains Mono, dark + light, hash routes. Size: about 60 KB. Preview: thumbs/dashboard-gimorra-console.png
+- [Vigolium · Workbench](dashboard-vigolium-workbench.html): Terminal-style workbench: text-only header, pipe-separated nav, zero-radius panels and 50/50 master-detail views. Details: monospace, dark + light, ASCII charts. Size: about 90 KB. Preview: thumbs/dashboard-vigolium-workbench.png
+- [Vigolium · Triage](dashboard-vigolium-triage.html): Full-screen Scan & Triage Performance dashboard: stacked finding volume, open findings by severity, median triage time, a fix-time scatter and an SLA strip plot, with a project filter. Details: Inter, dark only, SVG charts + tooltips. Size: about 40 KB. Preview: thumbs/dashboard-vigolium-triage.png
+- [Delivery analytics](dashboard-delivery-analytics.html): Charcoal delivery-analytics dashboard: range and project filters, KPI tiles with sparklines, created-vs-completed lines, stacked columns by project, a cycle-time histogram and hatched meters. Details: Inter, dark only, filters + chart tooltips. Size: about 50 KB. Preview: thumbs/dashboard-delivery-analytics.png
+
+## Data pages
+
+- [Observability](data-observability.html): Dark observability sample with traces, logs, infrastructure and incident views and a validated series palette. Details: Inter + Geist Mono, dark first, SVG charts, tweak dock. Size: about 130 KB. Preview: thumbs/data-observability.png
+- [Model Data](data-model-usage.html): Light-first data page with stat tiles, tables, range switches and categorical series. Flips to dark. Details: Geist, light + dark, tables, tweak dock. Size: about 130 KB. Preview: thumbs/data-model-usage.png
+- [Prompt analytics](data-prompt-analytics.html): Full-screen prompt analytics on a warm cream surface: prompt cards with line and bar charts, request geography, and latency, token and quantile meters, with a range switch and a table view. Details: Figtree, light first, SVG charts + tooltips, tweak dock. Size: about 90 KB. Preview: thumbs/data-prompt-analytics.png
+- [Evals](data-evals.html): Full-screen eval dashboard on oat with cream figure cards: hatched and solid paired columns, running-mean lines with leader labels, reference lines and error bars, all scoped by a suite switch. Details: Hanken Grotesk, light + dark, SVG charts + tooltips, tweak dock. Size: about 80 KB. Preview: thumbs/data-evals.png
+- [Analysis workbench](data-analysis-workbench.html): Dense light analysis workbench: contents tree, a canvas of filter, table, time-series, bar and heat-grid cards, a card inspector with search settings, and a dependency graph view. Details: Inter + Geist Mono, light first, linked cards + graph view, tweak dock. Size: about 120 KB. Preview: thumbs/data-analysis-workbench.png
+
+## Terminal design system
+
+These two are bundled apps with embedded assets. Open them in a browser instead of reading the source.
+
+- [Terminal Design System](terminal-design-system.html): Bundled design system in a warm terminal register, with a live control bar for theme, accent, font and density. Details: bundled app, warm dark, live controls. Size: 2.3 MB. Preview: thumbs/terminal-design-system.png
+- [Terminal Design System · Field Notes](terminal-design-system-fieldnotes.html): The same design system as a light-first kraft-paper notebook: dot-grid backdrop, ink-strip panel headers, sharp corners. Details: IBM Plex Mono, light first, compact. Size: 2.3 MB. Preview: thumbs/terminal-design-system-fieldnotes.png
+
+## Optional
+
+- [Chooser](index.html): the visual catalogue of every page above, with grid and list views and a filter by kind.
+- [Author](https://github.com/j3ssie): Artikit is crafted by @j3ssie.

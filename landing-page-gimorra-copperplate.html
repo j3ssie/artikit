@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gimorra · Landing (sample)</title>
+<meta name="color-scheme" content="dark light" />
+<meta name="description" content="Gimorra (sample): point it at a build and it comes back with the regression reproduced, as one folder you can read, diff and replay." />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#18140e" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#efece8" />
+<link rel="icon" href="assets/gimorra-logo.png" />
+<script>(function(){try{var t=localStorage.getItem('gl-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<style>
+:root{
+  --text-1: light-dark(#33302b, #ead9c0);
+  --bg-app: light-dark(#efece8, color-mix(in oklab, #14100b 97.5%, var(--text-1)));
+  --bg-terminal: light-dark(#fbf9f6, color-mix(in oklab, #1a150e 96%, var(--text-1)));
+  --bg-raised: light-dark(#ffffff, color-mix(in oklab, #241d14 95.5%, var(--text-1)));
+  --bg-inset: light-dark(#f4f1ec, color-mix(in oklab, #100c08 95.5%, var(--text-1)));
+  --bg-hover: light-dark(#e9e5df, color-mix(in oklab, #2c2418 95%, var(--text-1)));
+  --border-1: light-dark(#ddd8d0, color-mix(in oklab, #332917 91%, var(--text-1)));
+  --border-2: light-dark(#c2bab0, color-mix(in oklab, #54432a 92.5%, var(--text-1)));
+  --text-2: color-mix(in oklab, light-dark(#6b655c, #b59c7a) 78%, var(--text-1));
+  --text-dim: color-mix(in oklab, light-dark(#a39c90, #77664c) 55%, var(--text-1));
+  --green: light-dark(#2b6e2f, #a4c26f);
+  --red: light-dark(#b23232, #e47a64);
+  --yellow: light-dark(#855e10, #d8a24a);
+  --orange: light-dark(#bb6a1e, #cf8236);
+  --blue: light-dark(#3565c0, #8aa8bd);
+  --cyan: light-dark(#175f68, #7fd6e4);
+  --accent:#78d670;
+  --accent-fg: light-dark(color-mix(in oklab, var(--accent) 44%, var(--text-1)), var(--accent));
+  --accent-fill: light-dark(color-mix(in oklab, var(--accent) 90%, var(--text-1)), var(--accent));
+  --accent-soft: light-dark(color-mix(in oklab, var(--accent) 16%, var(--bg-terminal)), color-mix(in oklab, var(--accent) 22%, var(--bg-terminal)));
+  --focus: var(--accent-fg);
+  --sh-ring: light-dark(#33302b14, #ead9c014);
+  --sh-a: light-dark(#33302b0a, #00000040);
+  --sh-b: light-dark(#33302b0d, #00000047);
+  --sh-hi: light-dark(#ffffff00, #ead9c00a);
+  --shadow-surface: 0 0 0 1px var(--sh-ring), inset 0 1px 0 var(--sh-hi), 0 1px 1px var(--sh-a), 0 2px 2px -1px var(--sh-a), 0 4px 6px -3px var(--sh-b);
+  --shadow-icon: 0 0 0 .5px var(--sh-ring), 0 1px 1px -.5px var(--sh-a), 0 2px 2px -1px var(--sh-a), 0 4px 4px -2px var(--sh-a), 0 8px 8px -4px var(--sh-b), 0 12px 12px -6px var(--sh-b);
+  --pl-dot: color-mix(in oklab, var(--text-dim) 38%, transparent);
+  --pl-tick: color-mix(in oklab, var(--border-2) 60%, var(--bg-terminal));
+  --pl-faint: color-mix(in oklab, var(--text-dim) 62%, var(--bg-terminal));
+  --pl-mark: color-mix(in oklab, var(--text-1) 6%, var(--bg-raised));
+  --pl-ok-soft: color-mix(in oklab, var(--green) 18%, var(--bg-terminal));
+  --pl-no-soft: color-mix(in oklab, var(--red) 18%, var(--bg-terminal));
+  --sans: "Suisse Intl", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --r-panel:12px; --r-ctl:6px; --r-code:4px; --r-pill:999px;
+  --measure:920px; --band:72px;
+  --ease: cubic-bezier(.22,.68,.24,1); --enter:.62s;
+  color-scheme: light dark;
+}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:76px;scrollbar-color:var(--border-2) var(--bg-app)}
+body{margin:0;background:var(--bg-app);color:var(--text-1);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::selection{background:color-mix(in oklab, var(--accent) 38%, transparent)}
+a{color:var(--text-1);text-decoration:underline;text-decoration-color:var(--border-2);text-underline-offset:3px;transition:text-decoration-color .16s}
+a:hover{text-decoration-color:currentColor}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:var(--r-ctl)}
+h1,h2,h3{font-weight:400;margin:0;color:var(--text-1);text-wrap:balance}
+p{margin:0 0 1em;color:var(--text-2)}
+b,strong{font-weight:500;color:var(--text-1)}
+code,pre,kbd{font-family:var(--mono)}
+p code,li code,.fact code{font-size:.875em;padding:.09em .35em;border-radius:var(--r-code);background:var(--bg-hover);color:var(--text-1)}
+.main,.nav-inner{max-width:calc(var(--measure) + 48px);margin-inline:auto;padding-inline:24px}
+.main{padding-bottom:32px}
+.wrap{position:relative;min-width:0}
+section{padding:calc(var(--band)/2) 0;position:relative}
+header.nav{position:sticky;top:0;z-index:40;background:color-mix(in oklab, var(--bg-app) 86%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid transparent;transition:border-color .2s}
+header.nav.stuck{border-bottom-color:var(--border-1)}
+.nav-inner{display:flex;align-items:center;gap:14px;height:60px}
+.mark{display:inline-flex;align-items:center;gap:10px;flex:none;color:var(--text-1);font-size:15px;letter-spacing:-.01em;text-decoration:none}
+.mark .glyph{display:block;width:28px;height:28px;border-radius:7px;box-shadow:var(--shadow-icon);transition:transform .2s var(--ease)}
+.mark:hover .glyph{transform:translateY(-1px)}
+.ver,.foot .chip{flex:none;padding:2px 9px;border-radius:var(--r-pill);background:var(--accent-soft);box-shadow:inset 0 0 0 1px color-mix(in oklab, var(--accent) 30%, transparent);color:var(--accent-fg);font-family:var(--mono);font-size:11.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.nav-links{display:flex;align-items:center;align-self:stretch;gap:2px;margin-left:10px;min-width:0;overflow-x:auto;scrollbar-width:none}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{position:relative;flex:none;padding:5px 10px;border-radius:var(--r-pill);color:var(--text-2);font-size:14px;text-decoration:none;white-space:nowrap;transition:color .16s,background .16s}
+.nav-links a:hover{color:var(--text-1);background:var(--bg-hover)}
+.nav-links a.on{color:var(--text-1)}
+.nav-links a::after{content:"";position:absolute;inset:-6px 0}
+.nav-links a:focus-visible{outline-offset:-2px}
+.nav-act{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto}
+.navbtn{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 14px;border-radius:var(--r-pill);background:var(--bg-terminal);box-shadow:var(--shadow-surface);color:var(--text-1);font-size:13.5px;text-decoration:none;white-space:nowrap}
+.livedot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px color-mix(in oklab, var(--green) 22%, transparent);animation:softPulse 1.6s ease-in-out infinite}
+@keyframes softPulse{50%{opacity:.45}}
+.themebtn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:0;border-radius:var(--r-pill);background:var(--bg-terminal);box-shadow:var(--shadow-surface);color:var(--text-2);cursor:pointer;transition:color .16s}
+.themebtn::before{content:"";position:absolute;inset:-4px}
+.themebtn:hover{color:var(--text-1)}
+.themebtn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.themebtn .moon{display:none}
+:root[data-theme="light"] .themebtn .sun{display:none}
+:root[data-theme="light"] .themebtn .moon{display:block}
+@media (prefers-color-scheme: light){:root:not([data-theme]) .themebtn .sun{display:none}:root:not([data-theme]) .themebtn .moon{display:block}}
+@media (max-width:960px){.ver{display:none}.nav-links{margin-left:0}}
+@media (max-width:820px){.nav-links a.hide-sm{display:none}}
+@media (max-width:540px){.navbtn{padding:0 10px}.navbtn .lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}}
+@media (max-width:460px){.main,.nav-inner{padding-inline:16px}.nav-inner{gap:8px}.nav-act{gap:4px}.nav-links a{padding-inline:6px}.nav-links{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 8px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 8px),transparent)}}
+.eyebrow{margin:0 0 10px;font-size:14px;color:var(--text-dim)}
+.eyebrow::first-letter{text-transform:uppercase}
+h2{font-size:22px;line-height:1.25;letter-spacing:-.02em}
+.lede{max-width:62ch}
+.bandhead{margin:0 0 28px}
+.band-title{font-size:clamp(20px,2.2vw,24px);line-height:1.25;letter-spacing:-.02em}
+.chip{display:inline-flex;align-items:center;padding:1px 8px;border-radius:var(--r-pill);background:var(--bg-hover);font-size:12px;color:var(--text-2);white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 18px;border-radius:var(--r-pill);background:var(--bg-terminal);box-shadow:var(--shadow-surface);color:var(--text-1);font-size:14px;text-decoration:none;white-space:nowrap}
+.btn,.navbtn,.copyblock{position:relative;isolation:isolate;overflow:hidden;transition:background .2s,color .2s,box-shadow .25s var(--ease),transform .25s var(--ease)}
+.btn::after,.navbtn::after,.copyblock::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(105deg,transparent 25%,color-mix(in oklab, var(--halo,var(--accent)) 4%, transparent) 44%,rgb(255 255 255/.03) 50%,color-mix(in oklab, var(--halo,var(--accent)) 4%, transparent) 56%,transparent 75%);transform:translateX(-110%);transition:transform 1.1s var(--ease);pointer-events:none}
+.btn:hover,.navbtn:hover,.copyblock:hover{background:color-mix(in oklab, var(--bg-raised) 50%, var(--bg-terminal));box-shadow:var(--shadow-surface),0 0 0 1px color-mix(in oklab, var(--halo,var(--accent)) 12%, transparent)}
+.btn:hover::after,.navbtn:hover::after,.copyblock:hover::after{transform:translateX(110%)}
+.btn:active,.navbtn:active,.copyblock:active,.themebtn:active{transform:translateY(1px)}
+.btn:where(.accent){--halo:var(--orange);color:light-dark(color-mix(in oklab, var(--orange) 72%, var(--text-1)), var(--orange));box-shadow:inset 0 0 0 1px color-mix(in oklab, var(--orange) 70%, transparent),var(--shadow-icon)}
+.btn.accent:hover{box-shadow:inset 0 0 0 1px color-mix(in oklab, var(--orange) 85%, transparent),var(--shadow-icon)}
+.btn .go{opacity:.55;transition:opacity .16s,transform .16s var(--ease)}
+.btn.accent .go{opacity:.8}
+.btn:hover .go{opacity:1;transform:translateX(1px)}
+.btn svg,.copybtn svg,.replay svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.copybtn svg,.replay svg{width:13px;height:13px}
+.copyblock{display:flex;align-items:center;min-width:0;border-radius:var(--r-panel);background:var(--bg-terminal);box-shadow:var(--shadow-surface);font-family:var(--mono);font-size:13px;cursor:pointer}
+.copyblock:hover .copybtn:not(.done){color:var(--text-2)}
+.copyblock .cmd{flex:1 1 auto;min-width:0;padding:10px 4px 10px 15px;overflow-x:auto;white-space:nowrap;color:var(--text-1);scrollbar-width:none}
+.copyblock .cmd::-webkit-scrollbar{display:none}
+.copyblock .cmd .dollar{color:var(--text-dim);user-select:none}
+.copyblock .cmd .sha{display:inline-block;width:8ch;overflow:hidden;white-space:nowrap;vertical-align:bottom;font-style:normal;color:var(--text-2)}
+.copyblock .cmd .shawrap::after{content:"…";color:var(--text-dim)}
+.copybtn{flex:none;display:inline-flex;align-items:center;gap:5px;height:26px;margin-right:7px;padding:0 7px;border:0;border-radius:var(--r-ctl);background:none;color:var(--text-dim);font-family:var(--mono);font-size:11.5px;cursor:pointer;transition:background .16s,color .16s}
+.copybtn .lbl{display:none}
+.copybtn:hover{background:var(--bg-hover);color:var(--text-1)}
+.copybtn.done{color:var(--green)}
+.copybtn.done .lbl{display:inline}
+.pill{font-family:var(--mono);font-size:11px;padding:2px 9px;border-radius:var(--r-pill);background:var(--bg-hover);color:var(--text-2)}
+.pill.ok{color:var(--green);background:color-mix(in srgb, var(--green) 14%, transparent)}
+.pill.no{color:var(--red);background:color-mix(in srgb, var(--red) 14%, transparent)}
+.pill.maybe{color:var(--yellow);background:color-mix(in srgb, var(--yellow) 14%, transparent)}
+.c-dim{color:var(--text-dim)}.c-mut{color:var(--text-2)}.c-green{color:var(--green)}.c-red{color:var(--red)}.c-cyan{color:var(--cyan)}.c-yellow{color:var(--yellow)}.c-orange{color:var(--orange)}.c-ink{color:var(--text-1)}
+.hero{padding:64px 0 calc(var(--band)/2)}
+.hero h1{font-size:clamp(26px,3.2vw,34px);line-height:1.15;letter-spacing:-.025em;max-width:22ch;margin-bottom:24px}
+.hero h1 .hl{color:light-dark(color-mix(in oklab, var(--accent) 58%, var(--text-1)), var(--accent))}
+.hero-act{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}
+.hero-act .copyblock{flex:1 1 360px}
+.hero-fig{position:relative;padding:20px 24px;border-radius:var(--r-panel);background:var(--bg-terminal);box-shadow:var(--shadow-surface);overflow:hidden}
+.hero-fig .plate{display:block;width:100%;height:auto}
+@media (max-width:620px){.hero{padding-top:36px}.hero-fig{padding:10px}.hero-act .btn{flex:1 1 auto}}
+.figure,.framed{position:relative;min-width:0;border-radius:var(--r-panel);background:var(--bg-terminal);box-shadow:var(--shadow-surface);overflow:hidden}
+.figure{padding:22px}
+.figure svg{display:block;width:100%;height:auto}
+.figure .fcap{position:static;display:block;margin-top:10px}
+.figpair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.figpair .figure{display:flex;flex-direction:column;justify-content:center}
+@media (max-width:620px){.figpair{grid-template-columns:minmax(0,1fr)}}
+.framed{display:flex;align-items:center;justify-content:center;height:210px;padding:14px}
+.framed svg{display:block;width:100%;height:100%}
+.framed:has(.fcap){padding-bottom:30px}
+.framed:has(> .artchip),.framed:has(> .lanepills){padding-bottom:46px}
+.fcap,.framed > .artchip,.framed > .lanepills{position:absolute;left:14px;right:14px;bottom:11px;margin:0}
+.fcap{text-align:center;font-size:12px;color:var(--text-dim);pointer-events:none}
+.fcap b{font-weight:500;color:var(--text-2)}
+.framed > .artchip{right:auto}
+.artchip{display:inline-flex;align-items:center;gap:8px;max-width:calc(100% - 28px);padding:5px 10px;border-radius:var(--r-ctl);background:var(--bg-hover);font-family:var(--mono);font-size:11px;color:var(--text-2);overflow:hidden;white-space:nowrap}
+.artchip i{width:6px;height:12px;flex:none;background:var(--accent-fill);animation:caret 1s steps(1) infinite}
+@keyframes caret{50%{opacity:0}}
+.lanepills{display:flex;justify-content:center;gap:6px;flex-wrap:wrap}
+.lanepills .pill{opacity:.35;animation:lane 3.6s var(--ease) infinite;animation-delay:var(--d)}
+.lanepills .pill.ok{animation-name:lane-win}
+@keyframes lane{0%,52%{opacity:.35}62%,74%{opacity:1}84%,100%{opacity:.35}}
+@keyframes lane-win{0%,52%{opacity:.35}62%,100%{opacity:1}}
+.steps{display:grid;gap:44px}
+.step{min-width:0}
+.step .sbody{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"h fig" "p fig";grid-template-rows:auto 1fr;column-gap:32px;align-items:start}
+.step .framed{grid-area:fig}
+.step h3{grid-area:h;margin:18px 0 8px;font-size:17px;line-height:1.3;letter-spacing:-.01em}
+.step p{grid-area:p;margin:0;font-size:15px}
+@media (max-width:720px){.steps{gap:36px}.step .sbody{grid-template-columns:minmax(0,1fr);grid-template-areas:"fig" "h" "p";grid-template-rows:auto}.step h3{margin-top:16px}}
+.factgrid{margin-top:32px}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 36px}
+@media (max-width:720px){.facts{grid-template-columns:minmax(0,1fr)}}
+.fact{display:grid;grid-template-columns:14px minmax(0,1fr);gap:8px;font-size:14.5px;color:var(--text-2)}
+.fact .m{color:var(--text-dim);font-size:0}
+.fact .m::before{content:"·";font-size:14.5px}
+.pl-ink{stroke:var(--text-1)} .pl-mut{stroke:var(--text-2)} .pl-dim{stroke:var(--text-dim)} .pl-tick{stroke:var(--pl-tick)} .pl-faint{stroke:var(--pl-faint)}
+.pl-acc{stroke:var(--accent-fill)} .pl-ok{stroke:var(--green)} .pl-no{stroke:var(--red)} .pl-cu{stroke:var(--orange)}
+.pf-mark{fill:var(--pl-mark)} .pf-ink{fill:var(--text-1)} .pf-dim{fill:var(--text-dim)} .pf-dot{fill:var(--pl-dot)} .pf-surf{fill:var(--bg-raised)}
+.pf-acc{fill:var(--accent-fill)} .pf-ok{fill:var(--green)} .pf-no{fill:var(--red)} .pf-cu{fill:var(--orange)} .pf-oks{fill:var(--pl-ok-soft)} .pf-nos{fill:var(--pl-no-soft)}
+.pl-lbl{font-family:var(--mono);font-size:11px;fill:var(--text-2)}
+.pl-lbl.dim{fill:var(--text-dim)} .pl-lbl.ink{fill:var(--text-1)} .pl-lbl.ok{fill:var(--green)} .pl-lbl.no{fill:var(--red)} .pl-lbl.acc{fill:var(--accent-fg)} .pl-lbl.sm{font-size:9.5px}
+.tick{fill:var(--pl-tick)}
+.play .tick.on{animation:tickOn 6s linear infinite;animation-delay:var(--d)}
+@keyframes tickOn{0%{fill:var(--pl-tick)}8%,100%{fill:var(--accent-fill)}}
+.play .flow{stroke-dasharray:4 6;animation:flow 1.4s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-20}}
+.play .pulse{animation:softPulse 2.4s ease-in-out infinite}
+.play .brick.hit{animation:brickHit 6s ease-out infinite;animation-delay:var(--d)}
+@keyframes brickHit{0%,30%{fill:var(--pl-mark)}34%{fill:var(--red)}50%,100%{fill:var(--pl-mark)}}
+.play .cand{animation:candRun 6s var(--ease) infinite;animation-delay:var(--d)}
+@keyframes candRun{0%{transform:translateX(0)}30%,100%{transform:translateX(var(--dx))}}
+.play .cand.through{animation-name:candThrough}
+@keyframes candThrough{0%{transform:translateX(0)}60%,100%{transform:translateX(var(--dx))}}
+.play .spoke{stroke-dasharray:3 5;animation:flow 1.2s linear infinite}
+.play .ack{animation:ackBlink 2.4s ease-in-out infinite;animation-delay:var(--d)}
+@keyframes ackBlink{0%,60%{opacity:.25}70%,90%{opacity:1}100%{opacity:.25}}
+.term{border-radius:var(--r-panel);background:var(--bg-terminal);box-shadow:var(--shadow-surface);overflow:hidden;font-family:var(--mono)}
+.term-bar{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border-1);font-size:12px;color:var(--text-dim)}
+.term-bar .title{color:var(--text-1)}
+.term-bar .title .s{color:var(--text-dim)}
+.term-bar .demo{margin-right:auto;padding:1px 8px;border-radius:var(--r-pill);background:var(--bg-hover);font-family:var(--sans);font-size:11.5px;color:var(--text-2);cursor:help}
+.term-bar .tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--yellow)}
+.term-bar .tag i{width:5px;height:5px;border-radius:50%;background:currentColor;animation:softPulse 1.1s ease-in-out infinite}
+.term-bar .tag.settled{color:var(--green)}
+.term-bar .tag.settled i{animation:none}
+.replay{position:relative;display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border:0;border-radius:var(--r-ctl);background:none;color:var(--text-dim);font-family:var(--mono);font-size:11.5px;cursor:pointer;transition:color .16s,background .16s}
+.replay::before{content:"";position:absolute;inset:-8px -2px}
+.replay:hover{color:var(--text-1);background:var(--bg-hover)}
+.replay svg{fill:currentColor}
+.pausebtn .ri,.pausebtn[aria-pressed="true"] .pi{display:none}
+.pausebtn[aria-pressed="true"] .ri{display:block}
+.pausebtn[aria-pressed="true"]{color:var(--accent-fg)}
+.term-body{padding:16px 16px 18px;font-size:11.5px;line-height:1.5;height:600px;overflow:hidden}
+.dash{height:100%;display:flex;flex-direction:column}
+.dash > *:not(.rgn-tail){flex:none}
+.dash > .rgn-tail{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.dash .rgn{padding:6px 0;border-top:1px solid var(--border-1)}
+.dash .rgn-top{padding-top:0;padding-bottom:4px;border-top:none;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.dash .rgn-top .ttl{font-weight:600}
+.fields{padding-bottom:6px}
+.fld{display:grid;grid-template-columns:12px 58px minmax(0,1fr);gap:6px;align-items:baseline}
+.fld .fl{color:var(--text-dim)}
+.fld .fv{color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dash .rgn-h{display:flex;align-items:center;gap:8px;font-family:var(--sans);font-size:11.5px;color:var(--text-dim);margin-bottom:3px}
+.pstrip{display:flex;gap:12px;flex-wrap:wrap}
+.pstrip .p{display:inline-flex;align-items:baseline;gap:4px;color:var(--text-dim);transition:color .25s}
+.pstrip .p.done{color:var(--green)}
+.pstrip .p.now{color:var(--accent-fg)}
+.pstrip .p.now .nm{border-bottom:1px solid currentColor}
+.pstrip .mk{font-size:10px;width:8px;display:inline-block}
+.bar{height:3px;margin-top:8px;border-radius:var(--r-pill);background:var(--bg-hover);overflow:hidden}
+.bar i{display:block;position:relative;overflow:hidden;height:100%;width:0;border-radius:inherit;background:var(--accent-fill);transition:width .6s var(--ease)}
+.bar i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,color-mix(in srgb, var(--bg-terminal) 55%, transparent),transparent);animation:barShine 1.7s linear infinite}
+@keyframes barShine{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.kid{display:grid;grid-template-columns:9px minmax(0,1.1fr) minmax(0,2fr) 44px 64px;gap:10px;align-items:center;padding:2px 0;color:var(--text-2)}
+.kid .dotk{width:7px;height:7px;border-radius:50%;background:var(--border-2)}
+.kid.running .dotk{background:var(--yellow);animation:softPulse 1.1s ease-in-out infinite}
+.kid.done .dotk{background:var(--green)}
+.kid .nm{color:var(--text-1)}
+.kid .task,.kid .tn,.kid .cst{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kid .tn,.kid .cst{text-align:right;color:var(--text-dim);font-variant-numeric:tabular-nums}
+.kid.done .tn{color:var(--text-2)}
+.tx{flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.tx .ln{display:block;opacity:0;transform:translateY(3px);animation:lineIn .26s ease forwards;white-space:pre;overflow:hidden;text-overflow:ellipsis}
+@keyframes lineIn{to{opacity:1;transform:none}}
+.tx .ts{color:var(--text-dim)}
+.tx .who{color:var(--cyan)}
+.cursor{display:inline-block;width:7px;height:13px;background:var(--text-1);vertical-align:-2px;animation:blink 1.05s steps(2,start) infinite}
+@keyframes blink{to{visibility:hidden}}
+.find{display:grid;grid-template-columns:80px minmax(0,1fr) 92px 44px;gap:10px;align-items:center;padding:2px 0;color:var(--text-2)}
+.find .id{color:var(--text-dim)}
+.find .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-1)}
+.find .sv{justify-self:start}
+.find .cv{text-align:right;color:var(--text-dim)}
+.dash .rgn-foot{display:flex;gap:14px;flex-wrap:wrap;color:var(--text-dim);font-size:11px}
+.dash .rgn-foot b{font-weight:500;color:var(--text-2)}
+@media (max-width:560px){
+  .term-body{height:680px;padding:14px 12px}
+  .term-bar{flex-wrap:wrap;row-gap:6px}
+  .dash{font-size:11px}
+  .kid{grid-template-columns:9px minmax(0,1fr) 30px;gap:6px}
+  .kid .task,.kid .cst{display:none}
+  .find{grid-template-columns:68px minmax(0,1fr) 58px 26px;gap:6px}
+  .fld{grid-template-columns:11px 54px minmax(0,1fr)}
+}
+footer{margin-top:calc(var(--band)/2);padding:22px 0 8px;border-top:1px solid var(--border-1);font-size:13px;color:var(--text-dim)}
+.foot{display:flex;gap:8px 18px;flex-wrap:wrap;align-items:center}
+.foot .mark,.foot .credit a,.foot .contact a,.foot .foot-link{color:var(--text-2)}
+.foot .mark:hover,.foot .credit a:hover,.foot .contact a:hover,.foot .foot-link:hover{color:var(--text-1)}
+.foot .foot-link{text-decoration:none}
+.foot .mark,.foot .foot-link{position:relative}
+.foot .mark::after,.foot .foot-link::after{content:"";position:absolute;inset:-9px -4px}
+.foot .mark{font-size:13px;gap:8px}
+.foot .mark .glyph{width:20px;height:20px;border-radius:5px;box-shadow:none}
+.foot .navbtn{height:28px;font-size:12.5px;padding:0 11px;margin-left:auto}
+.foot-note{flex-basis:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 18px}
+.reveal{opacity:0;transform:translateY(10px);transition:opacity var(--enter) var(--ease),transform var(--enter) var(--ease)}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  .reveal{opacity:1;transform:none;transition:none}
+  *,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important}
+  .btn::after,.navbtn::after,.copyblock::after{transition:none}
+  .lanepills .pill.ok{opacity:1}
+  .tick.on{fill:var(--accent-fill)}
+}
+</style></head><body>
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="mark" href="#top"><img class="glyph" src="assets/gimorra-logo.png" alt="" width="28" height="28" />gimorra</a>
+    <span class="ver">v0.4.12-sample</span>
+    <nav class="nav-links">
+      <a href="#controls">Controls</a>
+      <a href="#fanout" class="hide-sm">Orchestration</a>
+      <a href="#replay" class="hide-sm">The run</a>
+      <a href="#trail" class="hide-sm">Evidence</a>
+      <a href="#">Agent reference</a>
+    </nav>
+    <div class="nav-act">
+      <a class="navbtn live" href="#"><i class="livedot" aria-hidden="true"></i><span class="lbl">Live console</span></a>
+      <button class="themebtn" type="button" id="themebtn" aria-label="Switch theme" title="Switch theme">
+        <svg class="sun" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.2"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.05 3.05l1.13 1.13M11.82 11.82l1.13 1.13M12.95 3.05l-1.13 1.13M4.18 11.82l-1.13 1.13"/></svg>
+        <svg class="moon" viewBox="0 0 16 16"><path d="M13.5 9.6A5.8 5.8 0 0 1 6.4 2.5a5.8 5.8 0 1 0 7.1 7.1z"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+<main class="main">
+<section class="hero" id="top">
+  <div class="wrap reveal">
+    <h1>Point it at a build. It comes back with <span class="hl">the regression reproduced</span>.</h1>
+    <div class="hero-fig play" data-play>
+<svg class="plate" viewBox="0 0 960 400" role="img" aria-label="One goal in, four leads cut from it, one folder back.">
+<rect x="24" y="150" width="168" height="100" rx="10" class="pf-mark"/>
+<text x="40" y="178" class="pl-lbl dim">goal</text><text x="40" y="200" class="pl-lbl ink">verify release 2.14</text>
+<text x="40" y="220" class="pl-lbl">surface · app.sample.test</text><text x="40" y="238" class="pl-lbl acc">▸ planner-01</text>
+<path d="M192 200 C 240 200, 240 84, 290 84" fill="none" stroke-width="1.4" class="pl-dim flow"/>
+<g transform="translate(290,60)"><rect width="420" height="48" rx="8" class="pf-mark"/>
+<text x="14" y="20" class="pl-lbl ink">checkout flow</text><text x="14" y="36" class="pl-lbl dim sm">worker · flow-walker</text>
+<rect x="200" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:0.00s"/>
+<rect x="211" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:0.35s"/>
+<rect x="222" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:0.70s"/>
+<rect x="233" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:1.05s"/>
+<rect x="244" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:1.40s"/>
+<rect x="255" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:1.75s"/>
+<rect x="266" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:2.10s"/>
+<rect x="277" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:2.45s"/>
+<rect x="288" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:2.80s"/>
+<rect x="299" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:3.15s"/>
+<rect x="310" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:3.50s"/>
+<rect x="321" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:3.85s"/>
+<rect x="332" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:4.20s"/>
+<rect x="343" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:4.55s"/>
+<rect x="354" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:4.90s"/>
+<rect x="365" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:5.25s"/>
+<rect x="376" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:5.60s"/>
+<rect x="387" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:5.95s"/>
+</g>
+<path d="M710 84 C 760 84, 760 200, 806 200" fill="none" stroke-width="1.4" class="pl-dim flow"/>
+<path d="M192 200 C 240 200, 240 160, 290 160" fill="none" stroke-width="1.4" class="pl-dim flow"/>
+<g transform="translate(290,136)"><rect width="420" height="48" rx="8" class="pf-mark"/>
+<text x="14" y="20" class="pl-lbl ink">search api</text><text x="14" y="36" class="pl-lbl dim sm">worker · contract-check</text>
+<rect x="200" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:0.40s"/>
+<rect x="211" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:0.75s"/>
+<rect x="222" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:1.10s"/>
+<rect x="233" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:1.45s"/>
+<rect x="244" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:1.80s"/>
+<rect x="255" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:2.15s"/>
+<rect x="266" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:2.50s"/>
+<rect x="277" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:2.85s"/>
+<rect x="288" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:3.20s"/>
+<rect x="299" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:3.55s"/>
+<rect x="310" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:3.90s"/>
+<rect x="321" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:4.25s"/>
+<rect x="332" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:4.60s"/>
+<rect x="343" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:4.95s"/>
+<rect x="354" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:5.30s"/>
+<rect x="365" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:5.65s"/>
+<rect x="376" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:6.00s"/>
+<rect x="387" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:6.35s"/>
+</g>
+<path d="M710 160 C 760 160, 760 200, 806 200" fill="none" stroke-width="1.4" class="pl-dim flow"/>
+<path d="M192 200 C 240 200, 240 236, 290 236" fill="none" stroke-width="1.4" class="pl-dim flow"/>
+<g transform="translate(290,212)"><rect width="420" height="48" rx="8" class="pf-mark"/>
+<text x="14" y="20" class="pl-lbl ink">image uploads</text><text x="14" y="36" class="pl-lbl dim sm">worker · asset-probe</text>
+<rect x="200" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:0.80s"/>
+<rect x="211" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:1.15s"/>
+<rect x="222" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:1.50s"/>
+<rect x="233" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:1.85s"/>
+<rect x="244" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:2.20s"/>
+<rect x="255" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:2.55s"/>
+<rect x="266" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:2.90s"/>
+<rect x="277" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:3.25s"/>
+<rect x="288" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:3.60s"/>
+<rect x="299" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:3.95s"/>
+<rect x="310" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:4.30s"/>
+<rect x="321" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:4.65s"/>
+<rect x="332" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:5.00s"/>
+<rect x="343" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:5.35s"/>
+<rect x="354" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:5.70s"/>
+<rect x="365" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:6.05s"/>
+<rect x="376" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:6.40s"/>
+<rect x="387" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:6.75s"/>
+</g>
+<path d="M710 236 C 760 236, 760 200, 806 200" fill="none" stroke-width="1.4" class="pl-dim flow"/>
+<path d="M192 200 C 240 200, 240 312, 290 312" fill="none" stroke-width="1.4" class="pl-dim flow"/>
+<g transform="translate(290,288)"><rect width="420" height="48" rx="8" class="pf-mark"/>
+<text x="14" y="20" class="pl-lbl ink">billing webhooks</text><text x="14" y="36" class="pl-lbl dim sm">worker · replay-runner</text>
+<rect x="200" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:1.20s"/>
+<rect x="211" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:1.55s"/>
+<rect x="222" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:1.90s"/>
+<rect x="233" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:2.25s"/>
+<rect x="244" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:2.60s"/>
+<rect x="255" y="19" width="7" height="10" rx="1.5" class="tick on" style="--d:2.95s"/>
+<rect x="266" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:3.30s"/>
+<rect x="277" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:3.65s"/>
+<rect x="288" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:4.00s"/>
+<rect x="299" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:4.35s"/>
+<rect x="310" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:4.70s"/>
+<rect x="321" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:5.05s"/>
+<rect x="332" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:5.40s"/>
+<rect x="343" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:5.75s"/>
+<rect x="354" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:6.10s"/>
+<rect x="365" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:6.45s"/>
+<rect x="376" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:6.80s"/>
+<rect x="387" y="19" width="7" height="10" rx="1.5" class="tick" style="--d:7.15s"/>
+</g>
+<path d="M710 312 C 760 312, 760 200, 806 200" fill="none" stroke-width="1.4" class="pl-dim flow"/>
+<g transform="translate(806,160)"><path d="M0 10 h26 l8 8 h50 a6 6 0 0 1 6 6 v50 a6 6 0 0 1 -6 6 h-84 a6 6 0 0 1 -6 -6 v-58 a6 6 0 0 1 6 -6z" class="pf-mark"/>
+<text x="10" y="44" class="pl-lbl ink">run-7f3a</text><text x="10" y="60" class="pl-lbl dim sm">one folder</text>
+<circle cx="78" cy="56" r="4" class="pf-acc pulse"/></g>
+<text x="24" y="372" class="pl-lbl dim">queue → assign → run → fold</text>
+<text x="936" y="372" text-anchor="end" class="pl-lbl dim">illustrative</text>
+</svg>
+    </div>
+    <div class="hero-act">
+      <div class="copyblock" id="install" title="Click to copy">
+        <span class="cmd" id="install-cmd"><span class="dollar">$ </span>curl -fsSL cdn.sample.test/gimorra-<span class="shawrap"><i class="sha">8c2c9d08ee1a9427f90a0f7653caa2ad28686d26da77</i></span>/install.sh | bash</span>
+        <button class="copybtn" type="button" aria-label="Copy install command">
+          <svg viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/></svg>
+          <span class="lbl">copied</span>
+        </button>
+      </div>
+      <a class="btn accent" href="#replay">Watch a run <svg class="go" viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
+    </div>
+  </div>
+</section>
+<section id="controls">
+  <div class="wrap reveal">
+    <header class="bandhead">
+      <p class="eyebrow">controls</p>
+      <h2 class="band-title">The agent proposes. Three checks with no AI in them decide.</h2>
+    </header>
+    <div class="steps">
+      <article class="step play" data-play>
+        <div class="sbody">
+          <div class="framed">
+<svg viewBox="0 0 400 150" aria-hidden="true">
+<rect x="20" y="22" width="150" height="26" rx="6" class="pf-oks"/><text x="32" y="39" class="pl-lbl ok">app.sample.test</text>
+<rect x="20" y="56" width="150" height="26" rx="6" class="pf-oks"/><text x="32" y="73" class="pl-lbl ok">*.sample.test</text>
+<rect x="20" y="90" width="150" height="26" rx="6" class="pf-nos"/><text x="32" y="107" class="pl-lbl no" style="text-decoration:line-through">legacy.other.test</text>
+<path d="M184 69 h50" stroke-width="1.4" class="pl-dim flow" fill="none"/>
+<rect x="240" y="44" width="140" height="50" rx="8" class="pf-mark"/><text x="256" y="64" class="pl-lbl dim sm">compiled list</text><text x="256" y="82" class="pl-lbl ink">deny wins</text>
+</svg>
+            <span class="artchip">surface: in app.sample.test, *.sample.test<i aria-hidden="true"></i></span>
+          </div>
+          <h3>The boundary list</h3>
+          <p>Compiled before a request moves, checked on every step that names a host, <em>before</em> autonomy gets a say. Deny wins; ambiguity blocks.</p>
+        </div>
+      </article>
+      <article class="step play" data-play>
+        <div class="sbody">
+          <div class="framed">
+<svg viewBox="0 0 400 150" aria-hidden="true">
+<rect x="20" y="30" width="110" height="24" rx="6" class="pf-mark"/><text x="30" y="46" class="pl-lbl">candidate A</text>
+<path d="M130 42 h60" stroke-width="1.4" class="pl-dim flow" fill="none"/>
+<rect x="20" y="66" width="110" height="24" rx="6" class="pf-mark"/><text x="30" y="82" class="pl-lbl">candidate B</text>
+<path d="M130 78 h60" stroke-width="1.4" class="pl-dim flow" fill="none"/>
+<rect x="20" y="102" width="110" height="24" rx="6" class="pf-mark"/><text x="30" y="118" class="pl-lbl">candidate C</text>
+<path d="M130 114 h60" stroke-width="1.4" class="pl-dim flow" fill="none"/>
+<rect x="190" y="18" width="80" height="114" rx="10" class="pf-mark"/><text x="230" y="70" text-anchor="middle" class="pl-lbl ink">verifier</text><text x="230" y="86" text-anchor="middle" class="pl-lbl dim sm">re-runs it</text>
+<path d="M270 42 h40" stroke-width="1.4" class="pl-dim flow" fill="none"/>
+<rect x="310" y="30" width="70" height="24" rx="6" class="pf-oks"/><text x="345" y="46" text-anchor="middle" class="pl-lbl ok">stored</text>
+<path d="M270 78 h40" stroke-width="1.4" class="pl-dim flow" fill="none"/>
+<rect x="310" y="66" width="70" height="24" rx="6" class="pf-nos"/><text x="345" y="82" text-anchor="middle" class="pl-lbl no">dropped</text>
+<path d="M270 114 h40" stroke-width="1.4" class="pl-dim flow" fill="none"/>
+<rect x="310" y="102" width="70" height="24" rx="6" class="pf-mark"/><text x="345" y="118" text-anchor="middle" class="pl-lbl dim">held</text>
+</svg>
+            <div class="lanepills">
+              <span class="pill ok" style="--d:0s">confirmed</span>
+              <span class="pill no" style="--d:.1s">rejected</span>
+              <span class="pill maybe" style="--d:.2s">inconclusive</span>
+            </div>
+          </div>
+          <h3>The verifier</h3>
+          <p>A candidate is re-run host-side by the least invasive check, and the bytes are kept. Only <span class="c-green">confirmed</span> is stored. No self-certified results.</p>
+        </div>
+      </article>
+      <article class="step play" data-play>
+        <div class="sbody">
+          <div class="framed">
+<svg viewBox="0 0 400 150" aria-hidden="true">
+<circle cx="28" cy="34" r="3.5" class="pf-acc"/><text x="42" y="38" class="pl-lbl">set  feature.flag=on</text>
+<text x="300" y="38" class="pl-lbl ok">↶ undone</text>
+<circle cx="28" cy="64" r="3.5" class="pf-acc"/><text x="42" y="68" class="pl-lbl">put  fixtures/order-19.json</text>
+<text x="300" y="68" class="pl-lbl ok">↶ undone</text>
+<circle cx="28" cy="94" r="3.5" class="pf-acc"/><text x="42" y="98" class="pl-lbl">add  user qa-bot@sample.test</text>
+<text x="300" y="98" class="pl-lbl ok">↶ undone</text>
+<rect x="20" y="118" width="360" height="1" class="pf-dot"/>
+<text x="20" y="138" class="pl-lbl dim sm">ledger · 3 entries · 3 reverted at teardown</text>
+</svg>
+            <span class="fcap"><b>run stop</b> halts new work, then unwinds the ledger</span>
+          </div>
+          <h3>The rollback ledger</h3>
+          <p>Every change ledgered, every change undone at teardown, so a run cannot close dirty.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+<section id="fanout">
+  <div class="wrap reveal">
+    <header class="bandhead">
+      <p class="eyebrow">orchestration</p>
+      <h2 class="band-title">One goal in, specialist workers out.</h2>
+    </header>
+    <div class="figpair">
+      <div class="figure play" data-play>
+<svg viewBox="0 0 400 220" aria-hidden="true">
+<circle cx="200" cy="110" r="30" class="pf-mark"/><text x="200" y="114" text-anchor="middle" class="pl-lbl ink">planner</text>
+<line x1="200.0" y1="80.0" x2="200.0" y2="43.0" stroke-width="1.3" class="pl-dim spoke"/>
+<circle cx="200.0" cy="25.0" r="18" class="pf-mark"/><text x="200.0" y="28.5" text-anchor="middle" class="pl-lbl sm">flow</text>
+<circle cx="213.0" cy="12.0" r="3" class="pf-ok ack" style="--d:0.0s"/>
+<line x1="226.0" y1="95.0" x2="258.0" y2="76.5" stroke-width="1.3" class="pl-dim spoke"/>
+<circle cx="273.6" cy="67.5" r="18" class="pf-mark"/><text x="273.6" y="71.0" text-anchor="middle" class="pl-lbl sm">contract</text>
+<circle cx="286.6" cy="54.5" r="3" class="pf-ok ack" style="--d:0.4s"/>
+<line x1="226.0" y1="125.0" x2="258.0" y2="143.5" stroke-width="1.3" class="pl-dim spoke"/>
+<circle cx="273.6" cy="152.5" r="18" class="pf-mark"/><text x="273.6" y="156.0" text-anchor="middle" class="pl-lbl sm">asset</text>
+<circle cx="286.6" cy="139.5" r="3" class="pf-ok ack" style="--d:0.8s"/>
+<line x1="200.0" y1="140.0" x2="200.0" y2="177.0" stroke-width="1.3" class="pl-dim spoke"/>
+<circle cx="200.0" cy="195.0" r="18" class="pf-mark"/><text x="200.0" y="198.5" text-anchor="middle" class="pl-lbl sm">replay</text>
+<circle cx="213.0" cy="182.0" r="3" class="pf-ok ack" style="--d:1.2s"/>
+<line x1="174.0" y1="125.0" x2="142.0" y2="143.5" stroke-width="1.3" class="pl-dim spoke"/>
+<circle cx="126.4" cy="152.5" r="18" class="pf-mark"/><text x="126.4" y="156.0" text-anchor="middle" class="pl-lbl sm">perf</text>
+<circle cx="139.4" cy="139.5" r="3" class="pf-ok ack" style="--d:1.6s"/>
+<line x1="174.0" y1="95.0" x2="142.0" y2="76.5" stroke-width="1.3" class="pl-dim spoke"/>
+<circle cx="126.4" cy="67.5" r="18" class="pf-mark"/><text x="126.4" y="71.0" text-anchor="middle" class="pl-lbl sm">a11y</text>
+<circle cx="139.4" cy="54.5" r="3" class="pf-ok ack" style="--d:2.0s"/>
+</svg>
+        <span class="fcap">dispatch → ack</span>
+      </div>
+      <div class="figure play" data-play>
+<svg viewBox="0 0 400 220" aria-hidden="true">
+<rect x="230" y="12" width="40" height="17" rx="3" class="pf-mark brick" style="--d:0s"/>
+<rect x="230" y="32" width="40" height="17" rx="3" class="pf-mark brick" style="--d:0s"/>
+<rect x="230" y="52" width="40" height="17" rx="3" class="pf-mark brick hit" style="--d:0s"/>
+<rect x="230" y="72" width="40" height="17" rx="3" class="pf-mark brick" style="--d:0s"/>
+<rect x="230" y="92" width="40" height="17" rx="3" class="pf-mark brick" style="--d:0s"/>
+<rect x="230" y="132" width="40" height="17" rx="3" class="pf-mark brick" style="--d:0s"/>
+<rect x="230" y="152" width="40" height="17" rx="3" class="pf-mark brick" style="--d:0s"/>
+<rect x="230" y="172" width="40" height="17" rx="3" class="pf-mark brick hit" style="--d:1.2s"/>
+<rect x="230" y="192" width="40" height="17" rx="3" class="pf-mark brick" style="--d:0s"/>
+<text x="250" y="124" text-anchor="middle" class="pl-lbl ok sm">pass</text>
+<g class="cand through" style="--dx:184px;--d:0.0s"><rect x="20" y="44" width="26" height="14" rx="4" class="pf-oks"/></g>
+<g class="cand " style="--dx:148px;--d:0.9s"><rect x="20" y="164" width="26" height="14" rx="4" class="pf-nos"/></g>
+<g class="cand " style="--dx:148px;--d:1.8s"><rect x="20" y="144" width="26" height="14" rx="4" class="pf-nos"/></g>
+<g class="cand through" style="--dx:184px;--d:0s"><rect x="20" y="108" width="26" height="14" rx="4" class="pf-oks"/></g>
+<text x="20" y="200" class="pl-lbl dim sm">request → gate</text><text x="380" y="200" text-anchor="end" class="pl-lbl dim sm">re-read per step</text>
+<rect x="290" y="96" width="90" height="40" rx="8" class="pf-mark"/><text x="335" y="120" text-anchor="middle" class="pl-lbl ink">target</text>
+</svg>
+        <span class="fcap">re-read per step · deny wins</span>
+      </div>
+    </div>
+    <div class="factgrid"><div class="facts">
+      <div class="fact"><span class="m" aria-hidden="true">▸</span><span><b>Each worker is a durable queue row.</b> Its own workdir, its own pinned slice of the toolset.</span></div>
+      <div class="fact"><span class="m" aria-hidden="true">▸</span><span><b>Every worker acknowledges.</b> The planner collects a reply down the same spoke it dispatched on, not fire-and-forget.</span></div>
+      <div class="fact"><span class="m" aria-hidden="true">▸</span><span><b>Nothing they hand back is a result.</b> Code the model cannot reach re-runs it first.</span></div>
+      <div class="fact"><span class="m" aria-hidden="true">▸</span><span><b>The gate is re-read, not snapshotted.</b> <code>run stop</code> or an expiry reaches a job already running.</span></div>
+    </div></div>
+  </div>
+</section>
+<section id="replay" aria-labelledby="replay-h">
+  <div class="wrap reveal">
+    <header class="bandhead"><p class="eyebrow" id="replay-h">what a run looks like</p></header>
+    <div class="term" id="term">
+      <div class="term-bar">
+        <span class="title">gimorra <span class="s">·</span> run</span>
+        <span class="demo" title="Illustrative replay - the numbers are invented">illustrative</span>
+        <span class="tag" id="term-tag"><i></i><span>live</span></span>
+        <button class="replay pausebtn" id="term-pause" type="button" aria-pressed="false">
+          <svg class="pi" viewBox="0 0 16 16"><rect x="3" y="2.5" width="3.5" height="11" rx="1"/><rect x="9.5" y="2.5" width="3.5" height="11" rx="1"/></svg>
+          <svg class="ri" viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5z"/></svg>
+          <span class="lbl">pause</span>
+        </button>
+        <button class="replay" id="term-replay" type="button"><svg viewBox="0 0 16 16"><path d="M2.5 8a5.5 5.5 0 1 0 1.6-3.9L2.5 5.7V2.2h3.5"/></svg><span class="lbl">replay</span></button>
+      </div>
+      <div class="term-body"><div class="dash" id="dash">
+        <div class="rgn rgn-top"><span class="ttl">run 7f3a21c</span><span class="c-dim">·</span><span>verify release 2.14</span><span class="c-dim">·</span><span class="c-dim" id="d-clock">00:00</span><span class="c-dim">·</span><span class="c-dim">$<span id="d-cost">0.00</span> est.</span></div>
+        <div class="fields">
+          <div class="fld"><span class="c-dim">▸</span><span class="fl">surface</span><span class="fv">app.sample.test, *.sample.test</span></div>
+          <div class="fld"><span class="c-dim">▸</span><span class="fl">autonomy</span><span class="fv">supervised · asks before writes</span></div>
+          <div class="fld"><span class="c-dim">▸</span><span class="fl">budget</span><span class="fv">$8.00 · 45m</span></div>
+        </div>
+        <div class="rgn"><div class="rgn-h">pipeline</div>
+          <div class="pstrip" id="d-phases"></div>
+          <div class="bar"><i id="d-bar"></i></div>
+        </div>
+        <div class="rgn"><div class="rgn-h">workers <span class="c-dim" id="d-kidsum"></span></div><div id="d-kids"></div></div>
+        <div class="rgn rgn-tail"><div class="rgn-h">transcript</div><div class="tx" id="d-tx"></div></div>
+        <div class="rgn"><div class="rgn-h">results <span class="c-dim" id="d-findsum"></span></div><div id="d-finds"></div></div>
+        <div class="rgn rgn-foot"><span><b>q</b> quit</span><span><b>p</b> pause</span><span><b>k</b> stop run</span><span><b>↑↓</b> scroll</span></div>
+      </div></div>
+    </div>
+  </div>
+</section>
+<section id="trail">
+  <div class="wrap reveal">
+    <header class="bandhead">
+      <p class="eyebrow">evidence</p>
+      <h2 class="band-title">A run comes back as one folder you can read, diff and replay.</h2>
+    </header>
+    <div class="steps">
+      <article class="step play" data-play>
+        <div class="sbody">
+          <div class="framed">
+            <svg viewBox="0 0 400 150" aria-hidden="true">
+<text x="30" y="22" class="pl-lbl " xml:space="preserve">run.json</text>
+<text x="30" y="38" class="pl-lbl " xml:space="preserve">surface.tsv</text>
+<text x="30" y="54" class="pl-lbl ink" xml:space="preserve">workers/</text>
+<text x="30" y="70" class="pl-lbl ink" xml:space="preserve">  flow-walker/</text>
+<text x="30" y="86" class="pl-lbl ink" xml:space="preserve">  contract-check/</text>
+<text x="30" y="102" class="pl-lbl ink" xml:space="preserve">results/</text>
+<text x="30" y="118" class="pl-lbl " xml:space="preserve">  r-0142.json</text>
+<text x="30" y="134" class="pl-lbl " xml:space="preserve">report.md</text>
+<rect x="230" y="18" width="150" height="112" rx="8" class="pf-mark"/>
+<text x="246" y="42" class="pl-lbl dim sm" xml:space="preserve">ls</text>
+<text x="246" y="62" class="pl-lbl ink" xml:space="preserve">8 entries</text>
+<text x="246" y="84" class="pl-lbl dim sm" xml:space="preserve">tar cz</text>
+<text x="246" y="104" class="pl-lbl ink" xml:space="preserve">the whole run</text>
+</svg>
+            <span class="fcap">18m 42s · 5 confirmed · $3.71 est.</span>
+          </div>
+          <h3>The run folder</h3>
+          <p>One run, one folder. <code>ls</code> answers what it wrote, <code>rm -rf</code> removes it, a tarball of it is the whole run.</p>
+        </div>
+      </article>
+      <article class="step play" data-play>
+        <div class="sbody">
+          <div class="framed">
+            <svg viewBox="0 0 400 150" aria-hidden="true">
+<text x="24" y="20" class="pl-lbl dim" xml:space="preserve">host              kind   source   in</text>
+<rect x="20" y="30" width="360" height="20" rx="4" class="pf-oks"/>
+<text x="24" y="44" class="pl-lbl " xml:space="preserve">app.sample.test    apex   seed    </text>
+<text x="330" y="44" class="pl-lbl ok" xml:space="preserve">yes</text>
+<rect x="20" y="52" width="360" height="20" rx="4" class="pf-oks"/>
+<text x="24" y="66" class="pl-lbl " xml:space="preserve">api.sample.test    host   dns     </text>
+<text x="330" y="66" class="pl-lbl ok" xml:space="preserve">yes</text>
+<rect x="20" y="74" width="360" height="20" rx="4" class="pf-oks"/>
+<text x="24" y="88" class="pl-lbl " xml:space="preserve">cdn.sample.test    host   crawl   </text>
+<text x="330" y="88" class="pl-lbl ok" xml:space="preserve">yes</text>
+<rect x="20" y="96" width="360" height="20" rx="4" class="pf-nos"/>
+<text x="24" y="110" class="pl-lbl " xml:space="preserve">legacy.other.test  host   crawl   </text>
+<text x="330" y="110" class="pl-lbl no" xml:space="preserve">no </text>
+<text x="24" y="140" class="pl-lbl dim sm" xml:space="preserve">4 rows · 1 recorded out of bounds, not dropped</text>
+</svg>
+            <span class="fcap">every pass unions onto one table</span>
+          </div>
+          <h3>The coverage table</h3>
+          <p>One table, every pass unioned onto it. Bounds are decided <em>before</em> a row lands, and an out-of-bounds host is <b class="c-ink">recorded, not dropped</b>.</p>
+        </div>
+      </article>
+      <article class="step play" data-play>
+        <div class="sbody">
+          <div class="framed">
+            <svg viewBox="0 0 400 150" aria-hidden="true">
+<rect x="28" y="40" width="52" height="30" rx="6" class="pf-mark"/>
+<text x="36" y="59" class="pl-lbl ink" xml:space="preserve">a91f</text>
+<rect x="28" y="84" width="52" height="30" rx="6" class="pf-mark"/>
+<text x="36" y="103" class="pl-lbl ok" xml:space="preserve">a91f</text>
+<path d="M80 55 h18 M80 99 h18" stroke-width="1.3" class="pl-dim flow" fill="none"/>
+<rect x="98" y="40" width="52" height="30" rx="6" class="pf-mark"/>
+<text x="106" y="59" class="pl-lbl ink" xml:space="preserve">3c0e</text>
+<rect x="98" y="84" width="52" height="30" rx="6" class="pf-mark"/>
+<text x="106" y="103" class="pl-lbl ok" xml:space="preserve">3c0e</text>
+<path d="M150 55 h18 M150 99 h18" stroke-width="1.3" class="pl-dim flow" fill="none"/>
+<rect x="168" y="40" width="52" height="30" rx="6" class="pf-mark"/>
+<text x="176" y="59" class="pl-lbl ink" xml:space="preserve">7b22</text>
+<rect x="168" y="84" width="52" height="30" rx="6" class="pf-mark"/>
+<text x="176" y="103" class="pl-lbl ok" xml:space="preserve">7b22</text>
+<path d="M220 55 h18 M220 99 h18" stroke-width="1.3" class="pl-dim flow" fill="none"/>
+<rect x="238" y="40" width="52" height="30" rx="6" class="pf-mark"/>
+<text x="246" y="59" class="pl-lbl ink" xml:space="preserve">d84a</text>
+<rect x="238" y="84" width="52" height="30" rx="6" class="pf-mark"/>
+<text x="246" y="103" class="pl-lbl ok" xml:space="preserve">d84a</text>
+<path d="M290 55 h18 M290 99 h18" stroke-width="1.3" class="pl-dim flow" fill="none"/>
+<rect x="308" y="40" width="52" height="30" rx="6" class="pf-mark"/>
+<text x="316" y="59" class="pl-lbl ink" xml:space="preserve">0f6e</text>
+<rect x="308" y="84" width="52" height="30" rx="6" class="pf-mark"/>
+<text x="316" y="103" class="pl-lbl ok" xml:space="preserve">0f6e</text>
+<text x="28" y="28" class="pl-lbl dim sm" xml:space="preserve">manifest</text>
+<text x="28" y="132" class="pl-lbl dim sm" xml:space="preserve">recomputed on import</text>
+<rect x="328" y="62" width="52" height="30" rx="6" class="pf-oks"/>
+<text x="338" y="81" class="pl-lbl ok" xml:space="preserve">closed</text>
+</svg>
+            <span class="fcap">export → replay → closed</span>
+          </div>
+          <h3>The evidence chain</h3>
+          <p>Replayed, not asserted. On import the hash chain is recomputed against the manifest, and what lands is <code>closed</code>: a reading surface, never a launching pad.</p>
+        </div>
+      </article>
+      <article class="step play" data-play>
+        <div class="sbody">
+          <div class="framed">
+            <svg viewBox="0 0 400 150" aria-hidden="true">
+<rect x="120" y="22" width="150" height="110" rx="8" class="pf-mark" stroke-dasharray="4 4" stroke-width="1" style="stroke:var(--border-2);fill:transparent"/>
+<rect x="96" y="34" width="150" height="110" rx="8" class="pf-mark"/>
+<text x="110" y="56" class="pl-lbl ink" xml:space="preserve">r-0142.json</text>
+<text x="110" y="73" class="pl-lbl " xml:space="preserve">severity: medium</text>
+<text x="110" y="90" class="pl-lbl ok" xml:space="preserve">status: confirmed</text>
+<text x="110" y="107" class="pl-lbl " xml:space="preserve">steps: 3 · bytes kept</text>
+<text x="110" y="124" class="pl-lbl " xml:space="preserve">sha: 7b22…</text>
+<text x="276" y="30" class="pl-lbl dim sm" xml:space="preserve">raw twin</text>
+<text x="276" y="46" class="pl-lbl dim sm" xml:space="preserve">0600 · unhashed</text>
+<text x="276" y="74" class="pl-lbl dim sm" xml:space="preserve">redacted copy</text>
+<text x="276" y="90" class="pl-lbl dim sm" xml:space="preserve">what the chain hashes</text>
+</svg>
+            <span class="fcap">two files · one is hashed</span>
+          </div>
+          <h3>The result document</h3>
+          <p>Each result is a pair: a redacted copy the chain hashes, and a raw twin kept unhashed. Purging the twin can never break a chain.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+</main>
+<footer>
+  <div class="main foot">
+    <a class="mark" href="#top"><img class="glyph" src="assets/gimorra-logo.png" alt="" width="20" height="20" />gimorra</a>
+    <span class="chip">v0.4.12-sample</span>
+    <a class="foot-link" href="#">Agent reference</a>
+    <a class="navbtn live" href="#"><i class="livedot" aria-hidden="true"></i><span class="lbl">Live console</span></a>
+    <div class="foot-note"><span class="contact">Sample content · <a href="#">hello@sample.test</a></span><span class="credit">Built by <a href="#">the sample team</a></span></div>
+  </div>
+</footer>
+<script>
+(function(){
+  var root=document.documentElement;
+  var btn=document.getElementById('themebtn');
+  var tc=document.querySelectorAll('meta[name="theme-color"]');
+  var paint=function(t){[].forEach.call(tc,function(m){m.setAttribute('content',t==='light'?'#efece8':'#18140e');});};
+  if(root.getAttribute('data-theme'))paint(root.getAttribute('data-theme'));
+  btn.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    if(!cur){cur=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}
+    var next=cur==='dark'?'light':'dark';
+    root.setAttribute('data-theme',next);paint(next);
+    try{localStorage.setItem('gl-theme',next);}catch(e){}
+  });
+  var nav=document.getElementById('nav');
+  var onScroll=function(){nav.classList.toggle('stuck',scrollY>8);};
+  addEventListener('scroll',onScroll,{passive:true});onScroll();
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
+  var links=[].slice.call(document.querySelectorAll('.nav-links a[href^="#"]:not([href="#"])'));
+  var secs=links.map(function(a){return document.querySelector(a.getAttribute('href'));}).filter(Boolean);
+  var spy=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){links.forEach(function(a){var on=a.getAttribute('href')==='#'+e.target.id;a.classList.toggle('on',on);if(on)a.setAttribute('aria-current','location');else a.removeAttribute('aria-current');});}});},{rootMargin:'-40% 0px -55% 0px'});
+  secs.forEach(function(s){spy.observe(s);});
+  var cb=document.querySelector('.copyblock');
+  cb.addEventListener('click',function(){
+    var cmd=document.getElementById('install-cmd'),t=cmd.textContent.replace(/^\$\s*/,'');
+    var b=cb.querySelector('.copybtn');
+    var done=function(){b.classList.add('done');setTimeout(function(){b.classList.remove('done');},1600);};
+    var pick=function(){var r=document.createRange(),s=getSelection();r.selectNodeContents(cmd);s.removeAllRanges();s.addRange(r);};
+    if(navigator.clipboard){navigator.clipboard.writeText(t).then(done,pick);}else{pick();}
+  });
+})();
+(function(){
+  var PH=['plan','map','probe','verify','report'];
+  var KIDS=[['flow-walker','checkout flow · 14 steps'],['contract-check','search api · 38 routes'],['asset-probe','image uploads · 6 forms'],['replay-runner','billing webhooks · 12 events'],['perf-sampler','p95 on 9 hot paths']];
+  var FINDS=[['r-0138','Cart total drifts after coupon removal','medium'],['r-0139','Search returns stale page after sort','low'],['r-0142','Upload accepts 0-byte image','medium'],['r-0144','Webhook retried with same idempotency key','high'],['r-0147','p95 regressed 2.1s to 3.4s on /orders','medium']];
+  var SAY=[
+    ['planner','reading goal · verify release 2.14'],['planner','surface compiled · 2 patterns, deny wins'],['planner','dispatching 5 workers'],
+    ['flow-walker','ack · starting checkout flow'],['contract-check','ack · loading openapi 3.1'],['asset-probe','ack · 6 upload forms found'],
+    ['flow-walker','step 9/14 · coupon removed · total 48.20, expected 51.00'],['verifier','re-running candidate r-0138 · 2 requests'],['verifier','r-0138 confirmed · bytes kept'],
+    ['contract-check','GET /search?sort=price · etag unchanged after sort'],['verifier','r-0139 confirmed'],['asset-probe','POST /upload · 0-byte png accepted, 201'],
+    ['verifier','r-0142 confirmed'],['replay-runner','ack · replaying 12 webhook events'],['replay-runner','event 7 retried · same idempotency key, double insert'],
+    ['verifier','r-0144 confirmed · high'],['perf-sampler','/orders p95 3.4s vs baseline 2.1s'],['verifier','r-0147 confirmed'],
+    ['planner','ledger: 3 changes · 3 reverted'],['planner','report.md written · run folder closed']
+  ];
+  window.__GL={PH:PH,KIDS:KIDS,FINDS:FINDS,SAY:SAY};
+})();
+(function(){
+  var D=window.__GL,$=function(id){return document.getElementById(id);};
+  var elPh=$('d-phases'),elBar=$('d-bar'),elKids=$('d-kids'),elKs=$('d-kidsum'),elTx=$('d-tx'),elF=$('d-finds'),elFs=$('d-findsum'),elClock=$('d-clock'),elCost=$('d-cost'),tag=$('term-tag');
+  var step=0,timer=null,paused=false,TOTAL=D.SAY.length+4,PERIOD=700,RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var esc=function(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});};
+  function render(){
+    var phase=Math.min(4,Math.floor(step/(TOTAL/5)));
+    elPh.innerHTML=D.PH.map(function(p,i){var k=i<phase?'done':(i===phase?'now':'');return '<span class="p '+k+'"><span class="mk">'+(i<phase?'✓':(i===phase?'▸':'·'))+'</span><span class="nm">'+p+'</span></span>';}).join('');
+    elBar.style.width=Math.min(100,Math.round(step/TOTAL*100))+'%';
+    var running=0,done=0;
+    elKids.innerHTML=D.KIDS.map(function(k,i){var start=3+i*2,end=start+8;var st=step<start?'':(step<end?'running':'done');if(st==='running')running++;if(st==='done')done++;var turns=Math.max(0,Math.min(12,step-start));return '<div class="kid '+st+'"><span class="dotk"></span><span class="nm">'+k[0]+'</span><span class="task">'+k[1]+'</span><span class="tn">'+(st?turns+'t':'—')+'</span><span class="cst">$'+(turns*0.06).toFixed(2)+'</span></div>';}).join('');
+    elKs.textContent=done+' done · '+running+' running';
+    var lines=D.SAY.slice(Math.max(0,step-7),step);
+    elTx.innerHTML=lines.map(function(l,i){var ts=('0'+Math.floor((step-lines.length+i)*0.9)).slice(-2);return '<span class="ln" style="animation-delay:'+(i===lines.length-1?0:0)+'ms"><span class="ts">00:'+ts+'</span> <span class="who">'+l[0]+'</span> '+esc(l[1])+'</span>';}).join('')+(step<TOTAL?'<span class="ln"><span class="cursor"></span></span>':'');
+    var shown=D.FINDS.filter(function(f,i){return step>8+i*2.4;});
+    elF.innerHTML=shown.map(function(f){var c=f[2]==='high'?'no':(f[2]==='medium'?'maybe':'');return '<div class="find"><span class="id">'+f[0]+'</span><span class="t">'+esc(f[1])+'</span><span class="pill sv '+c+'">'+f[2]+'</span><span class="cv">✓</span></div>';}).join('')||'<div class="c-dim">none yet</div>';
+    elFs.textContent=shown.length+' confirmed';
+    var sec=step*47;elClock.textContent=('0'+Math.floor(sec/60)).slice(-2)+':'+('0'+sec%60).slice(-2);
+    elCost.textContent=(step*0.19).toFixed(2);
+    tag.className='tag'+(step>=TOTAL?' settled':'');tag.lastElementChild.textContent=step>=TOTAL?'settled':'live';
+  }
+  function tick(){if(paused)return;step++;if(step>TOTAL){if(RM){step=TOTAL;clearInterval(timer);return;}step=0;}render();}
+  function start(){clearInterval(timer);timer=setInterval(tick,PERIOD);render();}
+  var pb=$('term-pause');pb.addEventListener('click',function(){paused=!paused;pb.setAttribute('aria-pressed',String(paused));pb.querySelector('.lbl').textContent=paused?'resume':'pause';});
+  $('term-replay').addEventListener('click',function(){step=0;paused=false;pb.setAttribute('aria-pressed','false');pb.querySelector('.lbl').textContent='pause';start();});
+  if(RM){step=TOTAL;render();}else{start();}
+  var gate=new IntersectionObserver(function(es){es.forEach(function(e){e.target.classList.toggle('play',e.isIntersecting);});},{threshold:.2});
+  document.querySelectorAll('[data-play]').forEach(function(el){gate.observe(el);});
+})();
+</script></body></html>

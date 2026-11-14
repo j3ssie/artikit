@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0f1011">
+<meta name="description" content="Sample Vigolium dashboard: current open findings, fix time and age of findings by severity.">
+<title>Scan &amp; Triage Performance · Vigolium Dashboards (sample)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1011; --line:#1d1f22; --line2:#2a2c30;
+  --fg:#e2e4e7; --fg2:#9c9fa6; --fg3:#7b7e85;
+  --hover:rgba(255,255,255,.055); --focus:#8b8aff;
+  --sans:"Inter","SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+*{margin:0}
+html{-webkit-text-size-adjust:100%;background:var(--bg);scrollbar-color:var(--line2) var(--bg);-webkit-tap-highlight-color:transparent}
+body{min-height:100vh;display:flex;flex-direction:column;font:400 14px/1.45 var(--sans);font-feature-settings:"cv01","ss03";background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+ul{list-style:none;padding:0}
+img,svg{display:block}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:6px}
+::selection{background:rgba(113,112,255,.35)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.skip{position:absolute;left:-999px;top:8px;z-index:200;background:#5e6ad2;color:#fff;padding:8px 12px;border-radius:6px;font-weight:510}
+.skip:focus{left:8px}
+
+/* ---------- top bar ---------- */
+.bar{flex:none;display:flex;align-items:center;gap:6px;height:48px;padding:0 16px 0 20px;border-bottom:1px solid var(--line);font-weight:510;white-space:nowrap}
+.brand{position:relative;flex:none;margin:-3px 7px -3px -3px;padding:3px;border-radius:6px}
+.brand img{border-radius:6px;box-shadow:0 0 0 1px rgba(255,255,255,.09)}
+.crumbs{display:flex;align-items:center;min-width:0}
+.crumbs .c1{flex:none;padding-block:10px;color:var(--fg2);transition:color .15s}
+.crumbs .c1:hover{color:var(--fg)}
+.crumbs .tri{flex:none;width:0;height:0;margin:0 12px;border-left:4px solid var(--fg3);border-block:3px solid transparent}
+.crumbs .c2{overflow:hidden;text-overflow:ellipsis}
+.mwrap{position:relative;margin-left:6px}
+.ibtn{position:relative;width:28px;height:28px;flex:none;display:grid;place-items:center;border-radius:6px;color:var(--fg2);transition:background-color .15s,color .15s}
+.ibtn:hover,.ibtn[aria-expanded="true"]{background:var(--hover);color:var(--fg)}
+.ibtn[aria-pressed="true"]{color:#f2c94c}.ibtn[aria-pressed="true"] .ic{fill:currentColor}
+.ibtn .d{width:3px;height:3px;border-radius:50%;background:currentColor;box-shadow:-5px 0 currentColor,5px 0 currentColor}
+.menu{position:absolute;z-index:20;left:0;top:calc(100% + 4px);min-width:214px;padding:4px;border-radius:9px;background:#1c1d20;box-shadow:0 0 0 1px #2e3035,0 12px 32px rgba(0,0,0,.5);font-weight:400;transform-origin:0 0;transition:opacity .12s,transform .12s}
+.menu[hidden]{display:block;opacity:0;transform:scale(.96);pointer-events:none;visibility:hidden;transition:opacity .12s,transform .12s,visibility 0s .12s}
+.menu button{display:flex;align-items:center;gap:10px;width:100%;height:32px;padding:0 9px;border-radius:6px;color:var(--fg);text-align:left}
+.menu .ic{color:var(--fg2)}
+.menu button:hover,.menu button:focus-visible{background:rgba(255,255,255,.07);outline:0}
+.menu hr{height:1px;margin:4px -4px;border:0;background:#2c2e33}
+.bar .sp{flex:1}
+.upd{display:inline-flex;align-items:center;gap:8px;margin-right:8px;font-size:13px;font-weight:400;color:var(--fg3)}
+.upd i{width:6px;height:6px;border-radius:50%;background:#2aa36b;box-shadow:0 0 0 3px rgba(42,163,107,.18)}
+.tbtn{position:relative;flex:none;display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 10px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--line2);font-size:13px;color:var(--fg2);transition:background-color .15s,color .15s}
+.tbtn:hover{color:var(--fg);background:var(--hover)}
+.tbtn.spin .ic{animation:spin .6s linear}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- page ---------- */
+.page{flex:1;display:flex;flex-direction:column;min-height:0;padding:24px 20px 20px}
+.dh{flex:none;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 24px;padding:0 6px}
+.dh h1{display:flex;align-items:center;gap:11px;font-size:18px;line-height:26px;font-weight:510;letter-spacing:-.014em}
+.dh h1 i{width:26px;height:26px;flex:none;display:grid;place-items:center;border-radius:7px;background:#0c3a41;color:#22c3d6}
+.dh p{margin-top:5px;color:var(--fg2)}
+.filters{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.filters span{margin-right:4px;font-size:13px;color:var(--fg3)}
+.filters button{position:relative;height:28px;padding:0 10px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--line2);font-size:13px;font-weight:510;color:var(--fg2);transition:background-color .15s,color .15s,box-shadow .15s}
+.filters button:hover{color:var(--fg);background:var(--hover)}
+.ibtn:active,.tbtn:active,.filters button:active{background:rgba(255,255,255,.085)}
+.filters button[aria-pressed="true"]{color:var(--fg);background:#212327;box-shadow:inset 0 0 0 1px #3a3c42}
+
+.widgets{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-top:22px;transition:opacity .2s}
+.widgets.busy{opacity:.55}
+.wg{grid-column:span 2;min-width:0;min-height:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px}
+.wg.half{grid-column:span 3}
+.wg>header{flex:none;padding:16px 18px 0}
+.wg h2{font-size:15px;line-height:22px;font-weight:590;letter-spacing:-.008em;text-wrap:balance}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:12.5px;color:var(--fg2)}
+.legend li{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:8px;height:8px;border-radius:2px;background:var(--c)}
+.legend i.round{border-radius:50%}
+.legend i.ln{width:13px;height:0;border-radius:0;background:none;border-top:1px dashed var(--fg3)}
+
+/* the SVG is drawn to the plot box, so it sits out of flow and never props the box open */
+.plot{position:relative;flex:1;min-height:var(--ph,216px)}
+.plot svg{position:absolute;left:18px;top:12px;overflow:visible}
+.plot text{font:400 11.5px var(--sans);fill:var(--fg3);font-variant-numeric:tabular-nums}
+.plot .gl{stroke:var(--line);stroke-width:1;shape-rendering:crispEdges}
+.plot .sla{stroke:#5d616a;stroke-width:1;stroke-dasharray:3 3;shape-rendering:crispEdges}
+.plot text.xl{fill:var(--fg2)}
+.plot .col{transition:opacity .15s}
+.plot .hit{fill:transparent;outline:0;cursor:default}
+.plot .hit:focus-visible{stroke:var(--focus);stroke-width:1.5}
+.plot .pt{stroke:var(--bg);stroke-width:2;transition:r .12s}
+.plot .halo{fill:none;stroke:#fff;stroke-opacity:.5;stroke-width:1.5;pointer-events:none}
+.plot svg:focus-visible{outline:2px solid var(--focus);outline-offset:4px;border-radius:6px}
+#pFix{--ph:262px}
+#pAge{--ph:246px}
+
+.tb{margin-top:14px;flex:1;display:flex;flex-direction:column}
+.tb .r{display:grid;grid-template-columns:minmax(0,1fr) 42%;flex:1;min-height:44px;border-top:1px solid var(--line)}
+.tb .r>*{display:flex;align-items:center;gap:11px;padding:0 18px}
+.tb .r>*:last-child{border-left:1px solid var(--line);font-variant-numeric:tabular-nums}
+.tb .r.h{flex:none;min-height:42px;border-top:0;color:var(--fg2)}
+.tb .r.h>*:last-child{border-left-color:transparent}
+.tb .r:not(.h){transition:background-color .15s}
+.tb .r:not(.h):hover{background:rgba(255,255,255,.025)}
+.sev{display:inline-flex;align-items:flex-end;gap:1.5px;width:15px;height:12px;flex:none}
+.sev i{width:3px;border-radius:1px;background:currentColor;opacity:.28}
+.sev i:nth-child(1){height:4px}.sev i:nth-child(2){height:6.5px}.sev i:nth-child(3){height:9px}.sev i:nth-child(4){height:12px}
+.sev[data-n="1"] i:nth-child(-n+1),.sev[data-n="2"] i:nth-child(-n+2),.sev[data-n="3"] i:nth-child(-n+3),.sev[data-n="4"] i{opacity:1}
+
+.big{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:8px 18px 30px;min-height:170px;text-align:center}
+.big b{font-size:clamp(52px,5vw,84px);line-height:1;font-weight:400;letter-spacing:-.045em}
+.big span{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--fg2)}
+.big span i{flex:none;width:0;height:0;border-inline:4px solid transparent}
+.big span i.dn{border-top:5px solid #2aa36b}.big span i.up{border-bottom:5px solid #e5484d}
+
+.tip{position:fixed;z-index:300;left:0;top:0;min-width:136px;max-width:240px;padding:8px 10px;border-radius:8px;background:#1c1d20;color:var(--fg);box-shadow:0 0 0 1px #2e3035,0 8px 24px rgba(0,0,0,.45);font:400 12.5px/1.4 var(--sans);pointer-events:none;opacity:0;transition:opacity .1s}
+.tip.on{opacity:1}
+.tip p{margin-bottom:6px;font-size:12px;font-weight:510;color:var(--fg2)}
+.tip div{display:flex;align-items:center;gap:7px;height:19px}
+.tip div i{width:10px;height:2px;border-radius:1px;background:var(--c)}
+.tip div b{font-weight:590;font-variant-numeric:tabular-nums;min-width:20px}
+.tip div span{color:var(--fg2)}
+.tip div.tot{margin-top:4px;padding-top:5px;height:23px;border-top:1px solid #2e3035}
+.tip div.tot i{background:none}
+
+/* ---------- one-screen layout: the two rows share whatever height the viewport has ---------- */
+@media (min-width:1101px) and (min-height:680px){
+  body{height:100vh}
+  .widgets{flex:1;min-height:0;grid-template-rows:minmax(0,.86fr) minmax(0,1fr)}
+  .plot,#pFix,#pAge{--ph:0px}
+  .big{min-height:0}
+  .tb .r{min-height:0}
+}
+@media (max-width:1100px){
+  .wg{grid-column:span 3}
+  .wg.full,.wg.half{grid-column:1/-1}
+}
+/* the status line gives way before the page title has to truncate */
+@media (max-width:820px){.upd{display:none}}
+@media (max-width:640px){
+  .bar{padding:0 10px 0 14px}
+  .bar .hide-s{display:none}
+  .tbtn{width:28px;padding:0;justify-content:center}
+  .crumbs .tri{margin:0 9px}
+  .menu{left:auto;right:-34px;transform-origin:100% 0}
+  .page{padding:18px 12px 16px}
+  .wg{grid-column:1/-1}
+  .dh h1{font-size:17px}
+}
+@media (max-width:520px){
+  .bar{gap:4px}
+  .brand{margin-right:4px}
+  .crumbs .c1,.crumbs .tri{display:none}
+  .mwrap{margin-left:2px}
+}
+/* touch: 28px controls keep their size and get a 40px hit area */
+@media (pointer:coarse){
+  .brand::after,.ibtn::after,.tbtn::after,.filters button::after{content:"";position:absolute;inset:-6px -3px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .wg{animation:rise .5s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--d,0)*50ms)}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to dashboard</a>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="i-link" viewBox="0 0 16 16"><path d="M6.800 9.200a2.600 2.600 0 003.700 0l2-2a2.600 2.600 0 00-3.700-3.700l-.8.800M9.200 6.800a2.600 2.600 0 00-3.700 0l-2 2a2.600 2.600 0 003.700 3.700l.8-.8"/></symbol>
+  <symbol id="i-download" viewBox="0 0 16 16"><path d="M8 2.500v7M5 7l3 3 3-3M3 12.500h10"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M13 8a5 5 0 01-9 3M3 8a5 5 0 019-3M12 2.500V5H9.500M4 13.500V11h2.500"/></symbol>
+  <symbol id="i-star" viewBox="0 0 16 16"><path d="M8 2.200l1.800 3.700 4 .6-2.900 2.800.7 4L8 11.400 4.400 13.300l.7-4L2.200 6.500l4-.6L8 2.200z"/></symbol>
+  <symbol id="i-radar" viewBox="0 0 16 16"><path d="M8 14A6 6 0 108 2a6 6 0 000 12zM8 10.500a2.500 2.500 0 100-5 2.500 2.500 0 000 5zM8 8l4.200-4.200"/></symbol>
+</svg>
+
+<header class="bar">
+  <a class="brand" href="dashboard-vigolium-workbench.html" aria-label="Vigolium"><img src="assets/vigolium-mark.png" width="22" height="22" alt=""></a>
+  <nav class="crumbs" aria-label="Breadcrumb"><a class="c1" href="#">Dashboards</a><i class="tri" aria-hidden="true"></i><span class="c2" aria-current="page">Scan &amp; Triage Performance</span></nav>
+  <div class="mwrap">
+    <button class="ibtn" type="button" id="more" aria-label="Dashboard actions" aria-haspopup="menu" aria-expanded="false" aria-controls="moreMenu"><i class="d"></i></button>
+    <div class="menu" id="moreMenu" role="menu" hidden>
+      <button type="button" role="menuitem" data-act="copy"><svg class="ic"><use href="#i-link"/></svg>Copy link</button>
+      <button type="button" role="menuitem" data-act="csv"><svg class="ic"><use href="#i-download"/></svg>Export findings as CSV…</button>
+      <hr>
+      <button type="button" role="menuitem" data-act="refresh"><svg class="ic"><use href="#i-refresh"/></svg>Refresh</button>
+    </div>
+  </div>
+  <button class="ibtn" type="button" id="star" aria-label="Favorite" aria-pressed="false"><svg class="ic"><use href="#i-star"/></svg></button>
+  <span class="sp"></span>
+  <span class="upd" role="status"><i aria-hidden="true"></i><span id="upd">Updated just now</span></span>
+  <button class="tbtn" type="button" id="refresh" aria-label="Refresh"><svg class="ic"><use href="#i-refresh"/></svg><span class="hide-s">Refresh</span></button>
+  <button class="tbtn" type="button" id="export" aria-label="Export findings as CSV"><svg class="ic"><use href="#i-download"/></svg><span class="hide-s">Export CSV</span></button>
+</header>
+
+<main class="page" id="main">
+  <div class="dh">
+    <div>
+      <h1><i><svg class="ic"><use href="#i-radar"/></svg></i>Scan &amp; Triage Performance</h1>
+      <p>Current open findings, fix time &amp; age of findings</p>
+    </div>
+    <div class="filters" id="filters" role="group" aria-label="Project filter">
+      <span>Project</span>
+      <button type="button" data-p="all" aria-pressed="true">All</button>
+      <button type="button" data-p="web" aria-pressed="false">web-app</button>
+      <button type="button" data-p="api" aria-pressed="false">public-api</button>
+      <button type="button" data-p="bff" aria-pressed="false">mobile-bff</button>
+    </div>
+  </div>
+
+  <div class="widgets" id="widgets">
+    <section class="wg full" style="--d:1" aria-labelledby="t1">
+      <header><h2 id="t1">Finding volume over time</h2>
+        <ul class="legend" aria-label="Severity"><li><i style="--c:#e5484d"></i>Critical</li><li><i style="--c:#c98500"></i>High</li><li><i style="--c:#2aa36b"></i>Medium</li><li><i style="--c:#2f9fd0"></i>Low</li></ul>
+      </header>
+      <div class="plot" id="pVol"></div>
+    </section>
+    <section class="wg" style="--d:2" aria-labelledby="t2">
+      <header><h2 id="t2">Current open findings</h2></header>
+      <div class="tb" id="pOpen" role="table" aria-labelledby="t2"></div>
+    </section>
+    <section class="wg" style="--d:3" aria-labelledby="t3">
+      <header><h2 id="t3">Median triage time</h2></header>
+      <div class="big" id="pMed"></div>
+    </section>
+    <section class="wg half" style="--d:4" aria-labelledby="t4">
+      <header><h2 id="t4">Fix time, high &amp; critical, trailing 90d</h2></header>
+      <div class="plot" id="pFix"></div>
+    </section>
+    <section class="wg half" style="--d:5" aria-labelledby="t5">
+      <header><h2 id="t5">Age of open findings by severity</h2>
+        <ul class="legend"><li><i class="round" style="--c:#8a8f98"></i>Within SLA</li><li><i class="round" style="--c:#e96526"></i>Past SLA</li><li><i class="ln"></i>SLA limit</li></ul>
+      </header>
+      <div class="plot" id="pAge"></div>
+    </section>
+  </div>
+</main>
+
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs = {}, text) => { const e = document.createElement(tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+const sv = (tag, attrs = {}, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+const rng = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+async function copyText(t) { try { await navigator.clipboard.writeText(t); } catch { const a = el('textarea'); a.value = t; a.style.cssText = 'position:fixed;opacity:0'; document.body.append(a); a.select(); try { document.execCommand('copy'); } catch {} a.remove(); } }
+
+/* ---------- data: generated once from a fixed seed ---------- */
+const DAY = 864e5, NOW = new Date(2026, 10, 12, 12).getTime(), MON = new Date(2026, 10, 9).getTime();
+const SEV = [
+  { k: 'critical', n: 'Critical', c: '#e5484d', bars: 4, sla: 7 },
+  { k: 'high', n: 'High', c: '#c98500', bars: 3, sla: 30 },
+  { k: 'medium', n: 'Medium', c: '#2aa36b', bars: 2, sla: 90 },
+  { k: 'low', n: 'Low', c: '#2f9fd0', bars: 1, sla: 180 },
+];
+const PROJ = ['web', 'api', 'bff'], PNAME = { all: 'all projects', web: 'web-app', api: 'public-api', bff: 'mobile-bff' };
+const FINDINGS = (() => {
+  const r = rng(1107), z = () => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
+  const pick = w => { let x = r(), i = 0; while (i < w.length - 1 && (x -= w[i]) > 0) i++; return i; };
+  const out = [], WK = [19, 34, 26, 38, 41, 28, 33, 36, 29, 24, 31, 27, 22];
+  let id = 4200;
+  WK.forEach((n, k) => {
+    for (let i = 0; i < n; i++) {
+      const sev = pick([.05, .15, .30, .50]), proj = PROJ[pick([.46, .34, .20])];
+      const created = MON - k * 7 * DAY + r() * (k ? 7 : 3.4) * DAY, age = (NOW - created) / DAY;
+      const triage = Math.max(4, Math.round((age <= 30 ? 40 : 53) * Math.exp(.62 * z())));
+      const fix = Math.min(27.6, [3, 7, 12, 17][sev] * Math.exp(.55 * z()));
+      const dismissed = r() < [0, .06, .34, .58][sev];
+      const open = !dismissed && (r() < [0, .03, .07, .10][sev] || fix > age);
+      out.push({ id: 'VG-' + (id++), sev, proj, created, age, triage, fix, open, dismissed });
+    }
+  });
+  for (let i = 0; i < 16; i++) {
+    const age = 96 + r() * 262;
+    out.push({ id: 'VG-' + (3000 + i * 37), sev: 1 + pick([.12, .34, .54]), proj: PROJ[pick([.46, .34, .20])], created: NOW - age * DAY, age, triage: Math.round(60 + r() * 200), fix: 0, open: true, dismissed: false });
+  }
+  return out;
+})();
+const D = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const median = a => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const dur = m => m >= 90 ? (m / 60).toFixed(1).replace('.0', '') + 'h' : Math.round(m) + 'm';
+let scope = 'all';
+const slice = () => scope === 'all' ? FINDINGS : FINDINGS.filter(f => f.proj === scope);
+/* plot box minus the SVG's inset (18px left, 12px top) and matching right/bottom room */
+const box = host => [Math.max(200, host.clientWidth - 32), Math.max(150, host.clientHeight - 24)];
+
+/* ---------- tooltip ---------- */
+const tip = $('#tip');
+function showTip(x, y, title, rows, side) {
+  tip.textContent = '';
+  tip.append(el('p', {}, title));
+  rows.forEach(r => { const d = el('div', r.tot ? { class: 'tot' } : {}); const k = el('i'); if (r.c) k.style.setProperty('--c', r.c); d.append(k, el('b', {}, r.v), el('span', {}, r.l)); tip.append(d); });
+  const w = tip.offsetWidth, h = tip.offsetHeight, vw = document.documentElement.clientWidth;
+  let lx = Math.round(x - w / 2), ly = Math.round(y - h - 12);
+  if (side) { lx = Math.round(side < 0 ? x - w - 14 : x + 14); if (lx + w > vw - 8) lx = Math.round(x - w - 14); if (lx < 8) lx = Math.round(x + 14); ly = Math.max(8, Math.min(innerHeight - h - 8, Math.round(y - h / 2))); }
+  lx = Math.max(8, Math.min(vw - w - 8, lx)); if (ly < 8) ly = Math.round(y + 16);
+  tip.style.transform = `translate(${lx}px,${ly}px)`; tip.classList.add('on');
+}
+const hideTip = () => tip.classList.remove('on');
+let activeClear = null;
+const clearActive = () => { const f = activeClear; activeClear = null; if (f) f(); else hideTip(); };
+addEventListener('scroll', clearActive, { passive: true });
+document.addEventListener('pointerdown', e => { if (!e.target.closest('.plot')) clearActive(); });
+
+/* ---------- widgets ---------- */
+function drawVolume(list) {
+  const host = $('#pVol'), [W, H] = box(host), R = 32, B = 24, T = 6;
+  const weeks = Array.from({ length: 6 }, (_, i) => ({ start: MON - (5 - i) * 7 * DAY, v: [0, 0, 0, 0] }));
+  list.forEach(f => { const i = Math.floor((f.created - weeks[0].start) / (7 * DAY)); if (i >= 0 && i < 6) weeks[i].v[f.sev]++; });
+  const top = Math.max(...weeks.map(w => w.v.reduce((a, b) => a + b, 0)), 1);
+  const step = top <= 10 ? 2 : top <= 25 ? 5 : top <= 50 ? 10 : 20, max = Math.ceil(top / step) * step;
+  const pw = W - R, ph = H - B - T, y = v => T + ph - v / max * ph, band = pw / 6, bw = Math.min(16, band * .26);
+  const svg = sv('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Stacked columns: findings reported per week by severity' });
+  for (let v = 0; v <= max; v += step) {
+    svg.append(sv('line', { class: 'gl', x1: 0, x2: pw, y1: y(v), y2: y(v) }), sv('text', { x: pw + 9, y: y(v) + 4 }, v));
+  }
+  const cols = [];
+  weeks.forEach((w, i) => {
+    const cx = band * (i + .5), g = sv('g', { class: 'col' }), tot = w.v.reduce((a, b) => a + b, 0);
+    let acc = 0;
+    const order = [3, 2, 1, 0], lastIdx = order.filter(s => w.v[s] > 0).pop();
+    order.forEach(s => {
+      const n = w.v[s]; if (!n) return;
+      const y1 = y(acc + n), h = Math.max(1.5, y(acc) - y1 - 2), x = cx - bw / 2, rr = s === lastIdx ? Math.min(3, h) : 0;
+      g.append(sv('path', { fill: SEV[s].c, d: `M${x} ${y1 + h}V${y1 + rr}a${rr} ${rr} 0 0 1 ${rr} ${-rr}h${bw - 2 * rr}a${rr} ${rr} 0 0 1 ${rr} ${rr}V${y1 + h}z` }));
+      acc += n;
+    });
+    svg.append(g); cols.push(g);
+    const dt = new Date(w.start);
+    svg.append(sv('text', { x: cx, y: H - 5, 'text-anchor': 'middle' }, i === 0 || dt.getDate() <= 7 ? D(w.start) : String(dt.getDate())));
+    const label = `Week of ${D(w.start)}: ${tot} findings. ` + SEV.map((s, k) => `${s.n} ${w.v[k]}`).join(', ');
+    const hit = sv('rect', { class: 'hit', x: band * i, y: 0, width: band, height: H - B, tabindex: 0, 'aria-label': label, rx: 4 });
+    const off = () => { cols.forEach(c => c.style.opacity = 1); hideTip(); };
+    const on = () => {
+      cols.forEach(c => c.style.opacity = c === g ? 1 : .4); activeClear = off;
+      const sb = svg.getBoundingClientRect(), left = i > 2;
+      showTip(sb.left + cx + (left ? -bw / 2 : bw / 2), sb.top + (H - B) / 2, 'Week of ' + D(w.start) + (i === 5 ? ' (so far)' : ''),
+        [...SEV.map((s, k) => ({ c: s.c, v: w.v[k], l: s.n })), { tot: 1, v: tot, l: 'Total' }], left ? -1 : 1);
+    };
+    hit.addEventListener('pointerenter', on); hit.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') off(); });
+    hit.addEventListener('pointerdown', e => e.preventDefault());
+    hit.addEventListener('focus', on); hit.addEventListener('blur', off);
+    svg.append(hit);
+  });
+  const t = el('table', { class: 'sr' }); t.append(el('caption', {}, 'Findings reported per week by severity'));
+  const hr = el('tr'); hr.append(el('th', { scope: 'col' }, 'Week of'), ...SEV.map(s => el('th', { scope: 'col' }, s.n))); t.append(hr);
+  weeks.forEach(w => { const tr = el('tr'); tr.append(el('th', { scope: 'row' }, D(w.start)), ...w.v.map(v => el('td', {}, v))); t.append(tr); });
+  host.replaceChildren(svg, t);
+}
+function drawOpen(list) {
+  const host = $('#pOpen'), counts = [0, 0, 0, 0];
+  list.forEach(f => { if (f.open) counts[f.sev]++; });
+  const head = el('div', { class: 'r h', role: 'row' }); head.append(el('span', { role: 'columnheader' }, 'Severity'), el('span', { role: 'columnheader' }, 'Open findings'));
+  host.replaceChildren(head, ...SEV.map((s, i) => {
+    const r = el('div', { class: 'r', role: 'row' }), a = el('span', { role: 'cell' }), ic = el('span', { class: 'sev', 'data-n': s.bars, 'aria-hidden': 'true' });
+    ic.style.color = s.c; ic.append(el('i'), el('i'), el('i'), el('i'));
+    a.append(ic, document.createTextNode(s.n)); r.append(a, el('span', { role: 'cell' }, counts[i])); return r;
+  }));
+}
+function drawMedian(list) {
+  const cur = median(list.filter(f => f.age <= 30).map(f => f.triage)), prev = median(list.filter(f => f.age > 30 && f.age <= 60).map(f => f.triage));
+  const diff = Math.round(cur - prev), s = el('span');
+  if (diff) s.append(el('i', { class: diff < 0 ? 'dn' : 'up', 'aria-hidden': 'true' }));
+  s.append(document.createTextNode(diff ? `${dur(Math.abs(diff))} ${diff < 0 ? 'faster' : 'slower'} than the prior 30 days` : 'No change from the prior 30 days'));
+  $('#pMed').replaceChildren(el('b', {}, dur(cur)), s);
+}
+const PR = 4.5; /* point radius */
+function plotPoints(host, svg, W, P, summary) {
+  P.forEach(p => { p.n = sv('circle', { class: 'pt', cx: p.px.toFixed(1), cy: p.py.toFixed(1), r: PR, fill: p.c }); svg.append(p.n); });
+  const halo = sv('circle', { class: 'halo', r: PR + 3.5, visibility: 'hidden' }); svg.append(halo);
+  P.forEach(p => { if (p.top) svg.insertBefore(p.n, halo); });
+  let cur = -1;
+  const sel = i => {
+    if (cur >= 0 && P[cur]) P[cur].n.setAttribute('r', PR);
+    cur = i;
+    if (i < 0 || !P[i]) { halo.setAttribute('visibility', 'hidden'); hideTip(); return; }
+    const p = P[i], b = svg.getBoundingClientRect(), k = b.width / W;
+    p.n.setAttribute('r', PR + 1); svg.insertBefore(p.n, halo);
+    halo.setAttribute('cx', p.px); halo.setAttribute('cy', p.py); halo.setAttribute('visibility', 'visible');
+    showTip(b.left + p.px * k, b.top + p.py * k - 6, p.title, p.rows);
+    activeClear = () => sel(-1);
+  };
+  const near = e => {
+    const b = svg.getBoundingClientRect(), k = b.width / W, mx = (e.clientX - b.left) / k, my = (e.clientY - b.top) / k;
+    let best = -1, bd = 26 * 26;
+    P.forEach((p, i) => { const d = (p.px - mx) ** 2 + (p.py - my) ** 2; if (d < bd) { bd = d; best = i; } });
+    if (best !== cur) sel(best);
+  };
+  svg.addEventListener('pointermove', near);
+  svg.addEventListener('pointerdown', e => { e.preventDefault(); near(e); });
+  svg.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') sel(-1); });
+  svg.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { sel(-1); return; }
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0; if (!d || !P.length) return;
+    e.preventDefault(); sel(cur < 0 ? (d > 0 ? 0 : P.length - 1) : (cur + d + P.length) % P.length);
+  });
+  svg.addEventListener('blur', () => sel(-1));
+  host.replaceChildren(svg, el('p', { class: 'sr' }, summary));
+}
+function drawFix(list) {
+  const host = $('#pFix'), [W, H] = box(host), R = 40, B = 26, T = 8, pw = W - R, ph = H - B - T;
+  const x0 = NOW - 90 * DAY, X = v => 8 + (v - x0) / (90 * DAY) * (pw - 16), Y = v => T + ph - Math.min(v, 28) / 28 * ph;
+  const done = list.filter(f => !f.open && !f.dismissed && f.sev <= 1 && f.created + f.fix * DAY >= x0), med = median(done.map(f => f.fix));
+  const svg = sv('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', tabindex: 0,
+    'aria-label': `Scatter plot: time to fix for ${done.length} high and critical findings fixed in the last 90 days. Use the arrow keys to step through points.` });
+  [[0, '0'], [7, '1w'], [14, '2w'], [21, '3w'], [28, '4w']].forEach(([v, l]) => svg.append(sv('line', { class: 'gl', x1: 0, x2: pw, y1: Y(v), y2: Y(v) }), sv('text', { x: pw + 9, y: Y(v) + 4 }, l)));
+  [90, 60, 30, 0].forEach((d, i, a) => svg.append(sv('text', { x: X(NOW - d * DAY), y: H - 5, 'text-anchor': i === 0 ? 'start' : i === a.length - 1 ? 'end' : 'middle' }, D(NOW - d * DAY))));
+  const P = done.map(f => ({
+    px: X(f.created + f.fix * DAY), py: Y(f.fix), c: '#13a3b6', title: `${f.id} · ${SEV[f.sev].n}`,
+    rows: [{ c: '#13a3b6', v: f.fix < 1 ? Math.round(f.fix * 24) + 'h' : f.fix.toFixed(1) + 'd', l: 'to fix' }, { v: D(f.created + f.fix * DAY), l: 'fixed' }]
+  })).sort((a, b) => a.px - b.px);
+  plotPoints(host, svg, W, P, `${done.length} high and critical findings fixed in the last 90 days. Median time to fix ${med.toFixed(1)} days.`);
+}
+function drawAge(list) {
+  const host = $('#pAge'), [W, H] = box(host), R = 40, B = 44, T = 10, pw = W - R, ph = H - B - T;
+  const LO = Math.log(.42), HI = Math.log(365), Y = d => T + ph - (Math.log(Math.min(365, Math.max(.5, d))) - LO) / (HI - LO) * ph;
+  const open = list.filter(f => f.open), late = open.filter(f => f.age > SEV[f.sev].sla).length, band = pw / SEV.length;
+  const svg = sv('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', tabindex: 0,
+    'aria-label': `Strip plot: age of ${open.length} open findings in each severity, on a logarithmic scale from one day to one year, against that severity's SLA limit. Use the arrow keys to step through points.` });
+  [[1, '1d'], [7, '1w'], [30, '1mo'], [91, '3mo'], [365, '1y']].forEach(([v, l]) => svg.append(sv('line', { class: 'gl', x1: 0, x2: pw, y1: Y(v), y2: Y(v) }), sv('text', { x: pw + 9, y: Y(v) + 4 }, l)));
+  const P = [], gap = PR * 2 + 2, stepX = 3;
+  SEV.forEach((s, b) => {
+    const cx = band * (b + .5), half = Math.max(6, Math.min(band / 2 - 10, 78)), placed = [], ys = Math.round(Y(s.sla));
+    svg.append(sv('line', { class: 'sla', x1: cx - half - 4, x2: cx + half + 4, y1: ys, y2: ys }),
+      sv('text', { class: 'xl', x: cx, y: H - 21, 'text-anchor': 'middle' }, s.n), sv('text', { x: cx, y: H - 5, 'text-anchor': 'middle' }, `SLA ${s.sla}d`));
+    open.filter(f => f.sev === b).sort((x, y) => y.age - x.age).forEach(f => {
+      const py = Y(f.age), br = f.age > s.sla, c = br ? '#e96526' : '#8a8f98'; let off = 0, bestD = -1;
+      for (let k = 0; k < 120; k++) {
+        const o = (k % 2 ? 1 : -1) * Math.ceil(k / 2) * stepX; if (Math.abs(o) > half) break;
+        let d = 99; placed.forEach(q => { d = Math.min(d, Math.hypot(q.px - cx - o, q.py - py)); });
+        if (d >= gap) { off = o; break; } if (d > bestD) { bestD = d; off = o; }
+      }
+      const pt = { px: cx + off, py, c, top: br, title: `${f.id} · ${s.n}`,
+        rows: [{ c, v: f.age < 1.5 ? Math.max(1, Math.round(f.age * 24)) + 'h' : f.age < 60 ? Math.round(f.age) + 'd' : (f.age / 30.4).toFixed(1) + 'mo', l: 'open, ' + (br ? 'past SLA' : 'within SLA') }, { v: s.sla + 'd', l: 'SLA limit' }] };
+      placed.push(pt); P.push(pt);
+    });
+  });
+  plotPoints(host, svg, W, P, `${open.length} open findings, ${late} past their SLA. ` + SEV.map((s, b) => `${s.n}: ${open.filter(f => f.sev === b).length}`).join(', ') + '.');
+}
+function drawAll() { const l = slice(); drawVolume(l); drawOpen(l); drawMedian(l); drawFix(l); drawAge(l); }
+drawAll();
+/* redraw when any plot box changes size: width from the grid, height from the one-screen layout */
+let rz = 0; const sizes = new WeakMap();
+const ro = new ResizeObserver(es => { let ch = false; es.forEach(e => { const k = Math.round(e.contentRect.width) + 'x' + Math.round(e.contentRect.height); if (sizes.get(e.target) !== k) { sizes.set(e.target, k); ch = true; } }); if (ch) { cancelAnimationFrame(rz); rz = requestAnimationFrame(drawAll); } });
+$$('.plot').forEach(p => ro.observe(p));
+document.fonts && document.fonts.ready.then(drawAll);
+
+$('#filters').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.dataset.p === scope) return;
+  scope = b.dataset.p; $$('#filters button').forEach(x => x.setAttribute('aria-pressed', x === b)); drawAll();
+});
+
+/* ---------- top bar: star, menu, refresh, export ---------- */
+const star = $('#star'); star.addEventListener('click', () => star.setAttribute('aria-pressed', star.getAttribute('aria-pressed') !== 'true'));
+const more = $('#more'), menu = $('#moreMenu'), items = $$('button', menu);
+function openMenu(o, focus) { menu.hidden = !o; more.setAttribute('aria-expanded', o); if (o && focus) items[0].focus(); }
+more.addEventListener('click', () => openMenu(menu.hidden, false));
+more.addEventListener('keydown', e => { if (e.key === 'ArrowDown') { e.preventDefault(); openMenu(true, true); } else if (e.key === 'Escape' && !menu.hidden) openMenu(false); });
+menu.addEventListener('keydown', e => {
+  const i = items.indexOf(document.activeElement);
+  if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  else if (e.key === 'Escape') { openMenu(false); more.focus(); }
+  else if (e.key === 'Tab') { e.preventDefault(); openMenu(false); (e.shiftKey ? more : star).focus(); }
+});
+document.addEventListener('pointerdown', e => { if (!menu.hidden && !e.target.closest('.mwrap')) openMenu(false); });
+function exportCsv() {
+  const rows = [['id', 'project', 'severity', 'created', 'status', 'triage_minutes', 'fix_days', 'age_days'], ...slice().map(f => [f.id, PNAME[f.proj], SEV[f.sev].k, new Date(f.created).toISOString().slice(0, 10), f.open ? 'open' : f.dismissed ? 'dismissed' : 'fixed', f.triage, f.open || f.dismissed ? '' : f.fix.toFixed(1), f.open ? Math.round(f.age) : ''])];
+  const a = el('a', { href: URL.createObjectURL(new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' })), download: `vigolium-findings-${scope}.csv` });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+let noteT = 0;
+function note(t) { const u = $('#upd'); u.textContent = t; clearTimeout(noteT); noteT = setTimeout(() => { u.textContent = 'Updated just now'; }, 1800); }
+function refresh() {
+  const w = $('#widgets'), b = $('#refresh'); w.classList.add('busy'); w.setAttribute('aria-busy', 'true'); b.classList.remove('spin'); void b.offsetWidth; b.classList.add('spin');
+  setTimeout(() => { drawAll(); w.classList.remove('busy'); w.removeAttribute('aria-busy'); clearTimeout(noteT); $('#upd').textContent = 'Updated just now'; }, RM ? 0 : 450);
+}
+menu.addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return; openMenu(false);
+  if (b.dataset.act === 'copy') { await copyText(location.href); note('Link copied'); }
+  else if (b.dataset.act === 'csv') exportCsv();
+  else refresh();
+});
+$('#refresh').addEventListener('click', refresh);
+$('#export').addEventListener('click', exportCsv);
+$('.crumbs .c1').addEventListener('click', e => e.preventDefault());
+</script>
+</body>
+</html>

@@ -1,0 +1,1243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#e8e6dc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1918" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Memory ablation: a sample eval dashboard comparing six models with and without a persistent memory store.">
+<title>Evals · Memory ablation (sample)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>(function(){try{var t=localStorage.getItem('loam-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<style>
+:root{
+  color-scheme:light dark;
+  --frame:light-dark(#e8e6dc,#1a1918);
+  --card:light-dark(#faf9f5,#262624);
+  --raised:light-dark(#ffffff,#30302e);
+  --ink:light-dark(#3d3d3a,#e8e5db);
+  --ink-2:light-dark(#5e5d59,#b8b5aa);
+  --ink-3:light-dark(#73726c,#96938a);
+  --grid:light-dark(#e8e6dc,#383836);
+  --axis:light-dark(#6b6a65,#8d8a81);
+  --rule:light-dark(#e3e1d6,#363533);
+  --ring:light-dark(#3d3d3a1a,#e8e5db1f);
+  --shade:light-dark(#3d3d3a40,#00000099);
+  /* series: checked with the dataviz palette validator against --card in each scheme */
+  --c1:light-dark(#7e76c8,#867ce0);
+  --c2:light-dark(#8a312b,#8d4259);
+  --c3:light-dark(#d9623c,#cb5118);
+  --c4:light-dark(#e3a82f,#ac8f08);
+  --c5:light-dark(#4ea87b,#21925e);
+  --c6:light-dark(#3f73d3,#506fca);
+  --c6d:light-dark(#2b56a4,#8ea4ea);
+  /* --paper is --card that stays opaque (dot rings, sticky cells). The tweak dock's accent drives the last four;
+     --wash is the strongest tint of the matrix, held where the figures printed on it keep 4.5:1 */
+  --paper:var(--card);
+  --edge:transparent; /* a hairline round the cards, for themes whose surface sits close to the frame */
+  --accent:var(--ink);
+  --focus:var(--ink-2);
+  --sel:var(--c3);
+  --wash:light-dark(color-mix(in oklab,var(--ink) 44%,transparent),color-mix(in oklab,var(--ink) 33%,transparent));
+  --sans:"Hanken Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  --r-card:22px;
+}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{background:var(--frame);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--frame);color:var(--ink);font:400 15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+h1,h2,p,figure{margin:0}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+a,button{-webkit-tap-highlight-color:transparent}
+svg{display:block}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:8px}
+::selection{background:color-mix(in oklab,var(--sel) 30%,transparent)}
+.defs{position:absolute;width:0;height:0}
+
+.page{padding:0 clamp(16px,2.2vw,36px) 36px}
+
+/* ---------- top bar ---------- */
+.top{display:flex;align-items:center;gap:14px;height:64px}
+.brand{display:inline-flex;align-items:center;gap:9px;flex:none;font-size:17px;font-weight:600;letter-spacing:-.02em}
+.brand svg{width:26px;height:26px;padding:6px;border-radius:8px;background:var(--card)}
+.brand .b1{fill:var(--ink-3)}.brand .b2{fill:var(--accent)}
+.crumbs{display:flex;align-items:center;gap:9px;min-width:0;color:var(--ink-2);white-space:nowrap}
+.crumbs i{font-style:normal;color:var(--ink-3)}
+.crumbs b{font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+.sp{flex:1}
+.upd{color:var(--ink-2);font-size:13.5px;white-space:nowrap}
+.themebtn{position:relative;flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:999px;background:var(--card);color:var(--ink-2);transition:color .15s}
+.themebtn:active{color:var(--ink)}
+.themebtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.themebtn .moon{display:none}
+:root[data-theme="dark"] .themebtn .sun{display:none}
+:root[data-theme="dark"] .themebtn .moon{display:block}
+@media (prefers-color-scheme:dark){:root:not([data-theme]) .themebtn .sun{display:none}:root:not([data-theme]) .themebtn .moon{display:block}}
+
+/* ---------- heading and filters ---------- */
+.head{padding:22px 0 20px}
+.head h1{font-size:clamp(24px,2.6vw,30px);line-height:1.2;font-weight:500;letter-spacing:-.022em;text-wrap:balance}
+.head p{max-width:68ch;margin-top:8px;color:var(--ink-2);text-wrap:pretty}
+.filters{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;padding-bottom:18px}
+.fl{display:flex;align-items:center;gap:10px;min-width:0}
+.fl>span{flex:none;font-size:13.5px;color:var(--ink-2)}
+.seg{display:flex;padding:3px;border-radius:999px;background:color-mix(in oklab,var(--card) 55%,transparent)}
+.seg button{position:relative;height:30px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:500;color:var(--ink-2);white-space:nowrap;transition:color .15s,background .15s}
+.seg button:active{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--accent);box-shadow:0 0 0 1px var(--ring)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{position:relative;display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px 0 10px;border-radius:999px;font-size:14px;font-weight:500;color:var(--ink-2);white-space:nowrap;transition:color .15s,background .15s}
+.chips button:active{color:var(--ink);background:color-mix(in oklab,var(--card) 55%,transparent)}
+.chips button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 0 0 1px var(--ring)}
+/* hover only where a pointer can leave again: on touch it sticks and reads as a half-selected chip */
+@media (hover:hover){
+  .themebtn:hover,.seg button:hover,.chips button:hover{color:var(--ink)}
+  .seg button[aria-pressed="true"]:hover{color:var(--accent)}
+  .chips button:hover:not([aria-pressed="true"]){background:color-mix(in oklab,var(--card) 55%,transparent)}
+}
+/* touch: grow the hit area to about 40px without changing the drawn size */
+@media (pointer:coarse){
+  .themebtn::after,.seg button::after,.chips button::after{content:"";position:absolute;inset:-5px 0}
+  .themebtn::after{inset:-3px}
+  .chips button::after{inset:-3px 0}
+}
+.sw{flex:none;width:10px;height:10px;border-radius:3px;background:var(--c)}
+
+/* ---------- cards ---------- */
+.card{min-width:0;border-radius:var(--r-card);background:var(--card);box-shadow:0 0 0 1px var(--edge)}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:6px 0}
+.tile{padding:18px 26px;border-left:1px solid var(--rule)}
+.tile:first-child{border-left:0}
+.tl{font-size:13.5px;font-weight:500;color:var(--ink-2)}
+.tv{margin-top:6px;font-size:32px;line-height:1.1;font-weight:600;letter-spacing:-.025em;color:var(--ink)}
+.ts{display:flex;align-items:center;gap:7px;margin-top:7px;font-size:13.5px;color:var(--ink-2)}
+
+.grid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:16px;margin-top:16px}
+.grid>.card{grid-column:span 5;padding:26px 24px 20px}
+.grid>.card.w6{grid-column:span 6}
+.grid>.card.w4{grid-column:span 4}
+.card figcaption,.card h2{font-size:17px;line-height:1.3;font-weight:600;letter-spacing:-.012em;color:var(--ink-2);text-align:center;text-wrap:balance}
+.plot{margin-top:18px}
+.plot.fresh svg{animation:in .32s ease backwards}
+@keyframes in{from{opacity:.35}}
+.note{margin-top:10px;font-size:12.5px;color:var(--ink-2);text-wrap:pretty}
+/* a chart that cannot shrink any further scrolls inside its card */
+.plot.slide{overflow-x:auto;scrollbar-width:thin;scrollbar-color:color-mix(in oklab,var(--ink-3) 45%,transparent) transparent}
+
+/* ---------- chart ink ---------- */
+.plot text,.defs text{font-family:var(--sans);fill:var(--ink-2)}
+.tk{font-size:12.5px;font-weight:500;font-variant-numeric:tabular-nums}
+.ax,.cat{font-size:12.5px;font-weight:500}
+.vl{font-size:11.5px;font-variant-numeric:tabular-nums}
+.vl.sm{font-size:11px}
+.vl.st{font-weight:500}
+.plot text.nm{font-size:13px;font-weight:600;fill:var(--ink)}
+.plot text.on{fill:var(--ink)}
+.lg{font-size:12.5px}
+.gl{stroke:var(--grid);stroke-width:1}
+.axl{stroke:var(--axis);stroke-width:1.25}
+.ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.ln.ds{stroke-width:1.6;stroke-dasharray:4 3.5;stroke-linecap:butt}
+.err{stroke:var(--ink);stroke-width:1.4}
+.ldr{stroke:var(--ink-2);stroke-width:1}
+.lgbox{fill:var(--card);stroke:var(--axis);stroke-width:1.25}
+.lgkey{stroke:var(--ink-2);stroke-width:1.6}
+.fr{fill:none;stroke:var(--ink-2);stroke-width:1.6;stroke-linejoin:round}
+.lk{fill:none;stroke-width:1.5;opacity:.5}
+.dot{stroke:var(--paper);stroke-width:2}
+.ring{fill:var(--paper);stroke-width:2}
+.web{fill:none;stroke:var(--grid);stroke-width:1}
+.hit{fill:transparent;outline:none;cursor:default}
+.hit:focus-visible{stroke:var(--axis);stroke-width:1.25;stroke-dasharray:3 3}
+[data-m]{transition:opacity .16s}
+.dim{opacity:.22}
+tr.dim{opacity:.4}
+
+/* ---------- table ---------- */
+.tbl{margin-top:16px;padding:26px 26px 14px}
+.tbl h2{text-align:left}
+.tbl header p{margin-top:3px;font-size:13.5px;color:var(--ink-2)}
+.scroll{margin-top:14px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:color-mix(in oklab,var(--ink-3) 45%,transparent) transparent}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{padding:8px 12px;font-size:12.5px;font-weight:500;color:var(--ink-2);text-align:right;white-space:nowrap;border-bottom:1px solid var(--rule)}
+td{padding:11px 12px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--rule)}
+tr:last-child td{border-bottom:0}
+th:first-child,td:first-child{padding-left:0;text-align:left}
+th:last-child,td:last-child{padding-right:0}
+td:first-child{font-weight:500}
+td .sw{display:inline-block;margin-right:9px}
+td small{font-size:12.5px;color:var(--ink-2)}
+td.g{font-weight:600}
+tbody tr{transition:opacity .16s}
+
+.foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 20px;padding:22px 2px 0;font-size:13px;color:var(--ink-2)}
+
+/* ---------- tooltip ---------- */
+.tip{position:fixed;left:0;top:0;z-index:50;pointer-events:none;min-width:150px;padding:10px 13px 11px;border-radius:12px;background:var(--raised);box-shadow:0 0 0 1px var(--ring),0 10px 26px -10px var(--shade);font-size:12.5px;line-height:1.35;color:var(--ink-2)}
+.tip .tt{display:flex;align-items:center;gap:7px;margin-bottom:7px;font-weight:600;color:var(--ink)}
+.tip .tg{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:4px 12px}
+.tip .tg.two{grid-template-columns:1fr auto}
+.tip .tg.three{grid-template-columns:1fr auto auto}
+.tip .k{width:12px;height:3px;border-radius:2px;background:var(--c)}
+.tip b{font-weight:600;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+.tip .d{text-align:right;font-variant-numeric:tabular-nums}
+.tip .th{font-size:11px;text-align:right}
+
+@media (max-width:1040px){
+  .grid>.card,.grid>.card.w6,.grid>.card.w4{grid-column:1/-1}
+}
+@media (max-width:760px){
+  .upd,.crumbs span,.crumbs i{display:none}
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tile{padding:16px 20px}
+  .tile:nth-child(odd){border-left:0}
+  .tile:nth-child(n+3){border-top:1px solid var(--rule)}
+  .tv{font-size:27px}
+  .grid>.card{padding:22px 14px 16px}
+  .tbl{padding:22px 18px 10px}
+  /* the table scrolls sideways here: keep the model name in view */
+  th:first-child,td:first-child{position:sticky;left:0;z-index:1;background:var(--paper)}
+  .scroll.slid th:first-child,.scroll.slid td:first-child{box-shadow:1px 0 0 var(--rule)}
+  .fl{flex-wrap:wrap}
+  /* at the largest text size the suite switch is wider than a phone: it wraps, and 18px is the same pill on one row */
+  .seg{flex-wrap:wrap;border-radius:18px}
+}
+@media (prefers-reduced-motion:reduce){.plot.fresh svg{animation:none}[data-m],tbody tr{transition:none}}
+</style>
+<!-- tweaks:start -->
+<script>
+/* how this page's tokens line up with the shared tweak palettes */
+window.TWEAK_PAGE = (() => {
+  /* the page's own colours in palette order (app surf raised inset hover line line2 text text2 dim green red yellow blue magenta warn); used for glass */
+  const own = {
+    light: 'e8e6dc faf9f5 ffffff f1efe7 ebe9df e3e1d6 d3d1c5 3d3d3a 5e5d59 a4a398 4ea87b 8a312b e3a82f 3f73d3 7e76c8 d9623c',
+    dark: '1a1918 262624 30302e 201f1e 363533 363533 4a4946 e8e5db b8b5aa 474640 21925e 8d4259 ac8f08 506fca 867ce0 cb5118',
+  };
+  /* --c1..--c6 and --c6d as the page ships them */
+  const series = { light: ['#7e76c8', '#8a312b', '#d9623c', '#e3a82f', '#4ea87b', '#3f73d3', '#2b56a4'], dark: ['#867ce0', '#8d4259', '#cb5118', '#ac8f08', '#21925e', '#506fca', '#8ea4ea'] };
+  const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const hex = c => '#' + c.map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+  const lum = c => c.reduce((s, v, i) => s + [.2126, .7152, .0722][i] * ((v /= 255) <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4), 0);
+  const ratio = (a, b) => { const x = lum(a) + .05, y = lum(b) + .05; return Math.max(x, y) / Math.min(x, y); };
+  const blend = (a, b, pct) => a.map((v, i) => v + (b[i] - v) * pct / 100);
+  /* the colour a card really shows: under glass it is the surface at 64% (light) or 72% (dark) over the backdrop */
+  const face = p => p.glass ? blend(rgb(p.app), rgb(p.solid), p.mode === 'light' ? 64 : 72) : rgb(p.solid);
+  /* the matrix prints figures on a tint of the accent: --wash is the strongest tint that leaves them 4.5:1 on the card (12% at the least) */
+  const wash = (c, text, card) => { for (let a = 50; a > 12; a--) if (ratio(blend(card, rgb(c), a), rgb(text)) >= 4.5) return a; return 12; };
+  /* the series keep the page's colours; one is moved towards the text colour only where a theme's surface would leave it fainter than on the page's own card */
+  const lift = p => {
+    const S = face(p), T = rgb(p.text), O = rgb('#' + own[p.mode].split(' ')[1]), out = {};
+    series[p.mode].forEach((h, i) => {
+      const c = rgb(h), want = Math.min(3, ratio(c, O)) - .05; let k = 0;
+      while (k < 60 && ratio(blend(c, T, k), S) < want) k += 4;
+      if (k) out[i < 6 ? '--c' + (i + 1) : '--c6d'] = hex(blend(c, T, k));
+    });
+    return out;
+  };
+  let theme = null; /* the palette map() was just given: accent() is called right after it, in the same pass, and needs the surface */
+  return {
+    key: 'evals',
+    modes: ['light', 'dark'], /* the page ships both, through light-dark() tokens */
+    /* no data-theme yet means the page is following the system */
+    getMode: () => { const t = document.documentElement.getAttribute('data-theme'); return t === 'dark' || t === 'light' ? t : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; },
+    setMode: m => { document.documentElement.setAttribute('data-theme', m); try { localStorage.setItem('loam-theme', m); } catch (e) {} },
+    sans: '--sans', mono: null, scale: { r: ['--r-card'] },
+    chrome: { bg: 'var(--raised)', fg: 'var(--ink)', dim: 'var(--ink-3)', line: 'var(--ring)', hover: 'color-mix(in srgb, var(--ink) 9%, transparent)', accent: 'var(--accent)' },
+    /* the page has no accent hue of its own: the selected suite, the brand mark and the matrix wash are ink */
+    accentOwn: { light: '#3d3d3a', dark: '#e8e5db' },
+    own,
+    map: (p, mix) => {
+      const light = p.mode === 'light';
+      theme = p; queueMicrotask(() => { theme = null; });
+      return {
+        '--frame': p.app, '--card': p.surf, '--paper': p.solid, '--raised': p.glass ? mix(p.solid, 86) : p.raised, '--edge': p.line,
+        '--ink': p.text, '--ink-2': p.text2, '--ink-3': mix(p.text2, 70, p.dim),
+        '--grid': mix(p.text, light ? 9 : 10), '--axis': mix(p.text2, 75, p.dim), '--rule': p.line,
+        '--ring': mix(p.text, light ? 10 : 12), '--shade': light ? mix(p.text, 25) : 'rgba(0,0,0,.6)',
+        '--wash': mix(p.text, wash(p.text, p.text, face(p))), /* ink, as on the page; accent() replaces it when a theme or the dock brings a hue */
+        ...lift(p),
+      };
+    },
+    accent: (c, mix, mode) => {
+      const p = theme || { text: '#' + own[mode].split(' ')[7], solid: '#' + own[mode].split(' ')[1] }; /* no map() this pass: the page's own solid card */
+      return { '--accent': c, '--focus': c, '--sel': c, '--wash': mix(c, wash(c, p.text, face(p))) };
+    },
+    glass: '.tip', /* only boxes that float over other content: blurring in-flow cards over the smooth backdrop looked identical and cost 2.5x GPU time while scrolling */
+  };
+})();
+</script>
+<style id="tw-css">
+/* tweak dock: same controls as the terminal design system's config bar. Colours come from --tw-* so it follows whatever theme is active. */
+.tw{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:900;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px 10px;width:max-content;max-width:calc(100vw - 24px);padding:4px 6px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-dim);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+html[data-tw-surface="glass"] .tw{-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}
+.tw[hidden],.tw-chip[hidden]{display:none}
+.tw-ctl{display:flex;align-items:center;gap:6px;height:24px;padding:0 4px;white-space:nowrap}
+.tw button,.tw-chip{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* a chooser is a button showing its value; its list is .tw-menu below, drawn by the page, never the system's popup */
+.tw button.tw-val{display:inline-block;vertical-align:middle;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tw-fg);padding:4px 14px 4px 0;background:linear-gradient(45deg,transparent 50%,var(--tw-dim) 50%) calc(100% - 4px) 55%/4px 4px no-repeat,linear-gradient(135deg,var(--tw-dim) 50%,transparent 50%) 100% 55%/4px 4px no-repeat}
+.tw button.tw-val:hover,.tw button.tw-val[aria-expanded="true"]{color:var(--tw-acc)}
+.tw-seg{display:flex;gap:2px}
+.tw-seg button{padding:4px 7px;border-radius:4px;color:var(--tw-fg);opacity:.72}
+.tw-seg button:hover{background:var(--tw-hover);opacity:1}
+.tw-seg button[aria-pressed="true"]{background:var(--tw-hover);color:var(--tw-acc);font-weight:700;opacity:1}
+.tw-sws{display:flex;align-items:center;gap:8px}
+.tw button.tw-sw{width:11px;height:11px;border-radius:50%;background:var(--c);outline:1px solid transparent;outline-offset:2px}
+.tw button.tw-sw[aria-pressed="true"]{outline-color:var(--tw-fg)}
+.tw button.tw-x{margin-left:2px;padding:4px 7px;border-radius:4px;color:var(--tw-dim)}
+.tw button.tw-x:hover{background:var(--tw-hover);color:var(--tw-fg)}
+.tw button:focus-visible,.tw-chip:focus-visible{outline:2px solid var(--tw-acc);outline-offset:2px}
+.tw-chip{position:fixed;right:12px;bottom:12px;z-index:900;padding:7px 10px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+.tw-chip:hover{color:var(--tw-acc)}
+.tw-space{height:56px}
+.tw-menu{position:fixed;z-index:901;box-sizing:border-box;min-width:132px;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain;padding:4px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-menu);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;text-align:left;box-shadow:0 16px 40px -14px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.14);outline:0;scrollbar-width:thin;scrollbar-color:var(--tw-dim) transparent;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.tw-menu[hidden]{display:none}
+.tw-menu [role="option"]{display:flex;align-items:center;gap:8px;padding:7px 12px 7px 8px;border-radius:4px;white-space:nowrap;cursor:pointer}
+.tw-menu [role="option"].act{background:var(--tw-hover)}
+.tw-menu [role="option"][aria-selected="true"]{color:var(--tw-acc);font-weight:700}
+.tw-menu .tw-grp{padding:9px 8px 5px;color:var(--tw-dim);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.tw-dot{flex:none;width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--a) 50%,var(--b) 50%);box-shadow:0 0 0 1px var(--tw-line)} /* a theme's surface and accent */
+@media (max-width:720px){.tw{left:8px;right:8px;bottom:8px;transform:none;width:auto;max-width:none;justify-content:flex-start}.tw-ctl{height:30px}.tw-space{height:150px}.tw-menu [role="option"]{padding-block:10px}}
+@media print{.tw,.tw-chip,.tw-space,.tw-menu{display:none}}
+/* glass surface: a soft backdrop behind translucent panels */
+html[data-tw-surface="glass"]{background:var(--tw-app)!important}
+html[data-tw-surface="glass"] body{background:transparent!important}
+html[data-tw-surface="glass"]::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 50% at 18% 0%,color-mix(in srgb,var(--tw-acc) 16%,transparent),transparent 70%),radial-gradient(50% 45% at 100% 100%,color-mix(in srgb,var(--tw-warn) 13%,transparent),transparent 70%)}
+</style>
+<script id="tw-js">
+/* Tweaks: mode / theme / surface / font / size / corners / density / accent, as on the terminal design system page.
+   Each page describes itself in window.TWEAK_PAGE (which of its tokens mean what); everything else here is shared.
+   With every control on its default the page's own CSS is untouched.
+   The look is also written to the address as ?mode=&theme=&surface=&font=&size=&corners=&density=&accent=, and read back from it, so a link carries it. */
+(function(){
+'use strict';
+const P = window.TWEAK_PAGE, root = document.documentElement, KEY = 'artikit-tweaks:' + P.key;
+/* palettes, in this order: */
+const ROLES = ['app','surf','raised','inset','hover','line','line2','text','text2','dim','green','red','yellow','blue','magenta','warn'];
+const THEMES = {
+  dark: {
+    Copperplate: '14100b 1a150e 241d14 100c08 2c2418 332917 54432a ead9c0 b59c7a 77664c a4c26f e0705a d8a24a 8aa8bd c98da4 cf8236',
+    Midnight: '0d0d13 16161e 1d1d28 12121a 232330 2a2a38 383848 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f',
+    Graphite: '101012 151517 1c1c1f 0c0c0e 232326 2a2a2e 3a3a40 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f',
+    Phosphor: '060a06 0a120a 101a10 050905 152415 1c301c 2a462a b8e0b0 7aa874 4a6a46 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f',
+    Dracula: '1e1f29 282a36 343746 21222c 3c3f52 3a3d4f 4d5069 f8f8f2 a8abc7 6272a4 50fa7b ff5555 f1fa8c 8be9fd ff79c6 ffb86c',
+    Nord: '242933 2e3440 3b4252 272c37 434c5e 3b4252 4c566a e5e9f0 aeb8cc 616e88 a3be8c bf616a ebcb8b 81a1c1 b48ead d08770',
+    "Solarized Dark": '00212b 002b36 073642 001f27 0a4050 073642 586e75 93a1a1 839496 586e75 859900 dc322f b58900 268bd2 d33682 cb4b16',
+    Tidewatch: '0a1220 0e1728 16233a 091020 1c2c47 1e2f4a 2e4368 d7e3f2 93a8c4 54688a 4fd6be ff6b7f e5c07b 56b3fa c792ea e5a45b',
+    Iris: '14121f 191627 221e35 110f1c 2a2542 2b2545 413866 e6e1f5 a79fc7 675f8a 72e0a5 ff6b9d f0c674 82aaff c792ea f0a35e',
+    Emberline: '0c1210 101915 18241e 0a0f0d 1f2e26 22332a 35503f d8e6dc 96ad9d 587263 7fce6f f26d4f f0a848 6db2c9 d78ab0 f08c3a',
+    Oceanic: '0b141f 0f1a29 172538 0a111c 1d3049 203450 31507a d9e6f5 8ea9c4 526b88 5fd39b f2708a e8c268 58a6ff bc8cff e09a4e',
+    Grove: '0d130c 121a10 1a2618 0b100a 21301e 263a22 3b5a35 dde8d6 a2b797 647a5a 9ccb72 e06c5f d9b656 72aec4 c194bd d19042',
+    Rosewire: '170f14 1e1319 291b23 130c10 32212b 36242e 523847 f0dfe8 bd9cab 7c6070 7fd2a0 ff5c8a e8b465 7ba6e0 e56ba8 e0955a',
+    Halide: '0c0c0c 111111 1a1a1a 080808 222222 262626 3d3d3d e8e8e8 a0a0a0 606060 a9c4a9 cf9a9a c9bd9a 9ab1c4 bda4b8 c4ad8f'
+  },
+  light: {
+    Porcelain: 'efece8 fbf9f6 ffffff f4f1ec e9e5df ddd8d0 c2bab0 33302b 6b655c a39c90 3d8b3d c53a3a a37414 3565c0 ad3d8d bb6a1e',
+    Paper: 'eceff1 fafbfc ffffff f0f2f4 e4e8ec d5dade b8c0c8 2a3138 5a656e 9aa4ac 188038 c5221f a86a00 1a63d0 b8207e c26401',
+    "Solarized Light": 'eee8d5 fdf6e3 ffffff f3edda e8e1cc ddd6c1 c0b99f 586e75 657b83 93a1a1 859900 dc322f b58900 268bd2 d33682 cb4b16',
+    Frost: 'e8edf3 f6f9fc ffffff eef2f7 dfe7ef d0dae4 aabccd 26313c 54687a 93a5b5 2e9440 d13b45 ad7a12 3a6ec4 b8459a c47222',
+    Dawn: 'f2eae8 fcf7f5 ffffff f5edeb ecdfdc e2d3cf c8b1ab 3a2d2a 75605b ab948e 2c8a44 cc3344 a86e10 3565c0 c03a7e bd6420',
+    Linen: 'efe9dd faf6ec fffdf6 f3eee1 e8e1d0 ded5c1 bfb298 38321f 6e6650 a49a80 4c7f22 bd3e2e 976a08 2e6a9e a5498a af6a12',
+    Sage: 'e9eee6 f6f9f3 ffffff eef3ea dfe7da d2ddcb adbfa3 2b352a 5c6c58 93a58c 347a34 c04040 9c7212 33689e 9c4a8a b06a1c',
+    Lavender: 'edeaf3 f9f7fc ffffff f2eff7 e4dfee d9d3e4 b5aacb 312b3d 655c78 a096b3 2f8a48 cc3550 a06d10 4a5ecc a63cae bb681e'
+  }
+};
+const ACCENTS = { cyan:['#66c7d6','#1a7f8e'], green:['#78d670','#2f8a3a'], magenta:['#ec6bb4','#b8328a'], blue:['#6f9ef1','#3565c0'], orange:['#e2953f','#b5651a'] };
+const FONTS = { mono:['JetBrains Mono','Fira Code','IBM Plex Mono','Source Code Pro','Space Mono','Inconsolata','Ubuntu Mono','Victor Mono','Red Hat Mono'], sans:['Inter','Geist','IBM Plex Sans','Hanken Grotesk','Figtree','Manrope'] };
+const TWO_WEIGHTS = ['Space Mono','Ubuntu Mono']; /* static families with only regular and bold */
+const SIZE = { small:.9, default:1, large:1.12, 'x-large':1.25 }, CORNER = { sharp:0, default:1, round:1.8 }, DENSITY = { compact:.72, default:1, relaxed:1.32 };
+const pal = s => Object.fromEntries(s.split(' ').map((h, i) => [ROLES[i], '#' + h]));
+const mix = (a, pct, b) => `color-mix(in srgb, ${a} ${pct}%, ${b || 'transparent'})`;
+
+/* ---- one pass over the page's own rules: px font sizes, radii and spacing get a multiplier that defaults to 1,
+        so nothing moves until size, corners or density is changed ---- */
+const FAMILY = [[/^font-size$/, 'fs'], [/^border-(top|bottom|start|end)-(left|right|start|end)-radius$/, 'r'], [/^(padding|margin)-(top|right|bottom|left|block-start|block-end|inline-start|inline-end)$|^(row|column)-gap$/, 'd']];
+const PX = /-?\d*\.?\d+px/g, tokens = P.scale || {};
+/* negative margins are left alone: they pull a box out to an edge whose gutter is fixed, so scaling them would overshoot */
+const scaled = (v, k) => v.replace(PX, m => parseFloat(m) > 0 ? `calc(${m}*var(--tw-${k},1))` : m);
+(function walk(rules){
+  for (const r of rules){
+    if (r instanceof CSSKeyframesRule) continue;
+    const st = r.style;
+    if (st) for (const prop of Array.from(st)){
+      const k = prop.startsWith('--') ? Object.keys(tokens).find(k => tokens[k].includes(prop)) : (FAMILY.find(f => f[0].test(prop)) || [])[1];
+      if (!k) continue;
+      const v = st.getPropertyValue(prop);
+      if (v && !v.includes('--tw-') && v.search(PX) >= 0) st.setProperty(prop, scaled(v, k), st.getPropertyPriority(prop));
+    }
+    if (r.cssRules && r.cssRules.length) walk(r.cssRules);
+  }
+})(Array.from(document.styleSheets).flatMap(s => { try { return s.ownerNode && s.ownerNode.id === 'tw-css' ? [] : Array.from(s.cssRules); } catch (e) { return []; } }));
+
+/* ---- state ---- */
+const themesFor = m => (P.modes.includes(m) ? ['page'] : []).concat(Object.keys(THEMES[m]));
+const cfg = { mode: P.getMode(), theme: null, surface: 'solid', font: 'default', size: 'default', corner: 'default', density: 'default', accent: 'page', open: null };
+/* one address parameter per control. Values are matched loosely (case, spaces and dashes ignored); "default" means the page's own */
+const QK = { mode: 'mode', theme: 'theme', surface: 'surface', font: 'font', size: 'size', corner: 'corners', density: 'density', accent: 'accent' };
+const norm = v => String(v).toLowerCase().replace(/[^a-z0-9]+/g, ''), among = (v, list) => list.find(o => norm(o) === norm(v));
+function fromURL(){
+  let q; try { q = new URLSearchParams(location.search); } catch (e) { return null; }
+  if (!Object.values(QK).some(name => q.has(name))) return null;
+  const g = k => q.get(QK[k]) || '', own = v => ['default', 'page', 'pagedefault'].includes(norm(v)), th = g('theme');
+  /* a link is a complete look: anything it leaves out is the default, not what this browser had saved */
+  const out = { mode: among(g('mode'), ['dark', 'light']) || (own(th) ? null : ['dark', 'light'].find(m => among(th, Object.keys(THEMES[m])))) || cfg.mode }; /* ?theme=Nord alone implies dark */
+  out.theme = own(th) ? 'page' : among(th, Object.keys(THEMES[out.mode])) || null;
+  out.surface = among(g('surface'), ['solid', 'glass']) || 'solid';
+  out.font = among(g('font'), FONTS.mono.concat(FONTS.sans)) || 'default';
+  out.size = among(g('size'), Object.keys(SIZE)) || 'default'; out.corner = among(g('corner'), Object.keys(CORNER)) || 'default'; out.density = among(g('density'), Object.keys(DENSITY)) || 'default';
+  out.accent = among(g('accent'), Object.keys(ACCENTS)) || 'page';
+  return out;
+}
+let inURL = false;
+function toURL(){
+  try {
+    const q = new URLSearchParams(location.search);
+    for (const k in QK) q.set(QK[k], cfg[k] === 'page' ? 'default' : cfg[k]);
+    history.replaceState(history.state, '', '?' + q + location.hash); inURL = true; /* the page's own #section stays */
+  } catch (e) {}
+}
+let stored = {}; try { stored = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+const linked = fromURL();
+Object.assign(cfg, linked ? { ...linked, open: stored.open == null ? null : stored.open } : stored);
+function settle(){
+  if (!THEMES[cfg.mode]) cfg.mode = P.getMode();
+  if (!themesFor(cfg.mode).includes(cfg.theme)) cfg.theme = themesFor(cfg.mode)[0];
+  if (cfg.surface !== 'glass') cfg.surface = 'solid';
+  if (cfg.font !== 'default' && !FONTS.mono.concat(FONTS.sans).includes(cfg.font)) cfg.font = 'default';
+  if (!(cfg.size in SIZE)) cfg.size = 'default'; if (!(cfg.corner in CORNER)) cfg.corner = 'default'; if (!(cfg.density in DENSITY)) cfg.density = 'default';
+  if (cfg.accent !== 'page' && !ACCENTS[cfg.accent]) cfg.accent = 'page';
+}
+settle();
+
+/* glass: the page names which boxes are panels (they blur what is behind them) and which wrappers must stop painting an opaque fill */
+if (P.glass || P.clear){
+  const st = document.createElement('style'); st.id = 'tw-dyn';
+  st.textContent = (P.glass ? `html[data-tw-surface="glass"] :is(${P.glass}){-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}` : '') +
+    (P.clear ? `html[data-tw-surface="glass"] :is(${P.clear}){background:transparent!important}` : '');
+  document.head.append(st);
+}
+const applied = new Set(), loaded = new Set(); let baseAccent;
+function loadFont(name){
+  if (loaded.has(name)) return; loaded.add(name);
+  const l = document.createElement('link'); l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' + name.replace(/ /g, '+') + ':wght@' + (TWO_WEIGHTS.includes(name) ? '400;700' : '400;500;600;700') + '&display=swap';
+  document.head.append(l);
+}
+function apply(){
+  const c = cfg, light = c.mode === 'light', own = c.theme === 'page', glass = c.surface === 'glass';
+  applied.forEach(k => root.style.removeProperty(k)); applied.clear();
+  const put = (k, v) => { if (k && v != null){ root.style.setProperty(k, String(v)); applied.add(k); } };
+  P.setMode(c.mode);
+  root.dataset.twMode = c.mode; if (glass) root.dataset.twSurface = 'glass'; else delete root.dataset.twSurface;
+  const accent = c.accent === 'page' ? null : ACCENTS[c.accent][light ? 1 : 0];
+  let chrome = P.chrome, warn = 'transparent', app = 'transparent';
+  baseAccent = P.accentOwn[c.mode] || P.accentOwn[P.modes[0]];
+  if (!own || glass){
+    const p = pal(own ? P.own[c.mode] : THEMES[c.mode][c.theme]);
+    p.solid = p.surf; p.mode = c.mode; p.glass = glass; app = p.app; warn = p.warn;
+    if (glass){ /* same recipe as the terminal kit: translucent surface, tinted raised/hover layers, hairlines from the text colour */
+      const t = p.text;
+      p.surf = mix(p.surf, light ? 64 : 72); p.raised = light ? 'rgba(255,255,255,.6)' : mix(t, 5); p.inset = light ? mix(t, 4) : 'rgba(0,0,0,.18)';
+      p.hover = mix(t, light ? 7 : 9); p.line = mix(t, light ? 10 : 9); p.line2 = mix(t, light ? 18 : 16);
+    }
+    Object.entries(P.map(p, mix)).forEach(([k, v]) => put(k, v));
+    put('color-scheme', c.mode);
+    chrome = { bg: glass ? mix(p.solid, 82) : p.raised, fg: p.text, dim: mix(p.text2, 62, p.dim), line: p.line2, hover: p.hover, accent: own ? P.accentOwn[c.mode] : p.blue, menu: p.solid };
+    if (!own) baseAccent = p.blue; /* a shared theme brings its own default accent */
+    if (!own && !accent) Object.entries(P.accent(p.blue, mix, c.mode)).forEach(([k, v]) => put(k, v));
+  }
+  if (accent) Object.entries(P.accent(accent, mix, c.mode)).forEach(([k, v]) => put(k, v));
+  put('--tw-bg', chrome.bg); put('--tw-fg', chrome.fg); put('--tw-dim', chrome.dim); put('--tw-line', chrome.line); put('--tw-hover', chrome.hover);
+  put('--tw-acc', accent || chrome.accent); put('--tw-menu', chrome.menu || chrome.bg); put('--tw-app', app); put('--tw-warn', warn);
+  if (P.mono) put('--tw-font', `var(${P.mono})`);
+  if (c.font !== 'default'){
+    const mono = FONTS.mono.includes(c.font), stack = `"${c.font}",` + (mono ? 'ui-monospace,SFMono-Regular,Menlo,monospace' : 'system-ui,-apple-system,"Segoe UI",sans-serif');
+    loadFont(c.font); put(P.sans, stack); if (mono) put(P.mono, stack);
+  }
+  if (SIZE[c.size] !== 1) put('--tw-fs', SIZE[c.size]);
+  if (CORNER[c.corner] !== 1) put('--tw-r', CORNER[c.corner]);
+  if (DENSITY[c.density] !== 1) put('--tw-d', DENSITY[c.density]);
+}
+apply();
+if (linked || cfg.theme !== 'page' || cfg.surface !== 'solid' || cfg.accent !== 'page' || ['font', 'size', 'corner', 'density'].some(k => cfg[k] !== 'default')) toURL();
+
+/* ---- dock ---- */
+let dock, chip, space;
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
+const seg = (k, opts) => `<span class="tw-seg">${opts.map(o => `<button type="button" data-k="${k}" data-v="${o}" aria-pressed="${cfg[k] === o}">${o}</button>`).join('')}</span>`;
+const NAME = { theme: 'theme', font: 'font', size: 'size', corner: 'corners', density: 'density' };
+const sw = (hexes, b) => ({ a: '#' + hexes.split(' ')[1], b: b || '#' + hexes.split(' ')[13] }); /* surface + accent of a palette */
+const choices = k => k === 'theme' ? themesFor(cfg.mode).map(t => t === 'page' ? { v: t, label: 'page default', sw: P.own && P.own[cfg.mode] ? sw(P.own[cfg.mode], P.accentOwn[cfg.mode]) : null } : { v: t, label: t, sw: sw(THEMES[cfg.mode][t]) })
+  : k === 'font' ? [{ v: 'default', label: 'default' }, { group: 'mono, whole page' }].concat(FONTS.mono.map(f => ({ v: f, label: f })), [{ group: 'sans' }], FONTS.sans.map(f => ({ v: f, label: f })))
+  : Object.keys({ size: SIZE, corner: CORNER, density: DENSITY }[k]).map(o => ({ v: o, label: o }));
+const pick = k => { const now = (choices(k).find(o => o.v === cfg[k]) || { label: cfg[k] }).label; return `<button type="button" class="tw-val" data-k="${k}" aria-haspopup="listbox" aria-expanded="false" aria-controls="tw-menu" aria-label="${NAME[k]}: ${esc(now)}">${esc(now)}</button>`; };
+
+/* the list of a chooser: a listbox the page draws, so it wears the active theme. Arrow keys, Home/End, typing a name, Enter, Escape */
+let menu, menuFor = null, opts = [], at = -1, typed = '', typedAt = 0;
+function setAt(i, quiet){
+  at = i; opts.forEach((o, n) => o.classList.toggle('act', n === i));
+  const o = opts[i]; if (!o) return; menu.setAttribute('aria-activedescendant', o.id);
+  if (quiet) return; /* the pointer is already on it */
+  if (o.offsetTop < menu.scrollTop + 4) menu.scrollTop = o.offsetTop - 4; else if (o.offsetTop + o.offsetHeight > menu.scrollTop + menu.clientHeight - 4) menu.scrollTop = o.offsetTop + o.offsetHeight - menu.clientHeight + 4;
+}
+function place(){ /* above the control when the dock sits at the bottom, kept inside the window */
+  const r = menuFor.getBoundingClientRect(), up = r.top > innerHeight - r.bottom;
+  menu.style.minWidth = Math.max(132, Math.round(r.width) + 18) + 'px';
+  menu.style.maxHeight = Math.max(120, Math.min(480, (up ? r.top : innerHeight - r.bottom) - 14)) + 'px';
+  menu.style.left = Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, r.left - 9)) + 'px';
+  menu.style.top = up ? 'auto' : r.bottom + 6 + 'px'; menu.style.bottom = up ? innerHeight - r.top + 6 + 'px' : 'auto';
+}
+function openMenu(btn){
+  closeMenu(); const k = btn.dataset.k;
+  menu.innerHTML = choices(k).map((o, i) => o.group ? `<div class="tw-grp" role="presentation">${esc(o.group)}</div>` :
+    `<div role="option" id="tw-o${i}" data-v="${esc(o.v)}" aria-selected="${cfg[k] === o.v}">${o.sw ? `<i class="tw-dot" style="--a:${o.sw.a};--b:${o.sw.b}"></i>` : ''}${esc(o.label)}</div>`).join('');
+  opts = Array.from(menu.querySelectorAll('[role="option"]')); menuFor = btn; typed = '';
+  btn.setAttribute('aria-expanded', 'true'); menu.setAttribute('aria-label', NAME[k]); menu.hidden = false; menu.scrollTop = 0;
+  place(); setAt(Math.max(0, opts.findIndex(o => o.getAttribute('aria-selected') === 'true'))); menu.focus({ preventScroll: true });
+}
+function closeMenu(refocus){
+  if (!menuFor) return; const b = menuFor; menuFor = null; menu.hidden = true;
+  if (b.isConnected){ b.setAttribute('aria-expanded', 'false'); if (refocus) b.focus({ preventScroll: true }); }
+}
+function choose(i){ const b = menuFor, o = opts[i]; closeMenu(true); if (b && o && cfg[b.dataset.k] !== o.dataset.v) set({ [b.dataset.k]: o.dataset.v }); }
+function menuKey(e){
+  const n = opts.length, k = e.key;
+  if (k === 'ArrowDown') setAt((at + 1) % n); else if (k === 'ArrowUp') setAt((at - 1 + n) % n);
+  else if (k === 'Home' || k === 'PageUp') setAt(0); else if (k === 'End' || k === 'PageDown') setAt(n - 1);
+  else if (k === 'Enter' || k === ' ') choose(at); else if (k === 'Escape') closeMenu(true);
+  else if (k === 'Tab'){ closeMenu(true); return; } /* focus is back on the control, so Tab moves on from there */
+  else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey){ /* type a name to jump to it */
+    const t = Date.now(); typed = (t - typedAt > 700 ? '' : typed) + k.toLowerCase(); typedAt = t;
+    for (let j = 0, from = typed.length > 1 ? at : at + 1; j < n; j++){ const i = (from + j) % n; if (opts[i].textContent.trim().toLowerCase().startsWith(typed)){ setAt(i); break; } }
+  } else return;
+  e.preventDefault(); e.stopPropagation();
+}
+
+function render(){
+  if (!dock) return;
+  closeMenu();
+  const light = cfg.mode === 'light', had = document.activeElement, keep = had && dock.contains(had) ? [had.dataset.k, had.dataset.v] : null;
+  dock.innerHTML =
+    `<div class="tw-ctl">mode ${seg('mode', ['dark', 'light'])}</div>` +
+    `<div class="tw-ctl">theme ${pick('theme')}</div>` +
+    `<div class="tw-ctl">surface ${seg('surface', ['solid', 'glass'])}</div>` +
+    `<div class="tw-ctl">font ${pick('font')}</div>` +
+    `<div class="tw-ctl">size ${pick('size')}</div>` +
+    `<div class="tw-ctl">corners ${pick('corner')}</div>` +
+    `<div class="tw-ctl">density ${pick('density')}</div>` +
+    `<div class="tw-ctl">accent <span class="tw-sws">${['page'].concat(Object.keys(ACCENTS)).map(a => `<button type="button" class="tw-sw" data-k="accent" data-v="${a}" title="${a === 'page' ? 'default' : a}" aria-label="${a === 'page' ? 'default' : a} accent" aria-pressed="${cfg.accent === a}" style="--c:${a === 'page' ? baseAccent : ACCENTS[a][light ? 1 : 0]}"></button>`).join('')}</span></div>` +
+    `<button type="button" class="tw-x" data-k="open" data-v="" aria-label="Hide tweaks" title="Hide tweaks">hide</button>`;
+  dock.hidden = !cfg.open; chip.hidden = !!cfg.open; if (space) space.hidden = !cfg.open;
+  if (keep){ const el = keep[1] != null ? dock.querySelector(`[data-k="${keep[0]}"][data-v="${keep[1]}"]`) : dock.querySelector(`.tw-val[data-k="${keep[0]}"]`); if (el) el.focus({ preventScroll: true }); }
+}
+function set(patch){
+  const before = { ...cfg };
+  Object.assign(cfg, patch);
+  if (patch.mode && patch.mode !== before.mode && !('theme' in patch)) cfg.theme = cfg.theme === 'page' && P.modes.includes(cfg.mode) ? 'page' : themesFor(cfg.mode)[0];
+  settle(); apply(); render();
+  try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {}
+  if (inURL || Object.keys(QK).some(k => cfg[k] !== before[k])) toURL();
+  document.dispatchEvent(new CustomEvent('tweakchange', { detail: { ...cfg } }));
+  /* text, spacing and font changes move boxes: let the page redraw anything it sized in script */
+  if (['font', 'size', 'density', 'corner'].some(k => cfg[k] !== before[k])){
+    const again = () => window.dispatchEvent(new Event('resize'));
+    requestAnimationFrame(() => requestAnimationFrame(again));
+    if (cfg.font !== before.font && document.fonts) document.fonts.ready.then(() => setTimeout(again, 60));
+  }
+}
+function mount(){
+  dock = document.createElement('div'); dock.className = 'tw'; dock.id = 'tweaks'; dock.setAttribute('role', 'group'); dock.setAttribute('aria-label', 'Theme tweaks');
+  chip = document.createElement('button'); chip.type = 'button'; chip.className = 'tw-chip'; chip.textContent = 'tweaks'; chip.setAttribute('aria-label', 'Show tweaks');
+  if (P.spacer !== false){ space = document.createElement('div'); space.className = 'tw-space'; space.setAttribute('aria-hidden', 'true'); document.body.append(space); }
+  menu = document.createElement('div'); menu.className = 'tw-menu'; menu.id = 'tw-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1; menu.hidden = true;
+  document.body.append(dock, chip, menu);
+  if (cfg.open == null) cfg.open = innerWidth > 720;
+  dock.addEventListener('click', e => {
+    const v = e.target.closest('.tw-val'); if (v){ if (menuFor === v) closeMenu(true); else openMenu(v); return; }
+    const b = e.target.closest('button[data-k]'); if (!b) return; set({ [b.dataset.k]: b.dataset.k === 'open' ? false : b.dataset.v }); if (b.dataset.k === 'open') chip.focus();
+  });
+  dock.addEventListener('keydown', e => { const v = e.target.closest('.tw-val'); if (v && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){ e.preventDefault(); openMenu(v); } });
+  menu.addEventListener('keydown', menuKey);
+  menu.addEventListener('click', e => { const o = e.target.closest('[role="option"]'); if (o) choose(opts.indexOf(o)); });
+  menu.addEventListener('pointermove', e => { const o = e.target.closest('[role="option"]'), i = opts.indexOf(o); if (o && i !== at) setAt(i, true); });
+  menu.addEventListener('focusout', e => { if (menuFor && e.relatedTarget !== menuFor && !menu.contains(e.relatedTarget)) closeMenu(); });
+  document.addEventListener('pointerdown', e => { if (menuFor && !menu.contains(e.target) && !menuFor.contains(e.target)) closeMenu(); }, true);
+  addEventListener('resize', () => closeMenu()); addEventListener('blur', () => closeMenu());
+  chip.addEventListener('click', () => { set({ open: true }); const f = dock.querySelector('button'); if (f) f.focus(); });
+  render();
+}
+if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
+window.Tweaks = { get: () => ({ ...cfg }), set, themes: THEMES, mix };
+})();
+</script>
+<!-- tweaks:end -->
+</head>
+<body>
+<svg class="defs" aria-hidden="true"><defs id="defs"></defs></svg>
+<div class="page">
+  <header class="top">
+    <a class="brand" href="#" aria-label="Home"><svg viewBox="0 0 14 14" aria-hidden="true"><path class="b1" d="M1 14V7.5A1.5 1.5 0 0 1 2.5 6h2A1.5 1.5 0 0 1 6 7.5V14z"/><path class="b2" d="M8 14V2.5A1.5 1.5 0 0 1 9.5 1h2A1.5 1.5 0 0 1 13 2.5V14z"/></svg>evals</a>
+    <nav class="crumbs" aria-label="Breadcrumb"><span>Evals</span><i aria-hidden="true">/</i><b aria-current="page">Memory ablation</b></nav>
+    <span class="sp"></span>
+    <span class="upd">Last scored 14 Nov 2026</span>
+    <button class="themebtn" id="themebtn" type="button" aria-label="Toggle color scheme">
+      <svg class="sun" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.2"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.05 3.05l1.13 1.13M11.82 11.82l1.13 1.13M12.95 3.05l-1.13 1.13M4.18 11.82l-1.13 1.13"/></svg>
+      <svg class="moon" viewBox="0 0 16 16"><path d="M13.5 9.6A5.8 5.8 0 0 1 6.4 2.5a5.8 5.8 0 1 0 7.1 7.1z"/></svg>
+    </button>
+  </header>
+
+  <main>
+  <section class="head">
+    <h1>Memory ablation</h1>
+    <p>Each model answers 30 questions in sequence, once with a persistent memory store and once stateless. Scores are mean reward per question.</p>
+  </section>
+
+  <div class="filters">
+    <div class="fl"><span id="l-suite">Suite</span><div class="seg" id="suites" role="group" aria-labelledby="l-suite"></div></div>
+    <div class="fl"><span id="l-models">Highlight</span><div class="chips" id="chips" role="group" aria-labelledby="l-models"></div></div>
+  </div>
+
+  <section class="card tiles" id="tiles" aria-label="Summary"></section>
+
+  <section class="grid" id="grid" aria-label="Charts">
+    <figure class="card"><figcaption id="t-bars"></figcaption><div class="plot fresh" id="bars"></div></figure>
+    <figure class="card"><figcaption>Accumulated reward over questions</figcaption><div class="plot fresh" id="lines"></div></figure>
+    <figure class="card w6"><figcaption>Instruction refinement with Wren 2</figcaption><div class="plot fresh" id="refine"></div><p class="note">Error bars: standard deviation across runs. Horizontal lines: larger models with memory, default instruction.</p></figure>
+    <figure class="card w4"><figcaption>Told to ‘record only failures’</figcaption><div class="plot fresh" id="fail"></div><p class="note">Error bars: standard error.</p></figure>
+    <figure class="card w4"><figcaption>Score in every suite</figcaption><div class="plot slide fresh" id="matrix"></div><p class="note">A stronger tint is a higher score. The selected suite is in bold.</p></figure>
+    <figure class="card w6"><figcaption>Score against the cost of a run</figcaption><div class="plot fresh" id="cost"></div><p class="note">Cost of one 30-question run. The line joins the runs that no cheaper run outscores.</p></figure>
+    <figure class="card w6"><figcaption>Score by question type</figcaption><div class="plot fresh" id="radar"></div><p class="note">Six questions of each type per run. Rings mark every 0.25 of mean reward, from 0 at the centre.</p></figure>
+    <figure class="card w4"><figcaption>First ten questions against the last ten</figcaption><div class="plot fresh" id="span"></div><p class="note">With the memory store, which starts every run empty.</p></figure>
+  </section>
+
+  <section class="card tbl">
+    <header><h2 id="t-table"></h2><p>Mean reward ± standard deviation across runs.</p></header>
+    <div class="scroll" id="scroll" role="group" aria-labelledby="t-table"><table aria-labelledby="t-table">
+      <thead><tr><th scope="col">Model</th><th scope="col">Stateless baseline</th><th scope="col">With memory store</th><th scope="col">Gain</th><th scope="col">Runs</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+  </section>
+  </main>
+
+  <footer class="foot"><span>Sample data. Model and suite names are fictional.</span><span>30 questions per run · seeded, deterministic curves</span></footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const MODELS=['Heron 3','Wren 3','Heron 2.5','Heron 2','Wren 2.5','Wren 2'];
+const SMALL=5,REFS=[2,3];
+// scores: [stateless, with memory, runs] per model; sd: [stateless, with memory]; fail: [model, change, standard error, runs]
+const SUITES=[
+ {id:'db',name:'Database',task:'database task',
+  scores:[[.642,.846,8],[.628,.831,8],[.551,.812,16],[.374,.692,3],[.312,.604,6],[.326,.358,3]],
+  sd:[[.031,.024],[.035,.027],[.042,.019],[.044,.052],[.038,.047],[.021,.022]],
+  refine:{v:.636,sd:.14,runs:3},
+  fail:[[2,-.226,.025,3],[3,-.148,.036,3],[5,-.018,0,1]]},
+ {id:'code',name:'Codebase',task:'codebase task',
+  scores:[[.712,.794,8],[.684,.771,8],[.633,.742,12],[.518,.611,4],[.471,.588,6],[.402,.447,4]],
+  sd:[[.028,.022],[.030,.026],[.036,.024],[.041,.039],[.040,.043],[.027,.031]],
+  refine:{v:.569,sd:.08,runs:4},
+  fail:[[2,-.094,.021,4],[3,-.071,.030,4],[5,-.012,.011,4]]},
+ {id:'desk',name:'Support desk',task:'support desk task',
+  scores:[[.583,.871,6],[.561,.859,6],[.497,.802,10],[.344,.655,3],[.301,.683,5],[.287,.412,3]],
+  sd:[[.034,.021],[.037,.025],[.045,.028],[.048,.055],[.036,.049],[.029,.038]],
+  refine:{v:.664,sd:.11,runs:3},
+  fail:[[2,-.251,.030,3],[3,-.163,.041,3],[5,-.044,.020,3]]}
+];
+// [offset of the first question from the plateau, decay in questions]
+const SHAPE_MEM=[[-.10,5],[-.08,5],[-.22,4],[-.26,6],[-.78,9],[-.42,10]];
+const SHAPE_BASE=[[.14,3],[.12,3],[.06,4],[.10,3],[.04,3],[-.12,3]];
+const Q=30;
+
+function rng(s){return()=>{s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+// running mean of Q seeded per-question rewards, shifted so the final mean equals the reported score
+function curve(seed,target,[d0,tau]){
+  const r=rng(seed),n=[],sh=[];
+  for(let i=0;i<Q;i++){n.push((r()-.5)*.56);sh.push(d0*Math.exp(-i/tau));}
+  const rw=(c,i)=>Math.min(1,Math.max(0,c+sh[i]+n[i]));
+  let lo=-1,hi=2;
+  for(let k=0;k<44;k++){const c=(lo+hi)/2;let s=0;for(let i=0;i<Q;i++)s+=rw(c,i);s/Q<target?lo=c:hi=c;}
+  const out=[];let s=0;
+  for(let i=0;i<Q;i++){s+=rw((lo+hi)/2,i);out.push(s/(i+1));}
+  return out;
+}
+SUITES.forEach((S,si)=>{S.curves=S.scores.map(([b,m],i)=>[curve(si*97+i*2+11,b,SHAPE_BASE[i]),curve(si*97+i*2+12,m,SHAPE_MEM[i])]);});
+// mean reward over questions a..b of a run, recovered from its running mean
+const part=(c,a,b)=>(c[b-1]*b-(a>1?c[a-2]*(a-1):0))/(b-a+1);
+// question types: six of each per run, so a run's score is the mean of its five type scores
+const KINDS=['Lookup','Recall','Multi-step','Recovery','Write'];
+const KIND_BASE=[.15,-.17,-.05,.01,.06]; // stateless: how far each type sits from the run's score
+const KIND_GAIN=[.5,1.8,1.1,.9,.7];      // share of the gain from memory that each type takes (mean 1)
+SUITES.forEach((S,si)=>{S.kinds=S.scores.map(([b,m],i)=>{
+  const r=rng(si*131+i*17+5),j=KINDS.map(()=>(r()-.5)*.05),mean=j.reduce((a,v)=>a+v,0)/j.length;
+  const base=KINDS.map((_,k)=>b+KIND_BASE[k]+j[k]-mean);
+  return[base,base.map((v,k)=>v+(m-b)*KIND_GAIN[k])];
+});});
+// dollars for one 30-question run: [stateless, with memory] per model, times a factor per suite
+const COST=[[4.10,5.45],[1.32,1.86],[2.85,3.90],[2.20,3.05],[.62,.93],[.38,.55]];
+const COST_X=[1,1.3,.8];
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent,text){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;if(parent)parent.appendChild(e);return e;}
+function h(tag,cls,parent,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;if(parent)parent.appendChild(e);return e;}
+const f3=v=>v.toFixed(3);
+const sg=v=>(v<0?'−':'+')+Math.abs(v).toFixed(3);
+const neg=v=>(v<0?'−':'')+Math.abs(v).toFixed(3);
+const runsOf=n=>n+(n===1?' run':' runs');
+const C=i=>`var(--c${i+1})`;
+const usd=v=>'$'+v.toFixed(2);
+// width of a label in one of the chart text classes, before it is drawn
+const meter=el('text',{},$('.defs'));
+function textW(s,cls){meter.setAttribute('class',cls);meter.textContent=s;return meter.getComputedTextLength();}
+let fs=1; // the tweak dock's text size, for spacing that follows the type
+
+/* hatch fills: tint ground with a 45° stripe of the series colour */
+(function(){
+  const d=$('#defs');
+  const mk=(id,col)=>{const p=el('pattern',{id,patternUnits:'userSpaceOnUse',width:6,height:6,patternTransform:'rotate(45)'},d);
+    el('rect',{width:6,height:6,style:`fill:color-mix(in oklab,${col} 26%,var(--card))`},p);
+    el('rect',{width:2.5,height:6,style:`fill:${col}`},p);};
+  MODELS.forEach((_,i)=>mk('hx'+i,C(i)));
+  mk('hxn','var(--ink-3)');
+})();
+
+let suiteIx=0,pinned=null,hover=null;
+const suite=()=>SUITES[suiteIx];
+
+/* ---------- tooltip ---------- */
+const tip=$('#tip');
+function tipShow(build,x,y){
+  tip.textContent='';build(tip);tip.hidden=false;
+  const r=tip.getBoundingClientRect();
+  let l=x+16,t=y-r.height/2;
+  if(l+r.width>innerWidth-8)l=x-r.width-16;
+  l=Math.max(8,l);t=Math.max(8,Math.min(innerHeight-r.height-8,t));
+  tip.style.transform=`translate(${Math.round(l)}px,${Math.round(t)}px)`;
+}
+function tipHide(){tip.hidden=true;}
+function tipTitle(root,text,color){const t=h('div','tt',root);if(color){const k=h('i','sw',t);k.style.setProperty('--c',color);}h('span','',t,text);}
+function tipPairs(root,pairs){const g=h('div','tg two',root);for(const [k,v] of pairs){h('span','',g,k);h('b','',g,v);}}
+// one hit area per mark: hover, touch and keyboard focus show the same readout
+function bind(node,build,m){
+  const center=()=>{const r=node.getBoundingClientRect();return[r.left+r.width/2,r.top+r.height/3];};
+  node.addEventListener('pointermove',e=>{setHover(m);tipShow(build,e.clientX,e.clientY);});
+  node.addEventListener('pointerleave',()=>{setHover(null);tipHide();});
+  node.addEventListener('focus',()=>{setHover(m);tipShow(build,...center());});
+  node.addEventListener('blur',()=>{setHover(null);tipHide();});
+}
+
+/* ---------- highlight ---------- */
+function applyFocus(){
+  const f=hover??pinned;
+  document.querySelectorAll('#grid [data-m],#rows [data-m]').forEach(e=>e.classList.toggle('dim',f!=null&&+e.dataset.m!==f));
+  document.querySelectorAll('#chips button').forEach((b,i)=>b.setAttribute('aria-pressed',pinned===i));
+}
+function setHover(m){if(hover===m)return;hover=m;applyFocus();}
+
+/* ---------- chart scaffolding ---------- */
+function frame(host,height,m,label,wide){
+  const w=Math.max(240,Math.floor(wide||host.clientWidth));
+  host.textContent='';
+  // `wide` is for a chart that needs more room than its card has: it keeps that width and the plot scrolls sideways
+  const svg=el('svg',{viewBox:`0 0 ${w} ${height}`,width:wide?w:'100%',height,role:'group','aria-label':label},host);
+  return{svg,w,view:wide?Math.max(240,Math.floor(host.clientWidth)):w,h:height,x0:m.l,x1:w-m.r,y0:m.t,y1:height-m.b};
+}
+function yAxis(f,dom,ticks,title,fmt,base){
+  const y=v=>f.y1-(v-dom[0])/(dom[1]-dom[0])*(f.y1-f.y0);
+  const g=el('g',{},f.svg);
+  for(const t of ticks){
+    const yy=Math.round(y(t))+.5;
+    if(t!==base)el('line',{x1:f.x0,x2:f.x1,y1:yy,y2:yy,class:'gl'},g);
+    el('line',{x1:f.x0-6,x2:f.x0,y1:yy,y2:yy,class:'axl'},g);
+    el('text',{x:f.x0-11,y:yy,dy:'.35em','text-anchor':'end',class:'tk'},g,fmt(t));
+  }
+  const top=Math.round(y(Math.max(...ticks)))+.5,bot=Math.round(y(Math.min(...ticks)))+.5;
+  el('line',{x1:f.x0+.5,x2:f.x0+.5,y1:top-.6,y2:bot+.6,class:'axl'},g);
+  el('text',{transform:`translate(13,${(top+bot)/2}) rotate(-90)`,'text-anchor':'middle',class:'ax'},g,title);
+  return y;
+}
+function baseline(f,yy){yy=Math.round(yy)+.5;el('line',{x1:f.x0,x2:f.x1,y1:yy,y2:yy,class:'axl'},f.svg);}
+// column from y to y+hgt with a rounded data end (top, or bottom when it hangs from zero)
+function col(x,y,w,hgt,down){
+  const r=Math.min(3,w/2,hgt);
+  return down
+    ?`M${x},${y}V${y+hgt-r}Q${x},${y+hgt} ${x+r},${y+hgt}H${x+w-r}Q${x+w},${y+hgt} ${x+w},${y+hgt-r}V${y}Z`
+    :`M${x},${y+hgt}V${y+r}Q${x},${y} ${x+r},${y}H${x+w-r}Q${x+w},${y} ${x+w},${y+r}V${y+hgt}Z`;
+}
+function errBar(g,x,ya,yb){
+  el('path',{d:`M${x},${ya}V${yb}M${x-6},${ya}H${x+6}M${x-6},${yb}H${x+6}`,class:'err',fill:'none'},g);
+}
+function lines(g,x,y,arr,cls,anchor){arr.forEach((t,k)=>el('text',{x,y:y+k*15*fs,'text-anchor':anchor||'middle',class:cls},g,t));}
+// legend: a bordered box inside the plot, or an unboxed row above it on narrow screens
+const LG_FILL=[{k:'solid',label:'With memory store'},{k:'hatch',label:'Stateless baseline'}];
+const LG_LINE=[{k:'line',label:'With memory store'},{k:'dash',label:'Stateless baseline'}];
+const keyW=it=>it.k==='line'||it.k==='dash'?20:13;
+// top margin for a legend row: the row wraps when the card is narrow or the text is large
+function legendTop(items,W){
+  let rows=1,x=0;
+  for(const it of items){const w=keyW(it)+9+textW(it.label,'lg');if(x&&x+w>Math.max(240,Math.floor(W))-8){rows++;x=0;}x+=w+18;}
+  return 24+20*rows;
+}
+function legend(f,items,pos){
+  const g=el('g',{},f.svg),box=pos!=='row'?el('rect',{class:'lgbox',rx:9},g):null,parts=[];
+  for(const it of items){
+    const p=el('g',{},g);
+    if(it.k==='solid')el('rect',{width:13,height:13,rx:2.5,y:-6.5,style:'fill:var(--ink-2)'},p);
+    else if(it.k==='hatch')el('rect',{width:13,height:13,rx:2.5,y:-6.5,fill:'url(#hxn)'},p);
+    else if(it.k==='dot')el('circle',{cx:6.5,r:6.5,style:'fill:var(--ink-2)'},p);
+    else if(it.k==='hdot')el('circle',{cx:6.5,r:6.5,fill:'url(#hxn)'},p);
+    else if(it.k==='ring')el('circle',{cx:6.5,r:5.5,class:'ring',style:'stroke:var(--ink-2)'},p);
+    else el('line',Object.assign({x1:0,x2:20,y1:0,y2:0,class:'lgkey'},it.k==='dash'?{'stroke-dasharray':'4 3.5'}:{}),p);
+    const kw=keyW(it);
+    const t=el('text',{x:kw+9,dy:'.35em',class:'lg'},p,it.label);
+    parts.push({p,w:kw+9+t.getComputedTextLength()});
+  }
+  if(pos==='row'){
+    const rows=[[]];let x=0;
+    for(const a of parts){if(x&&x+a.w>f.view-8){rows.push([]);x=0;}a.x=x;rows[rows.length-1].push(a);x+=a.w+18;}
+    rows.forEach((r,k)=>{
+      const last=r[r.length-1],x0=Math.max(4,(f.view-last.x-last.w)/2);
+      r.forEach(a=>a.p.setAttribute('transform',`translate(${x0+a.x},${14+20*k})`));
+    });
+    return;
+  }
+  const bw=Math.max(...parts.map(a=>a.w))+28,bh=parts.length*20+18;
+  const bx=f.x1-bw-10,by=pos==='bottom'?f.y1-bh-12:f.y0+4;
+  box.setAttribute('x',bx);box.setAttribute('y',by);box.setAttribute('width',bw);box.setAttribute('height',bh);
+  parts.forEach((a,k)=>a.p.setAttribute('transform',`translate(${bx+14},${by+19+k*20})`));
+}
+function hit(f,x,w,label){return el('rect',{x,y:f.y0,width:w,height:f.y1-f.y0,class:'hit',tabindex:0,role:'img','aria-label':label},f.svg);}
+
+/* ---------- 1. paired columns ---------- */
+function drawBars(){
+  const host=$('#bars'),S=suite(),n=MODELS.length,W=host.clientWidth,narrow=W<430;
+  const H=narrow?340:400,l=narrow?50:62,band=(W-6-l)/n,bw=Math.min(30,band*.42);
+  // the boxed legend sits inside the plot unless a column under it would reach it
+  const crowd=S.scores.some(([,m],i)=>l+band*(i+.5)+bw>W-194&&(H-36)-m*(H-50)-20<80);
+  const row=narrow||crowd;
+  const f=frame(host,H,{l,r:6,t:row?legendTop(LG_FILL,W):14,b:narrow?50:36},`Score on the ${S.task} by model, stateless and with memory`);
+  const y=yAxis(f,[0,1],[0,.2,.4,.6,.8,1],'Task score (mean reward)',v=>v.toFixed(1));
+  MODELS.forEach((name,i)=>{
+    const [b,m,runs]=S.scores[i],cx=f.x0+band*(i+.5);
+    const g=el('g',{'data-m':i},f.svg);
+    el('path',{d:col(cx-bw,y(b),bw-1.5,f.y1-y(b)),fill:`url(#hx${i})`},g);
+    el('path',{d:col(cx,y(m),bw,f.y1-y(m)),style:`fill:${C(i)}`},g);
+    if(bw>=27*fs)el('text',{x:cx-3,y:y(b)-6,'text-anchor':'end',class:'vl sm'},g,f3(b)); // fs: at a larger text size the pair of figures would touch
+    el('text',{x:Math.min(cx+bw/2,f.w-1-textW(f3(m),'vl st'+(bw<27?' sm':''))/2),y:y(m)-6,'text-anchor':'middle',class:'vl st'+(bw<27?' sm':'')},g,f3(m));
+    const cut=name.lastIndexOf(' ');
+    lines(g,cx,f.y1+20,narrow?[name.slice(0,cut),name.slice(cut+1)]:[name],'cat');
+    bind(hit(f,f.x0+band*i,band,`${name}: ${f3(m)} with memory, ${f3(b)} stateless`),root=>{
+      tipTitle(root,name,C(i));
+      tipPairs(root,[['With memory store',f3(m)],['Stateless baseline',f3(b)],['Gain',sg(m-b)],['Runs',String(runs)]]);
+    },i);
+  });
+  baseline(f,y(0));
+  legend(f,LG_FILL,row?'row':'top');
+}
+
+/* ---------- 2. running-mean lines ---------- */
+function spread(items,H,lo,hi){
+  let gs=items.map(it=>({its:[it],c:it.y}));
+  // a group's top edge after it is held inside the plot; overlap is tested on these, not on the raw centres
+  const top=g=>{const n=g.its.length;return Math.max(lo,Math.min(hi-n*H,g.c-n*H/2));};
+  for(let again=true;again;){
+    again=false;
+    for(let k=0;k<gs.length-1;k++){
+      const a=gs[k],b=gs[k+1];
+      if(top(a)+a.its.length*H>top(b)){
+        const its=a.its.concat(b.its);
+        gs.splice(k,2,{its,c:its.reduce((s,it)=>s+it.y,0)/its.length});again=true;break;
+      }
+    }
+  }
+  for(const g of gs){const t=top(g);g.its.forEach((it,j)=>it.ly=t+H*j+H/2);}
+}
+function drawLines(){
+  const host=$('#lines'),S=suite(),W=host.clientWidth,narrow=W<430;
+  const H=narrow?340:400,l=narrow?50:62,r=narrow?12:108,pw=W-l-r,q0=Math.max(0,Math.floor((pw-200)/pw*(Q-1)));
+  const row=narrow||S.curves.some(cs=>cs.some(c=>c.slice(q0).some(v=>v*(H-68)<82)));
+  const f=frame(host,H,{l,r,t:row?legendTop(LG_LINE,W):14,b:54},'Running mean of reward over 30 questions, by model, stateless and with memory');
+  const y=yAxis(f,[0,1],[0,.2,.4,.6,.8,1],'Running-mean reward',v=>v.toFixed(1));
+  const x=q=>f.x0+(q-1)/(Q-1)*(f.x1-f.x0);
+  const ax=el('g',{},f.svg);
+  for(const q of [1,5,10,15,20,25,30]){
+    el('line',{x1:x(q),x2:x(q),y1:f.y1,y2:f.y1+6,class:'axl'},ax);
+    el('text',{x:x(q),y:f.y1+21,'text-anchor':'middle',class:'tk'},ax,q);
+  }
+  const xt='Question number (running mean of all questions so far)';
+  el('text',{x:(f.x0+f.x1)/2,y:f.y1+45,'text-anchor':'middle',class:'ax'},ax,narrow||textW(xt,'ax')>Math.min(f.x0+f.x1,2*f.w-f.x0-f.x1)-4?'Question number':xt);
+  const path=a=>'M'+a.map((v,i)=>x(i+1).toFixed(1)+','+y(v).toFixed(1)).join('L');
+  for(const c of [0,1])MODELS.forEach((_,i)=>el('path',{d:path(S.curves[i][c]),class:'ln'+(c?'':' ds'),style:`stroke:${C(i)}`,'data-m':i},f.svg));
+  baseline(f,y(0));
+  legend(f,LG_LINE,row?'row':'bottom');
+  if(!narrow){
+    const items=MODELS.map((name,i)=>({i,name,v:S.scores[i][1],y:y(S.scores[i][1])})).sort((a,b)=>a.y-b.y);
+    spread(items,35*fs,f.y0+2,f.y1);
+    for(const it of items){
+      const g=el('g',{'data-m':it.i},f.svg);
+      el('line',{x1:f.x1+4,y1:it.y,x2:f.x1+17,y2:it.ly-7,class:'ldr'},g);
+      el('text',{x:f.x1+21,y:it.ly-2,class:'nm'},g,it.name);
+      el('text',{x:f.x1+21,y:it.ly+13*fs,class:'vl'},g,f3(it.v));
+    }
+  }
+  // crosshair snaps to the nearest question; one readout lists every model
+  const cg=el('g',{visibility:'hidden','pointer-events':'none'},f.svg);
+  const rule=el('line',{y1:f.y0,y2:f.y1,class:'axl'},cg);
+  const dots=MODELS.map((_,i)=>el('circle',{r:4,style:`fill:${C(i)};stroke:var(--card);stroke-width:2`},cg));
+  const area=hit(f,f.x0,f.x1-f.x0,'Running-mean reward by question. Use the left and right arrow keys to step through questions.');
+  let cur=Q;
+  const build=q=>root=>{
+    tipTitle(root,'Question '+q);
+    const g=h('div','tg',root);
+    h('span','',g);h('span','',g);h('span','th',g,'Memory');h('span','th',g,'Stateless');
+    MODELS.map((name,i)=>({name,i,m:S.curves[i][1][q-1],b:S.curves[i][0][q-1]})).sort((a,b)=>b.m-a.m).forEach(r=>{
+      const k=h('i','k',g);k.style.setProperty('--c',C(r.i));
+      h('span','',g,r.name);h('b','',g,f3(r.m));h('span','d',g,f3(r.b));
+    });
+  };
+  const at=(q,px,py)=>{
+    cur=q;cg.setAttribute('visibility','visible');
+    rule.setAttribute('x1',x(q));rule.setAttribute('x2',x(q));
+    dots.forEach((d,i)=>{d.setAttribute('cx',x(q));d.setAttribute('cy',y(S.curves[i][1][q-1]));});
+    tipShow(build(q),px,py);
+  };
+  const off=()=>{cg.setAttribute('visibility','hidden');tipHide();};
+  const local=q=>{const r=f.svg.getBoundingClientRect();return[r.left+x(q)*r.width/f.w,r.top+r.height*.4];};
+  area.addEventListener('pointermove',e=>{
+    const r=f.svg.getBoundingClientRect(),px=(e.clientX-r.left)*f.w/r.width;
+    at(Math.max(1,Math.min(Q,Math.round((px-f.x0)/(f.x1-f.x0)*(Q-1))+1)),e.clientX,e.clientY);
+  });
+  area.addEventListener('pointerleave',off);
+  area.addEventListener('focus',()=>at(cur,...local(cur)));
+  area.addEventListener('blur',off);
+  area.addEventListener('keydown',e=>{
+    const d={ArrowLeft:-1,ArrowRight:1,Home:-Q,End:Q}[e.key];if(!d)return;
+    e.preventDefault();const q=Math.max(1,Math.min(Q,cur+d));at(q,...local(q));
+  });
+}
+
+/* ---------- 3. refinement columns with reference lines ---------- */
+function drawRefine(){
+  const host=$('#refine'),S=suite(),W=host.clientWidth,narrow=W<430;
+  const f=frame(host,narrow?350:400,{l:narrow?50:62,r:6,t:14,b:narrow?68:66},`Wren 2 on the ${S.task}: baseline, with memory, and with memory plus a refined instruction`);
+  const y=yAxis(f,[0,1],[0,.2,.4,.6,.8,1],narrow?'Mean reward':`Mean reward on the ${S.task}`,v=>v.toFixed(1));
+  const [b,m,runs]=S.scores[SMALL],sd=S.sd[SMALL],name=MODELS[SMALL];
+  const cols=[
+    {v:b,sd:sd[0],runs,lab:[name,'baseline'],short:['Baseline'],fill:`url(#hx${SMALL})`},
+    {v:m,sd:sd[1],runs,lab:[name,'with memory'],short:['With','memory'],fill:C(SMALL)},
+    {v:S.refine.v,sd:S.refine.sd,runs:S.refine.runs,lab:[name,'with memory +','refined instruction'],short:['Memory +','refined','instruction'],fill:'var(--c6d)'}];
+  const full=f.x1-f.x0,long=full>=520,pad=long?86:26,band=(full-pad)/3,bw=Math.min(46,band*.4);
+  for(const i of REFS){
+    const [,v,r]=S.scores[i],yy=Math.round(y(v))+.5,g=el('g',{'data-m':i},f.svg);
+    el('line',{x1:f.x0,x2:f.x1,y1:yy,y2:yy,style:`stroke:${C(i)};stroke-width:1.6`},g);
+    el('text',{x:f.x0+12,y:yy-7,class:'ax'},g,narrow?`${MODELS[i]}: ${f3(v)}`:`${MODELS[i]}, with memory: ${f3(v)}`+(long?` (${runsOf(r)})`:''));
+  }
+  cols.forEach((c,k)=>{
+    const cx=f.x0+band*(k+.5),g=el('g',{'data-m':SMALL},f.svg);
+    el('path',{d:col(cx-bw/2,y(c.v),bw,f.y1-y(c.v)),style:`fill:${c.fill}`},g);
+    errBar(g,cx,y(c.v+c.sd),y(c.v-c.sd));
+    let ly=y(c.v)-7;
+    for(const i of REFS){const yr=y(S.scores[i][1]);if(yr>ly-15&&yr<ly+4)ly=yr-7;}
+    el('text',{x:cx+10,y:ly,class:'vl st'},g,f3(c.v)+(long?` (${runsOf(c.runs)})`:''));
+    lines(g,cx,f.y1+20,narrow?c.short:c.lab,'cat');
+    bind(hit(f,cx-band/2,band,`${c.lab.join(' ')}: ${f3(c.v)}, standard deviation ${f3(c.sd)}, ${runsOf(c.runs)}`),root=>{
+      tipTitle(root,c.lab.join(' '),c.fill.startsWith('url')?null:c.fill);
+      tipPairs(root,[['Mean reward',f3(c.v)],['Standard deviation','± '+f3(c.sd)],['Runs',String(c.runs)]]);
+    },SMALL);
+  });
+  baseline(f,y(0));
+}
+
+/* ---------- 4. change in gain, hanging from zero ---------- */
+function drawFail(){
+  const host=$('#fail'),S=suite(),narrow=host.clientWidth<430;
+  const f=frame(host,narrow?350:400,{l:narrow?54:66,r:6,t:14,b:42},'Change in gain from memory when told to record only failures, by model');
+  const y=yAxis(f,[-.33,0],[0,-.1,-.2,-.3],'Change in gain from memory',v=>(v<0?'−':'')+Math.abs(v).toFixed(1),0);
+  const band=(f.x1-f.x0)/S.fail.length,bw=Math.min(46,band*.42),long=band>=118;
+  S.fail.forEach(([i,v,se,runs],k)=>{
+    const cx=f.x0+band*(k+.5),g=el('g',{'data-m':i},f.svg);
+    el('path',{d:col(cx-bw/2,y(0),bw,y(v)-y(0),true),style:`fill:${C(i)}`},g);
+    if(se)errBar(g,cx,y(v+se),y(v-se));
+    el('text',{x:cx,y:y(v-se)+18,'text-anchor':'middle',class:'vl st'},g,neg(v)+(long?` (${runsOf(runs)})`:''));
+    el('text',{x:cx,y:f.y1+22,'text-anchor':'middle',class:'cat'},g,MODELS[i]);
+    bind(hit(f,cx-band/2,band,`${MODELS[i]}: ${neg(v)}, ${runsOf(runs)}`),root=>{
+      tipTitle(root,MODELS[i],C(i));
+      tipPairs(root,[['Change in gain',neg(v)],['Standard error',se?'± '+f3(se):'single run'],['Runs',String(runs)]]);
+    },i);
+  });
+  baseline(f,y(0));
+}
+
+/* ---------- 5. every suite at once: a shaded matrix ---------- */
+function xAxis(f,x,ticks,title,fmt,grid){
+  const g=el('g',{},f.svg);
+  for(const t of ticks){
+    const xx=Math.round(x(t))+.5;
+    if(grid&&xx>f.x0+1)el('line',{x1:xx,x2:xx,y1:f.y0,y2:f.y1,class:'gl'},g);
+    el('line',{x1:xx,x2:xx,y1:f.y1,y2:f.y1+6,class:'axl'},g);
+    el('text',{x:xx,y:f.y1+21*fs,'text-anchor':'middle',class:'tk'},g,fmt(t));
+  }
+  // a title given as [long, short] uses the long form only where it fits
+  const mid=(f.x0+f.x1)/2,room=2*Math.min(mid,f.w-mid)-4;
+  el('text',{x:mid,y:f.y1+45*fs,'text-anchor':'middle',class:'ax'},g,Array.isArray(title)?title[textW(title[0],'ax')>room?1:0]:title);
+}
+// one hue from faint to --wash, which is as strong as a tint gets while the figures printed on it stay readable
+const heat=v=>`color-mix(in oklab,var(--wash) ${(6+Math.max(0,Math.min(1,(v-.28)/.6))*94).toFixed(1)}%,transparent)`;
+function drawMatrix(target){
+  const host=$('#matrix'),W=Math.max(240,Math.floor(host.clientWidth)),narrow=W<430,n=MODELS.length;
+  const lw=Math.ceil(Math.max(...MODELS.map(m=>textW(m,'cat'))))+30,gg=narrow?6:12;
+  const t=legendTop(LG_FILL,W)+Math.round(14*fs)+32,b=Math.round(36+10*fs);
+  const rh=target?Math.max(32,Math.min(58,(target-t-b)/n)):narrow?36:44;
+  // a cell is never narrower than a two-decimal figure, nor a pair of cells than the first word of its suite's name
+  const short=S=>S.name.split(' ')[0];
+  const min=Math.max(textW('0.00','vl st')+8,...SUITES.map(S=>(textW(short(S),'nm')+10)/2)),need=Math.ceil(lw+1+2*gg+6*min);
+  const f=frame(host,Math.round(t+rh*n+b),{l:lw,r:1,t,b},'Mean reward for every model in all three suites, stateless and with memory',need>W?need:0);
+  const cw=(f.x1-f.x0-2*gg)/6,dec=textW('0.000','vl st')>cw-8?2:3;
+  SUITES.forEach((S,s)=>{
+    const x=f.x0+s*(2*cw+gg),on=s===suiteIx,g=el('g',{},f.svg);
+    el('text',{x:x+cw,y:f.y0-35,'text-anchor':'middle',class:on?'nm':'cat'},g,textW(S.name,'nm')>2*cw-6?short(S):S.name);
+    el('line',{x1:x+1,x2:x+2*cw-1,y1:f.y0-26.5,y2:f.y0-26.5,class:on?'axl':'gl'},g);
+    el('rect',{x:x+cw/2-5.5,y:f.y0-18,width:11,height:11,rx:2.5,fill:'url(#hxn)'},g);
+    el('rect',{x:x+cw*1.5-5.5,y:f.y0-18,width:11,height:11,rx:2.5,style:'fill:var(--ink-2)'},g);
+  });
+  MODELS.forEach((name,i)=>{
+    const y=f.y0+rh*i,g=el('g',{'data-m':i},f.svg);
+    el('rect',{x:0,y:y+rh/2-5,width:10,height:10,rx:3,style:`fill:${C(i)}`},g);
+    el('text',{x:18,y:y+rh/2,dy:'.35em',class:'cat'},g,name);
+    SUITES.forEach((S,s)=>{
+      const [bv,mv]=S.scores[i],x=f.x0+s*(2*cw+gg);
+      [bv,mv].forEach((v,c)=>{
+        el('rect',{x:x+c*cw+1,y:y+1,width:cw-2,height:rh-2,rx:4,style:`fill:${heat(v)}`},g);
+        el('text',{x:x+c*cw+cw/2,y:y+rh/2,dy:'.35em','text-anchor':'middle',class:'vl st on'},g,v.toFixed(dec));
+      });
+      bind(el('rect',{x,y,width:2*cw,height:rh,class:'hit',tabindex:0,role:'img','aria-label':`${name}, ${S.name}: ${f3(mv)} with memory, ${f3(bv)} stateless`},f.svg),root=>{
+        tipTitle(root,name,C(i));
+        tipPairs(root,[['Suite',S.name],['With memory store',f3(mv)],['Stateless baseline',f3(bv)],['Gain',sg(mv-bv)]]);
+      },i);
+    });
+  });
+  // scale: seven steps of the same wash
+  const steps=[.3,.4,.5,.6,.7,.8,.9],sw=narrow?13:16,cap=textW('Mean reward','lg'),end=textW('0.3','tk'),sy=f.y1+b-14;
+  const bar=end+7+steps.length*sw+5+end,room=f.view-4,named=cap+12+bar<=room; // the caption goes first when the card is tight
+  let x=Math.max(0,Math.min(room-bar-(named?cap+12:0),f.x0+(f.x1-f.x0-bar-(named?cap+12:0))/2));
+  const k=el('g',{},f.svg);
+  if(named){el('text',{x,y:sy,dy:'.35em',class:'lg'},k,'Mean reward');x+=cap+12;}
+  el('text',{x,y:sy,dy:'.35em',class:'tk'},k,'0.3');x+=end+7;
+  for(const v of steps){el('rect',{x,y:sy-5,width:sw-2,height:10,rx:2,style:`fill:${heat(v)}`},k);x+=sw;}
+  el('text',{x:x+5,y:sy,dy:'.35em',class:'tk'},k,'0.9');
+  legend(f,LG_FILL,'row');
+}
+
+/* ---------- 6. score against cost, with the frontier ---------- */
+const LG_COST=[{k:'dot',label:'With memory store'},{k:'hdot',label:'Stateless baseline'},{k:'line',label:'Pareto frontier'}];
+function drawCost(){
+  const host=$('#cost'),S=suite(),W=Math.max(240,Math.floor(host.clientWidth)),narrow=W<430;
+  const pts=[];
+  MODELS.forEach((name,i)=>[0,1].forEach(c=>pts.push({i,c,name,v:S.scores[i][c],cost:COST[i][c]*COST_X[suiteIx]})));
+  // the frontier: going from cheapest to dearest, every run that beats all the cheaper ones
+  let best=-1;
+  const front=pts.slice().sort((a,b)=>a.cost-b.cost).filter(p=>p.v>best&&(best=p.v,p.on=true));
+  const lx=v=>Math.log2(v/.25)/5; // five doublings, $0.25 to $8
+  const row=narrow||pts.some(p=>p.v<.34&&lx(p.cost)>.5);
+  const f=frame(host,narrow?350:400,{l:narrow?50:62,r:narrow?12:16,t:row?legendTop(LG_COST,W):14,b:Math.round(54*fs)},`Score against the cost of a run on the ${S.task}, by model, stateless and with memory, with the Pareto frontier`);
+  const y=yAxis(f,[0,1],[0,.2,.4,.6,.8,1],narrow?'Mean reward':'Task score (mean reward)',v=>v.toFixed(1));
+  const x=v=>f.x0+lx(v)*(f.x1-f.x0);
+  xAxis(f,x,[.25,.5,1,2,4,8],['Cost per run in US dollars (log scale)','Cost per run (log scale)'],v=>'$'+(v<1?v.toFixed(2):v));
+  pts.forEach(p=>{p.x=x(p.cost);p.y=y(p.v);});
+  // drawn as steps: a budget buys the best run at or below it
+  el('path',{d:front.map((p,k)=>(k?`H${p.x.toFixed(1)}V`:`M${p.x.toFixed(1)},`)+p.y.toFixed(1)).join('')+`H${f.x1}`,class:'fr'},f.svg);
+  baseline(f,y(0));
+  const gs=MODELS.map((_,i)=>{
+    const a=pts[i*2],b=pts[i*2+1],g=el('g',{'data-m':i},f.svg);
+    el('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,class:'lk',style:`stroke:${C(i)}`},g);
+    el('circle',{cx:a.x,cy:a.y,r:6.5,class:'dot',fill:`url(#hx${i})`},g);
+    el('circle',{cx:b.x,cy:b.y,r:6.5,class:'dot',style:`fill:${C(i)}`},g);
+    return g;
+  });
+  legend(f,LG_COST,row?'row':'bottom');
+  // name each model at its run with memory. A spot must be clear of the frontier, the marks and the other names;
+  // of those that are, take the one that least crowds a link or another model's mark
+  const over=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+  const sq=(q,r)=>({x:q.x-r,y:q.y-r,w:2*r,h:2*r});
+  const hard=pts.map(q=>sq(q,9)),soft=[];
+  front.forEach((p,k)=>{
+    const nx=front[k+1];
+    hard.push({x:p.x,y:p.y-3,w:(nx?nx.x:f.x1)-p.x,h:6});
+    if(nx)hard.push({x:nx.x-3,y:nx.y,w:6,h:p.y-nx.y});
+  });
+  if(!row)hard.push({x:f.x1-230,y:f.y1-104,w:230,h:104});
+  for(let k=0;k<pts.length;k+=2)for(let t=.15;t<.9;t+=.14){const a=pts[k],b=pts[k+1];soft.push({x:a.x+(b.x-a.x)*t-3,y:a.y+(b.y-a.y)*t-3,w:6,h:6});}
+  const th=13*fs,lo=th*.8,names=[];
+  MODELS.forEach((name,i)=>{
+    const p=pts[i*2+1],tw=textW(name,'cat');let pick=null;
+    [[p.x+12,p.y+4,0],[p.x,p.y-13,1],[p.x-12,p.y+4,2],[p.x,p.y+12+lo,1],[p.x+10,p.y-10,0],[p.x-10,p.y-10,2],[p.x+10,p.y+9+lo,0],[p.x-10,p.y+9+lo,2]].forEach(([tx,ty,a],k)=>{
+      const box={x:tx-tw*a/2-2,y:ty-lo,w:tw+4,h:th};
+      if(box.x<f.x0+3||box.x+box.w>f.w-1||box.y<f.y0-8||box.y+box.h>f.y1-2||hard.some(o=>over(box,o)))return;
+      const cost=k+8*soft.filter(o=>over(box,o)).length+12*pts.filter(q=>q.i!==i&&over(box,sq(q,13))).length;
+      if(!pick||cost<pick.cost)pick={i,name,tx,ty,a,box,cost};
+    });
+    if(pick){hard.push(pick.box);names.push(pick);}
+  });
+  // every model or none: a card too tight for all six leaves the names to the chips and the readout, as the line chart does
+  if(!narrow&&names.length===MODELS.length)for(const n of names)el('text',{x:n.tx,y:n.ty,'text-anchor':['start','middle','end'][n.a],class:'cat'},gs[n.i],n.name);
+  pts.forEach(p=>{
+    const how=p.c?'with memory':'stateless';
+    bind(el('circle',{cx:p.x,cy:p.y,r:14,class:'hit',tabindex:0,role:'img','aria-label':`${p.name}, ${how}: ${f3(p.v)} for ${usd(p.cost)} a run${p.on?', on the frontier':''}`},f.svg),root=>{
+      tipTitle(root,`${p.name}, ${how}`,C(p.i));
+      tipPairs(root,[['Mean reward',f3(p.v)],['Cost per run',usd(p.cost)],['On the frontier',p.on?'Yes':'No']]);
+    },p.i);
+  });
+}
+
+/* ---------- 7. question types: one small radar per model ---------- */
+function drawRadar(){
+  const host=$('#radar'),S=suite(),W=Math.max(240,Math.floor(host.clientWidth));
+  const side=Math.max(textW(KINDS[1],'vl'),textW(KINDS[4],'vl'))+8;
+  const fit=c=>(W/c-2*side-6)/1.9; // the radius that leaves room for the two side names
+  const cols=fit(6)>=64?6:fit(3)>=38?3:fit(2)>=38?2:1,cw=W/cols;
+  const R=Math.max(30,Math.min(cols>1?84:64,fit(cols))),low=Math.max(R*.588+8,(textW(KINDS[2],'vl')+textW(KINDS[3],'vl'))/4+5);
+  const top=legendTop(LG_LINE,W),head=Math.round(48*fs),ch=Math.ceil(head+R*1.81+20*fs+16);
+  const f=frame(host,top+Math.ceil(MODELS.length/cols)*ch,{l:0,r:0,t:top,b:0},`Score by question type on the ${S.task}: one radar per model, stateless and with memory`);
+  const rad=k=>(72*k-90)*Math.PI/180;
+  MODELS.forEach((name,i)=>{
+    const cx=cw*(i%cols+.5),y0=top+Math.floor(i/cols)*ch,cy=y0+head+R,g=el('g',{'data-m':i},f.svg);
+    const pt=(k,v)=>(cx+Math.cos(rad(k))*R*v).toFixed(1)+','+(cy+Math.sin(rad(k))*R*v).toFixed(1);
+    const loop=a=>'M'+a.map((v,k)=>pt(k,v)).join('L')+'Z';
+    el('text',{x:cx,y:y0+14*fs,'text-anchor':'middle',class:'nm'},g,name);
+    for(const v of [.25,.5,.75,1])el('path',{d:loop(KINDS.map(()=>v)),class:'web'},g);
+    KINDS.forEach((kind,k)=>{
+      const x=cx+Math.cos(rad(k))*R,y=cy+Math.sin(rad(k))*R;
+      el('line',{x1:cx,y1:cy,x2:x,y2:y,class:'web'},g);
+      // the top name sits above its corner, the two side names beside theirs, the two lower names under theirs
+      const at=k===0?[x,y-7,'middle']:k===1?[x+6,y+4,'start']:k===4?[x-6,y+4,'end']:[cx+(k===2?low:-low),y+15*fs,'middle'];
+      el('text',{x:at[0],y:at[1],'text-anchor':at[2],class:'vl'},g,kind);
+    });
+    const [base,mem]=S.kinds[i];
+    el('path',{d:loop(base),class:'ln ds',style:`stroke:${C(i)}`},g);
+    el('path',{d:loop(mem),class:'ln',style:`stroke:${C(i)};fill:color-mix(in oklab,${C(i)} 14%,transparent)`},g);
+    const list=a=>KINDS.map((kind,k)=>`${kind} ${a[k].toFixed(2)}`).join(', ');
+    bind(el('rect',{x:cx-cw/2+3,y:y0+3,width:cw-6,height:ch-8,rx:10,class:'hit',tabindex:0,role:'img','aria-label':`${name} by question type. With memory: ${list(mem)}. Stateless: ${list(base)}.`},f.svg),root=>{
+      tipTitle(root,name,C(i));
+      const t=h('div','tg three',root);
+      h('span','',t);h('span','th',t,'Memory');h('span','th',t,'Stateless');
+      KINDS.forEach((kind,k)=>{h('span','',t,kind);h('b','',t,f3(mem[k]));h('span','d',t,f3(base[k]));});
+    },i);
+  });
+  legend(f,LG_LINE,'row');
+  return f.h;
+}
+
+/* ---------- 8. first ten questions against the last ten ---------- */
+const LG_SPAN=[{k:'ring',label:'Questions 1–10'},{k:'dot',label:'Questions 21–30'}];
+function drawSpan(target){
+  const host=$('#span'),S=suite(),W=Math.max(240,Math.floor(host.clientWidth)),narrow=W<430;
+  const num=textW('0.000','vl st');
+  const f=frame(host,target||(narrow?350:400)+Math.round((fs-1)*140),{l:Math.ceil(Math.max(...MODELS.map(m=>textW(m,'cat'))))+14,r:Math.ceil(num)+16,t:legendTop(LG_SPAN,W),b:Math.round(54*fs)},`Mean reward with memory on the first ten and the last ten questions of a run on the ${S.task}, by model`);
+  const x=v=>f.x0+v*(f.x1-f.x0),band=(f.y1-f.y0)/MODELS.length;
+  xAxis(f,x,[0,.2,.4,.6,.8,1],['Mean reward with the memory store','Mean reward'],v=>v.toFixed(1),true);
+  el('line',{x1:f.x0+.5,x2:f.x0+.5,y1:f.y0,y2:f.y1,class:'axl'},f.svg);
+  baseline(f,f.y1);
+  MODELS.forEach((name,i)=>{
+    const c=S.curves[i][1],a=part(c,1,10),b=part(c,21,30),up=b>=a,cy=Math.round(f.y0+band*(i+.5)),g=el('g',{'data-m':i},f.svg);
+    el('text',{x:f.x0-11,y:cy,dy:'.35em','text-anchor':'end',class:'cat'},g,name);
+    el('line',{x1:x(a),x2:x(b),y1:cy,y2:cy,class:'ln',style:`stroke:${C(i)}`},g);
+    el('circle',{cx:x(a),cy,r:5,class:'ring',style:`stroke:${C(i)}`},g);
+    el('circle',{cx:x(b),cy,r:6.5,class:'dot',style:`fill:${C(i)}`},g);
+    // figures sit outside the pair; the first one moves above its ring when the axis is in the way
+    if(up&&x(a)-11-num<f.x0+4)el('text',{x:x(a),y:cy-12,'text-anchor':'middle',class:'vl'},g,f3(a));
+    else el('text',{x:x(a)+(up?-11:11),y:cy,dy:'.35em','text-anchor':up?'end':'start',class:'vl'},g,f3(a));
+    el('text',{x:x(b)+(up?13:-13),y:cy,dy:'.35em','text-anchor':up?'start':'end',class:'vl st'},g,f3(b));
+    bind(el('rect',{x:0,y:f.y0+band*i,width:f.w,height:band,class:'hit',tabindex:0,role:'img','aria-label':`${name} with memory: ${f3(a)} on questions 1 to 10, ${f3(b)} on questions 21 to 30`},f.svg),root=>{
+      tipTitle(root,name,C(i));
+      tipPairs(root,[['Questions 1–10',f3(a)],['Questions 21–30',f3(b)],['Change',sg(b-a)],['All 30 questions',f3(S.scores[i][1])]]);
+    },i);
+  });
+  legend(f,LG_SPAN,'row');
+}
+
+/* ---------- tiles and table ---------- */
+function drawTiles(){
+  const S=suite(),gain=S.scores.map(([b,m])=>m-b);
+  const top=S.scores.reduce((a,s,i)=>s[1]>S.scores[a][1]?i:a,0),big=gain.reduce((a,g,i)=>g>gain[a]?i:a,0);
+  const root=$('#tiles');root.textContent='';
+  const tile=(label,value,sub,color)=>{
+    const t=h('div','tile',root);h('div','tl',t,label);h('div','tv',t,value);
+    const s=h('div','ts',t);if(color){const d=h('i','sw',s);d.style.setProperty('--c',color);}h('span','',s,sub);
+  };
+  tile('Best score with memory',f3(S.scores[top][1]),MODELS[top],C(top));
+  tile('Mean gain from memory',sg(gain.reduce((a,b)=>a+b,0)/gain.length),`across ${MODELS.length} models`);
+  tile('Largest gain',sg(gain[big]),MODELS[big],C(big));
+  tile('Runs scored',String(S.scores.reduce((a,s)=>a+s[2]*2,0)),`${Q} questions each`);
+}
+function drawTable(){
+  const S=suite(),tb=$('#rows');tb.textContent='';
+  $('#t-table').textContent=`Scores by model, ${S.task}`;
+  $('#t-bars').textContent=`Score on the ${S.task}`;
+  MODELS.forEach((name,i)=>{
+    const [b,m,runs]=S.scores[i],tr=h('tr','',tb);tr.dataset.m=i;
+    const c=h('td','',tr),d=h('i','sw',c);d.style.setProperty('--c',C(i));c.append(name);
+    for(const [v,s] of [[b,S.sd[i][0]],[m,S.sd[i][1]]]){const td=h('td','',tr,f3(v)+' ');h('small','',td,'± '+f3(s));}
+    h('td','g',tr,sg(m-b));h('td','',tr,String(runs));
+    tr.addEventListener('pointerenter',()=>setHover(i));tr.addEventListener('pointerleave',()=>setHover(null));
+  });
+}
+
+/* ---------- controls ---------- */
+function drawCharts(){
+  fs=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tw-fs'))||1;
+  // side by side, the matrix and the dumbbells take the height of the chart next to them
+  const pair=matchMedia('(min-width:1041px)').matches;
+  drawBars();drawLines();drawRefine();drawFail();drawMatrix(pair?400:0);drawCost();
+  const tall=drawRadar();drawSpan(pair?tall:0);
+  applyFocus();
+}
+function render(fresh){
+  document.querySelectorAll('.plot').forEach(p=>{p.classList.remove('fresh');if(fresh){void p.offsetWidth;p.classList.add('fresh');}});
+  drawTiles();drawTable();drawCharts();
+}
+SUITES.forEach((S,i)=>{
+  const b=h('button','',$('#suites'),S.name);b.type='button';b.setAttribute('aria-pressed',i===0);
+  b.addEventListener('click',()=>{suiteIx=i;document.querySelectorAll('#suites button').forEach((x,k)=>x.setAttribute('aria-pressed',k===i));tipHide();render(true);});
+});
+MODELS.forEach((name,i)=>{
+  const b=h('button','',$('#chips'));b.type='button';b.setAttribute('aria-pressed','false');
+  const s=h('i','sw',b);s.style.setProperty('--c',C(i));b.append(name);
+  b.addEventListener('click',()=>{pinned=pinned===i?null:i;applyFocus();});
+  b.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse')setHover(i);});
+  b.addEventListener('pointerleave',()=>setHover(null));
+});
+const root=document.documentElement;
+// a chosen scheme overrides the media-matched browser chrome colour
+const paintChrome=()=>{const c=getComputedStyle(root).backgroundColor;document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.content=c);};
+if(root.hasAttribute('data-theme'))paintChrome();
+// the tweak dock owns the scheme: it sets data-theme and remembers it
+$('#themebtn').addEventListener('click',()=>{
+  const cur=root.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'),n=cur==='dark'?'light':'dark';
+  if(window.Tweaks)Tweaks.set({mode:n});
+  else{root.setAttribute('data-theme',n);try{localStorage.setItem('loam-theme',n);}catch(e){}paintChrome();}
+});
+document.addEventListener('tweakchange',paintChrome);
+// the table is a tab stop only while it actually scrolls sideways
+const sc=$('#scroll');
+const scrollStop=()=>{sc.scrollWidth>sc.clientWidth+1?sc.setAttribute('tabindex','0'):sc.removeAttribute('tabindex');};
+sc.addEventListener('scroll',()=>sc.classList.toggle('slid',sc.scrollLeft>0),{passive:true});
+render(true);scrollStop();
+// what the charts were last laid out for: each plot's width, and the brand's width, which follows the font and the text size
+const laidOut=()=>[...document.querySelectorAll('.plot')].map(p=>p.clientWidth).join()+'|'+$('.brand').getBoundingClientRect().width;
+let lastW=$('#grid').clientWidth,last=laidOut(),raf=0;
+const redraw=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{tipHide();document.querySelectorAll('.plot').forEach(p=>p.classList.remove('fresh'));drawCharts();last=laidOut();});};
+new ResizeObserver(()=>{scrollStop();const w=$('#grid').clientWidth;if(w===lastW)return;lastW=w;redraw();}).observe($('#grid'));
+// the tweak dock sends a resize after a font, size or density change; a phone's address bar sends one too, and that one changes nothing here
+addEventListener('resize',()=>{if(laidOut()!==last)redraw();});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{document.querySelectorAll('.plot').forEach(p=>p.classList.remove('fresh'));drawCharts();last=laidOut();});
+addEventListener('scroll',tipHide,{passive:true});
+addEventListener('keydown',e=>{if(e.key==='Escape')tipHide();});
+</script>
+</body>
+</html>

@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vigolium Workbench</title>
+<meta name="description" content="Vigolium Workbench sample: a terminal-style scanner console with a dashboard, findings and HTTP records, in dark and light schemes.">
+<meta name="theme-color" content="#1c1b19">
+<style>
+  /* ── Scheme tokens ─────────────────────────────────────────────── */
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #1c1b19; --surface: #272520; --text: #fce8c3; --muted: #938377;
+    --accent: #7fd962; --secondary: #68a8e4; --tertiary: #e8943a; --border: #2e2b26;
+    --success: #98bc37; --error: #f14841;
+    --well: #141310;
+    --well-deep: #0e0d0b;
+    --warn: #f2c55c;
+    --cyan: #2be4d0;
+  }
+  html[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f6edda; --surface: #ede4d1; --text: #005661; --muted: #546b6b;
+    --accent: #0066a5; --secondary: #00598f; --tertiary: #964f08; --border: #bbc3c4;
+    --success: #007a47; --error: #bb4017;
+    --well: #ede4d1;
+    --well-deep: #e4dac5;
+    --warn: #896408;
+    --cyan: #007584;
+    /* chart marks keep the brighter hues; only text needed darkening */
+    --mk-accent: #0094f0; --mk-secondary: #0078c8; --mk-tertiary: #c2660a; --mk-success: #00b368; --mk-error: #e34e1c; --mk-cyan: #00bdd6;
+  }
+  :root {
+    --mk-accent: var(--accent); --mk-secondary: var(--secondary); --mk-tertiary: var(--tertiary); --mk-success: var(--success); --mk-error: var(--error); --mk-cyan: var(--cyan);
+    /* Domain palette — fixed across schemes */
+    --sev-critical: #E53935; --sev-high: #EF5350; --sev-medium: #FFA726; --sev-low: #FFD54F; --sev-info: #42A5F5;
+    --m-get: #98bc37; --m-post: #68a8e4; --m-put: #7fd962; --m-patch: #ff5c8f; --m-delete: #ef2f27; --m-head: #918175; --m-options: #0aaeb3;
+    --s-2xx: #98bc37; --s-3xx: #2be4d0; --s-4xx: #f0c674; --s-5xx: #ef2f27;
+    --c-certain: #98bc37; --c-firm: #68a8e4; --c-tentative: #f0c674;
+    --dim: color-mix(in srgb, var(--muted) 50%, var(--bg));
+    --soft: color-mix(in srgb, var(--text) 55%, var(--muted));
+    --hairline: color-mix(in srgb, var(--border) 90%, transparent);
+  }
+
+  /* ── Base ──────────────────────────────────────────────────────── */
+  * { box-sizing: border-box; border-radius: 0 !important; }
+  html { font-size: 18px; scrollbar-color: var(--dim) transparent; scroll-padding-top: 76px; /* clears the sticky header */ }
+  ::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--text); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  h1, h2, h3, h4 { margin: 0; font: inherit; }
+  .sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    background: var(--bg); color: var(--text);
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: 0.75rem; /* text-xs = 13.5px */
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  input { font: inherit; caret-color: var(--accent); }
+  svg.i { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  svg.i.s14 { width: 14px; height: 14px; }
+  svg.i.s10 { width: 10px; height: 10px; }
+  .hide { display: none !important; }
+  .muted { color: var(--muted); }
+  .dim { color: var(--dim); }
+  .soft { color: var(--soft); }
+  .acc { color: var(--accent); }
+  .sec { color: var(--secondary); }
+  .ok { color: var(--success); }
+  .err { color: var(--error); }
+  .cyan { color: var(--cyan); }
+  .warn { color: var(--warn); }
+  .b { font-weight: 700; }
+  .up { text-transform: uppercase; }
+  .t10 { font-size: 11px; } /* the two small steps; names predate the 11px floor */
+  .t11 { font-size: 12px; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .glow { transition: text-shadow .18s ease, color .18s ease; }
+  .glow:hover {
+    text-shadow: 0 0 4px color-mix(in srgb, currentColor 85%, transparent),
+                 0 0 10px color-mix(in srgb, currentColor 65%, transparent),
+                 0 0 22px color-mix(in srgb, currentColor 45%, transparent);
+  }
+
+  /* ── Header ───────────────────────────────────────────────────── */
+  header {
+    position: sticky; top: 0; z-index: 40;
+    border-bottom: 1px solid var(--border); background: var(--bg);
+  }
+  .hdr {
+    padding: 4px 16px; min-height: 32px;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px;
+  }
+  .hdr .grp { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .hdr .brand { color: var(--accent); font-weight: 700; }
+  .hdr .ver { color: var(--muted); }
+  .hdr .ver b { --c: #ff8c00; font-weight: 400; }
+  .hdr .proj { color: var(--secondary); transition: color .15s; }
+  .hdr .proj:hover { color: var(--accent); }
+  .hdr em { --c: #fde68a; font-style: normal; }
+  .hdr .hbtn { color: var(--muted); transition: color .15s; display: inline-flex; align-items: center; }
+  .hdr .hbtn:hover { color: var(--accent); }
+  .hdr .hbtn.danger:hover { color: var(--error); }
+  .hdr #themeBtn { padding: 5px; margin: -5px; }
+  .hdr .login { color: var(--secondary); }
+  @media (max-width: 760px) { .hdr .md { display: none; } }
+  @media (max-width: 1000px) { .hdr .lg { display: none; } }
+
+  /* ── Nav ──────────────────────────────────────────────────────── */
+  nav { border-bottom: 1px solid var(--border); background: var(--bg); }
+  .nav {
+    padding: 4px 16px; min-height: 28px; line-height: 1.25;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0;
+  }
+  .nav .gt { color: var(--border); margin-right: 8px; }
+  .nav .sep { color: var(--border); margin: 0 8px; }
+  .nav a {
+    display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+    color: var(--muted); transition: color .15s; padding: 2px 6px; margin: -2px 0;
+  }
+  .nav a:hover { color: var(--text); }
+  .nav a.active { font-weight: 700; color: var(--grp); background: color-mix(in srgb, var(--grp) 10%, transparent); }
+  .nav a[data-group="default"] { --grp: var(--accent); }
+  .nav a[data-group="blue"] { --grp: var(--secondary); }
+  .nav a[data-group="orange"] { --grp: var(--tertiary); }
+  @media (max-width: 760px) { .nav .gt { display: none; } .nav .sep { margin: 0 4px; } }
+
+  /* ── Main / views ─────────────────────────────────────────────── */
+  main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .view { display: none; flex: 1; flex-direction: column; min-height: 0; animation: page-enter .22s cubic-bezier(.22,1,.36,1) both; }
+  .view.on { display: flex; }
+  @keyframes page-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  footer {
+    padding: 8px 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+  }
+  footer a { color: var(--accent); display: inline-flex; align-items: center; gap: 4px; }
+
+  /* ── Panels ───────────────────────────────────────────────────── */
+  .panel { border: 1px solid var(--hairline); background: var(--bg); padding: 12px; height: 100%; }
+  .panel .title { color: var(--accent); font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .panel .sub { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+  .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; color: var(--muted); }
+  .kv span.v { color: var(--text); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    border: 1px solid var(--border); padding: 2px 8px; color: var(--muted); background: var(--bg);
+    transition: color .15s, background-color .15s, border-color .15s; white-space: nowrap;
+  }
+  .btn:hover { color: var(--text); }
+  .btn.ok { border-color: var(--success); color: var(--success); }
+  .btn.ok:hover { background: color-mix(in srgb, var(--success) 10%, transparent); }
+  .btn.sec { border-color: var(--secondary); color: var(--secondary); }
+  .btn.sec:hover { background: color-mix(in srgb, var(--secondary) 10%, transparent); }
+  .btn.err { border-color: color-mix(in srgb, var(--error) 50%, transparent); color: var(--error); }
+  .btn.err:hover { background: color-mix(in srgb, var(--error) 10%, transparent); }
+  .btn.sm { padding: 2px 6px; }
+  .btn.t10 { padding: 2px 6px; }
+  .btn.on { border-color: var(--accent); color: var(--accent); background: var(--well); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .dd { border: 1px solid var(--border); padding: 2px 8px; color: var(--muted); background: var(--bg); display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .dd:hover { color: var(--text); }
+  .dd .caret { font-size: 8px; }
+  .dd.set { border-color: color-mix(in srgb, var(--accent) 50%, transparent); color: var(--accent); }
+  .chip { border: 1px solid var(--border); padding: 2px 6px; color: var(--muted); transition: color .15s; white-space: nowrap; }
+  .chip:hover { color: var(--text); }
+  .chip.on { --c: var(--chip, var(--accent)); border-color: color-mix(in srgb, var(--c) 50%, transparent); background: color-mix(in srgb, var(--c) 10%, transparent); }
+  .chipgrp { display: flex; align-items: center; gap: 2px; }
+  .inp { display: flex; align-items: center; border: 1px solid var(--border); background: var(--bg); }
+  .inp:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .inp svg { color: var(--muted); margin-left: 6px; }
+  .inp input { background: transparent; border: 0; outline: 0; color: var(--text); padding: 2px 6px; width: 112px; }
+  .inp input::placeholder { color: var(--muted); }
+  .inp input.w36 { width: 144px; }
+  .tabs { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--border); margin-left: 8px; }
+  .tabs button { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; color: var(--muted); }
+  .tabs button:hover { color: var(--text); }
+  .tabs button.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .well {
+    margin: 0; background: var(--well); border: 1px solid var(--hairline); padding: 8px;
+    color: var(--text); white-space: pre-wrap; word-break: break-all; overflow: auto; font: inherit;
+  }
+  .well.h64 { max-height: 256px; }
+  .well.h96 { max-height: 384px; }
+  .well.h32 { max-height: 128px; }
+  .well .hn { color: var(--secondary); }
+  .well .proto { color: var(--muted); }
+  .tag { border: 1px solid var(--border); padding: 0 4px; color: var(--secondary); font-size: 11px; }
+  .remark { border: 1px solid var(--border); padding: 0 4px; color: var(--text); }
+  .cbx { appearance: none; width: 12px; height: 12px; border: 1px solid var(--muted); background: transparent; margin: 0; vertical-align: middle; cursor: pointer; }
+  .cbx:checked { background: var(--accent); border-color: var(--accent); }
+
+  /* ── Dashboard ────────────────────────────────────────────────── */
+  .dash { padding: 8px; gap: 8px; }
+  .g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .g2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .g2.gap8 { gap: 8px; }
+  @media (max-width: 1000px) { .g3, .g2 { grid-template-columns: minmax(0, 1fr); } }
+  .g2.fit { grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); }
+  .strip { border: 1px solid var(--hairline); background: var(--bg); padding: 6px 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .strip .st { display: inline-flex; align-items: center; gap: 4px; }
+  .strip .st .bar { color: var(--dim); margin-right: 4px; }
+  .strip .st .lab { color: var(--muted); }
+  .strip .st .val { font-weight: 700; }
+  .strip .st .val:not(.ink) { color: var(--accent); }
+  .bars { display: flex; flex-direction: column; gap: 2px; }
+  .bars .row { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+  .bars .row .lab { color: var(--muted); width: 72px; flex-shrink: 0; text-align: right; }
+  .bars .row .bar { white-space: pre; }
+  .bars .row .n { color: var(--soft); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .bars .row .pct { color: var(--muted); flex-shrink: 0; }
+  .bars .row .val { display: inline-flex; align-items: center; gap: 6px; }
+  .donutwrap { display: flex; align-items: flex-start; gap: 12px; }
+  /* Legend rows share one label column: when the group is tight the label gives way (ellipsis), never the figures */
+  .donutwrap .bars { flex: 1; min-width: 0; padding-top: 4px; display: grid; grid-template-columns: minmax(3ch, var(--labw, 74px)) max-content; gap: 2px 8px; overflow: hidden; }
+  .donutwrap .bars.w90 { --labw: 90px; }
+  .donutwrap .bars .row { display: contents; }
+  .donutwrap .bars .row .lab { width: auto; }
+  .donut { flex-shrink: 0; }
+  .donut circle.seg { transition: stroke-dasharray .7s cubic-bezier(.22,1,.36,1); }
+  .server { display: flex; align-items: flex-start; gap: 12px; }
+  .server img { width: 80px; height: 80px; flex-shrink: 0; border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 30%, transparent); object-fit: cover; }
+  .server .kv { flex: 1; align-content: start; }
+  .server .kv .k { display: inline-block; width: 70px; flex-shrink: 0; }
+  .server .kv .v { white-space: nowrap; }
+
+  /* ── Tables ───────────────────────────────────────────────────── */
+  .tscroll { overflow-x: auto; flex: 1; min-height: 0; }
+  table.tbl { border-collapse: collapse; width: 100%; min-width: 980px; }
+  table.tbl th {
+    height: 30px; background: var(--surface); color: var(--accent); font-weight: 700; text-align: left;
+    padding: 0 8px; border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  table.tbl th.r, table.tbl td.r { text-align: right; }
+  table.tbl td { height: 26px; padding: 0 8px; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+  table.tbl tbody tr { cursor: pointer; }
+  table.tbl tbody tr:nth-child(odd) td { background: color-mix(in srgb, var(--surface) 25%, var(--bg)); }
+  table.tbl tbody tr:hover td { background: color-mix(in srgb, var(--accent) 6%, var(--bg)); }
+  table.tbl tbody tr.sel td { background: color-mix(in srgb, var(--accent) 10%, var(--bg)); }
+  table.tbl tbody tr:focus-visible { outline-offset: -2px; }
+  table.tbl td.chk, table.tbl th.chk { width: 40px; text-align: center; padding: 0 0 0 8px; }
+  table.simple { border-collapse: collapse; width: 100%; min-width: 760px; }
+  table.simple th { text-align: left; padding: 6px 12px; color: var(--muted); font-size: 11px; text-transform: uppercase; font-weight: 400; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.simple td { padding: 6px 12px; border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent); white-space: nowrap; }
+  table.simple tbody tr { transition: background-color .15s; }
+  table.simple tbody tr:hover { background: var(--surface); }
+  table.simple th.r, table.simple td.r { text-align: right; }
+  .acts { display: inline-flex; gap: 4px; }
+  .acts button { padding: 4px 2px; margin: -4px -2px; }
+  .acts .del:hover { color: var(--error); }
+  .pager { display: flex; align-items: center; justify-content: space-between; padding: 4px 12px; border-top: 1px solid var(--border); color: var(--muted); }
+  .pager button { padding: 2px 8px; margin: -2px -4px; }
+  .pager button:hover { color: var(--accent); }
+  .pager button:disabled { opacity: .3; cursor: default; }
+  .pager button:disabled:hover { color: inherit; }
+
+  /* ── Split master/detail ──────────────────────────────────────── */
+  .split { display: flex; flex: 1; min-height: 500px; }
+  .master { border: 1px solid var(--hairline); background: var(--bg); overflow: hidden; display: flex; flex-direction: column; flex: 1 1 100%; min-width: 0; transition: flex-basis .2s; }
+  .split.open .master { flex-basis: 50%; }
+  .detail { flex: 0 0 50%; min-width: 0; display: none; }
+  .split.open .detail { display: block; }
+  .dpanel { border-left: 1px solid var(--hairline); background: var(--bg); height: 100%; max-height: calc(100vh - 70px); overflow-y: auto; }
+  .dpanel .dhdr { position: sticky; top: 0; z-index: 10; background: var(--bg); padding: 6px 12px; border-bottom: 1px solid var(--hairline); display: flex; align-items: center; justify-content: space-between; }
+  .dpanel:focus-visible { outline-offset: -2px; }
+  .dpanel .dhdr .t { color: var(--accent); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
+  .dpanel .dhdr button { color: var(--muted); padding: 2px 4px; margin: -2px 0; display: inline-flex; align-items: center; }
+  .dpanel .dhdr button:hover { color: var(--error); }
+  .dpanel .dhdr button.lnk:hover { color: var(--secondary); }
+  .dbody { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+  .toolbar { padding: 6px 12px; border-bottom: 1px solid var(--hairline); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .toolbar .left { display: flex; align-items: center; gap: 6px; }
+  .toolbar .right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .toolbar .rf { color: var(--muted); display: inline-flex; padding: 6px; margin: -6px; }
+  .toolbar .rf:hover { color: var(--accent); }
+  .selbar { padding: 6px 12px; border-bottom: 1px solid var(--hairline); background: var(--surface); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  @media (max-width: 900px) {
+    .split { flex-direction: column; }
+    .split.open .master { flex-basis: auto; }
+    .detail { flex-basis: auto; }
+    .dpanel { border-left: 0; border-top: 1px solid var(--hairline); max-height: none; }
+  }
+  .evbox { border: 1px solid var(--hairline); background: var(--well); overflow: hidden; min-height: 200px; }
+  .evbox pre { margin: 0; padding: 8px; white-space: pre-wrap; word-break: break-all; max-height: 256px; overflow-y: auto; color: var(--text); font: inherit; }
+  .evbox .dash-line { border-top: 1px dashed var(--border); margin: 0 8px; }
+  .md h3 { font-size: 0.875rem; font-weight: 700; margin: 8px 0 6px; color: var(--text); }
+  .md h4 { font-size: 0.75rem; font-weight: 700; margin: 8px 0 4px; color: var(--text); }
+  .md p { margin: 0 0 6px; line-height: 1.6; }
+  .md ul { margin: 0 0 6px; padding-left: 16px; }
+  .md code { color: var(--success); background: var(--well-deep); padding: 1px 4px; }
+  .md strong { color: var(--text); }
+  .mdraw .h { --c: #ff9e64; font-weight: 700; }
+  .mdraw .p { --c: #f7768e; }
+  .mdraw .c { --c: #9ece6a; background: #1a1b26; padding: 1px 4px; }
+  html[data-theme="light"] .mdraw .c { background: var(--well-deep); }
+  .mdraw .l { --c: #ff9e64; }
+  .mdraw .bd { --c: #e0af68; font-weight: 700; }
+  .placeholder { padding: 8px; }
+
+  /* ── Palette text ─────────────────────────────────────────────── */
+  /* The fixed hues keep their colour; lightness is clamped per scheme so they hold 4.5:1 on either ground. */
+  .ink, .chip.on { color: var(--c); }
+  @supports (color: oklch(from red l c h)) {
+    .ink, .chip.on { color: oklch(from var(--c) max(l, .66) c h); }
+    html[data-theme="light"] :is(.ink, .chip.on) { color: oklch(from var(--c) min(l, .49) min(c, .13) h); }
+  }
+
+  /* ── Touch and motion ─────────────────────────────────────────── */
+  @media (pointer: coarse) {
+    .hdr { gap: 12px 16px; padding-block: 8px; }
+    .nav { gap: 16px 0; padding-block: 8px; }
+    .nav a, .hdr .proj, .hdr .hbtn, .toolbar .rf, .pager button, .dhdr button, .acts button, .btn, .chip, .dd { position: relative; }
+    :is(.nav a, .hdr .proj, .hdr .hbtn, .toolbar .rf, .pager button, .dhdr button, .acts button, .btn, .chip, .dd)::after { content: ""; position: absolute; inset: -6px 0; }
+    :is(.hdr .hbtn, .toolbar .rf, .pager button, .dhdr button, .acts button)::after { inset: -8px -4px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Icon sprite ─────────────────────────────────────────────── -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-dashboard" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3"/><rect width="7" height="5" x="14" y="3"/><rect width="7" height="9" x="14" y="12"/><rect width="7" height="5" x="3" y="16"/></symbol>
+    <symbol id="i-shield-alert" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+    <symbol id="i-network" viewBox="0 0 24 24"><rect x="16" y="16" width="6" height="6"/><rect x="2" y="16" width="6" height="6"/><rect x="9" y="2" width="6" height="6"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></symbol>
+    <symbol id="i-radio" viewBox="0 0 24 24"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/></symbol>
+    <symbol id="i-blocks" viewBox="0 0 24 24"><rect width="7" height="7" x="14" y="3"/><path d="M10 21V8a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1h-3"/></symbol>
+    <symbol id="i-puzzle" viewBox="0 0 24 24"><path d="M19.4 7.9c0 .3.1.6.3.9l1.6 1.6c.5.5.7 1.1.7 1.7s-.2 1.2-.7 1.7l-1.6 1.6a1 1 0 0 1-.8.3c-.5-.1-.8-.5-1-.9a2.5 2.5 0 1 0-3.2 3.2c.4.2.8.5.9 1a1 1 0 0 1-.3.8l-1.6 1.6a2.4 2.4 0 0 1-3.4 0l-1.6-1.6a1 1 0 0 0-.9-.3c-.5.1-.8.5-1 1a2.5 2.5 0 1 1-3.2-3.2c.5-.2.9-.5 1-1a1 1 0 0 0-.3-.9L2.7 13.7A2.4 2.4 0 0 1 2 12c0-.6.2-1.2.7-1.7l1.5-1.5c.2-.2.6-.4.9-.3.5.1.9.5 1.1 1a2.5 2.5 0 1 0 3.3-3.3c-.5-.2-.9-.6-1-1.1-.1-.3 0-.7.3-.9l1.5-1.5A2.4 2.4 0 0 1 12 2c.6 0 1.2.2 1.7.7l1.6 1.6c.2.2.6.3.9.3.5-.1.8-.5 1-1a2.5 2.5 0 1 1 3.2 3.2c-.5.2-.9.5-1 1Z"/></symbol>
+    <symbol id="i-import" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4"/></symbol>
+    <symbol id="i-radar" viewBox="0 0 24 24"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/><path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0 1 15.77 16.67"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2"/><rect width="20" height="8" x="2" y="14"/><path d="M6 6h.01"/><path d="M6 18h.01"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><path d="M12 19h8"/><path d="m4 17 6-6-6-6"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></symbol>
+    <symbol id="i-columns" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3"/><path d="M12 3v18"/></symbol>
+  </defs>
+</svg>
+
+<!-- ── Header ───────────────────────────────────────────────────── -->
+<header>
+  <div class="hdr">
+    <div class="grp">
+      <span class="brand">&gt; VIGOLIUM</span>
+      <span class="ver md">[<b class="ink">workbench</b> v0.9.3]</span>
+      <button class="proj">[PROJECT: <em class="ink">acme-web</em> ▼]</button>
+    </div>
+    <div class="grp">
+      <span class="muted md">proxy:127.0.0.1:8080</span>
+      <span class="ok">[CONNECTED]</span>
+      <span class="login lg">[Login as <em class="ink">admin</em>]</span>
+      <button class="hbtn danger">[LOG OUT]</button>
+      <button class="hbtn" id="themeBtn" title="Toggle theme" aria-label="Switch to light theme">
+        <svg class="i s14" id="themeIcon" aria-hidden="true"><use href="#i-sun"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ── Nav ──────────────────────────────────────────────────────── -->
+<nav aria-label="Sections">
+  <div class="nav" id="nav">
+    <span class="gt">&gt;</span>
+    <a href="#dashboard" data-group="default"><svg class="i"><use href="#i-dashboard"/></svg>DASHBOARD</a>
+    <span class="sep">|</span>
+    <a href="#findings" data-group="default"><svg class="i"><use href="#i-shield-alert"/></svg>FINDINGS</a>
+    <span class="sep">|</span>
+    <a href="#http-records" data-group="default"><svg class="i"><use href="#i-network"/></svg>HTTP RECORDS</a>
+    <span class="sep">|</span>
+    <a href="#oast" data-group="default"><svg class="i"><use href="#i-radio"/></svg>OAST</a>
+    <span class="sep">|</span>
+    <a href="#modules" data-group="blue"><svg class="i"><use href="#i-blocks"/></svg>MODULES</a>
+    <span class="sep">|</span>
+    <a href="#extensions" data-group="blue"><svg class="i"><use href="#i-puzzle"/></svg>EXTENSIONS</a>
+    <span class="sep">|</span>
+    <a href="#ingest" data-group="orange"><svg class="i"><use href="#i-import"/></svg>INGEST</a>
+    <span class="sep">|</span>
+    <a href="#native-scan" data-group="orange"><svg class="i"><use href="#i-radar"/></svg>NATIVE SCAN</a>
+    <span class="sep">|</span>
+    <a href="#agentic-scan" data-group="orange"><svg class="i"><use href="#i-bot"/></svg>AGENTIC SCAN</a>
+    <span class="sep">|</span>
+    <a href="#database" data-group="blue"><svg class="i"><use href="#i-database"/></svg>DATABASE</a>
+    <span class="sep">|</span>
+    <a href="#settings" data-group="blue"><svg class="i"><use href="#i-sliders"/></svg>SETTINGS</a>
+  </div>
+</nav>
+
+<main>
+  <h1 class="sr" id="viewTitle">DASHBOARD</h1>
+  <!-- ── Dashboard ───────────────────────────────────────────────── -->
+  <section class="view dash" data-view="dashboard">
+    <div class="strip">
+      <span class="st"><span class="lab">FINDINGS:</span><span class="val tnum">15</span></span>
+      <span class="st"><span class="bar">|</span><span class="lab">CRIT/HIGH:</span><span class="val tnum ink" style="--c:var(--sev-critical)">3</span></span>
+      <span class="st"><span class="bar">|</span><span class="lab">RECORDS:</span><span class="val tnum">1,284</span></span>
+      <span class="st"><span class="bar">|</span><span class="lab">MODULES:</span><span class="val tnum">42/58</span></span>
+    </div>
+
+    <div class="g3">
+      <div class="panel">
+        <h2 class="title">SEVERITY DISTRIBUTION</h2>
+        <div class="bars" id="sevBars"></div>
+      </div>
+      <div class="panel">
+        <h2 class="title">SCAN CONTROL</h2>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px"><span class="muted">STATUS:</span><span class="ok">SCANNING...</span></div>
+          <div class="muted t11 trunc">phase: audit — 24/31 active modules queued</div>
+          <div style="display:flex;align-items:center;gap:8px"><span class="muted">SCAN_ID:</span><span class="soft trunc">c4f1a9e2</span></div>
+          <div class="kv">
+            <div>Active Modules: <span class="v">24/31</span></div>
+            <div>Passive Modules: <span class="v">18/27</span></div>
+          </div>
+          <div class="kv">
+            <div>Scans: running: <span class="ok">1</span> completed: <span class="v">12</span> failed: <span class="err">1</span></div>
+            <div>OAST: <span class="v">7</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding-top:4px;flex-wrap:wrap">
+            <a href="#native-scan" class="btn ok">[START NEW SCAN]</a>
+            <a href="#ingest" class="btn sec">[INGEST MORE TRAFFIC]</a>
+            <button class="btn err">[CANCEL]</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2 class="title">SERVER</h2>
+        <div class="server">
+          <img src="assets/vigolium-logo.png" alt="">
+          <div class="kv">
+            <div><span class="k">version:</span><span class="v">v0.9.3</span></div>
+            <div><span class="k">uptime:</span><span class="v">3d 4h 12m</span></div>
+            <div><span class="k">queue:</span><span class="v">0</span></div>
+            <div><span class="k">records:</span><span class="v">1284</span></div>
+            <div><span class="k">commit:</span><span class="v">a1b2c3d</span></div>
+            <div><span class="k">proxy:</span><span class="v">127.0.0.1:8080</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="g2 gap8">
+      <div class="panel">
+        <h2 class="title">FINDINGS BREAKDOWN</h2>
+        <div class="g2 fit">
+          <div>
+            <h3 class="sub">By Confidence</h3>
+            <div class="donutwrap" id="donutConf"></div>
+          </div>
+          <div>
+            <h3 class="sub">Top Modules</h3>
+            <div class="donutwrap" id="donutMod"></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2 class="title">HTTP RECORDS BREAKDOWN</h2>
+        <div class="g2 fit">
+          <div>
+            <h3 class="sub">By Status Code</h3>
+            <div class="donutwrap" id="donutStatus"></div>
+          </div>
+          <div>
+            <h3 class="sub">Top Content Types</h3>
+            <div class="donutwrap" id="donutCtype"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="padding:0;height:auto;overflow:hidden">
+      <div class="toolbar" style="justify-content:flex-start">
+        <div class="left"><h2 class="acc b">SCAN HISTORY</h2><button class="rf" title="Refresh" aria-label="Refresh scan history"><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg></button></div>
+      </div>
+      <div class="tscroll">
+        <table class="simple">
+          <thead><tr>
+            <th>STATUS</th><th>NAME</th><th>MODE / SOURCE</th><th class="r">FINDINGS</th><th class="r">PROCESSED</th><th>STARTED</th><th>ACTIONS</th>
+          </tr></thead>
+          <tbody id="scanRows"></tbody>
+        </table>
+      </div>
+      <div class="pager"><span>1-5/14</span><div style="display:flex;align-items:center;gap:4px"><button disabled aria-label="Previous page">&lt;</button><span style="padding:0 4px">1/3</span><button aria-label="Next page">&gt;</button></div></div>
+    </div>
+  </section>
+
+  <!-- ── HTTP Records ────────────────────────────────────────────── -->
+  <section class="view" data-view="http-records">
+    <div class="split" id="recSplit">
+      <div class="master">
+        <div class="toolbar">
+          <div class="left">
+            <h2 class="acc b">HTTP_RECORDS</h2>
+            <button class="rf" title="Refresh" aria-label="Refresh records"><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg></button>
+            <div class="tabs" role="group" aria-label="Layout">
+              <button class="on" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-list"/></svg>Table</button>
+              <button aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-layers"/></svg>By Host</button>
+            </div>
+          </div>
+          <div class="right">
+            <button class="btn err sm" id="recClear" disabled><svg class="i" aria-hidden="true"><use href="#i-x"/></svg>clear</button>
+            <button class="dd" id="recMeth" data-val=""><svg class="i" aria-hidden="true"><use href="#i-activity"/></svg><span>meth:all</span><span class="caret" aria-hidden="true">▾</span></button>
+            <div class="inp"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg><input id="recHost" placeholder="host..." aria-label="Filter by host"></div>
+            <button class="dd"><svg class="i" aria-hidden="true"><use href="#i-server"/></svg><span>source:all</span><span class="caret" aria-hidden="true">▾</span></button>
+            <div class="chipgrp" id="recStatus" role="group" aria-label="Status class">
+              <button class="chip on" data-s="" aria-pressed="true">ALL</button>
+              <button class="chip" data-s="2" style="--chip:var(--s-2xx)" aria-pressed="false">2xx</button>
+              <button class="chip" data-s="3" style="--chip:var(--s-3xx)" aria-pressed="false">3xx</button>
+              <button class="chip" data-s="4" style="--chip:var(--s-4xx)" aria-pressed="false">4xx</button>
+              <button class="chip" data-s="5" style="--chip:var(--s-5xx)" aria-pressed="false">5xx</button>
+            </div>
+            <div class="inp"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input id="recSearch" class="w36" placeholder="search..." aria-label="Search records"></div>
+            <div class="chipgrp" role="group" aria-label="Flags">
+              <button class="chip" data-f="title" style="--chip:var(--secondary)" aria-pressed="false">title</button>
+              <button class="chip" data-f="remarks" style="--chip:var(--cyan)" aria-pressed="false">remarks</button>
+              <button class="chip" data-f="static" style="--chip:#f0c674" aria-pressed="false">-static</button>
+            </div>
+            <button class="dd"><svg class="i" aria-hidden="true"><use href="#i-columns"/></svg><span>cols</span><span class="caret" aria-hidden="true">▾</span></button>
+          </div>
+        </div>
+        <div class="selbar hide" id="recSelbar">
+          <span><span id="recSelCount">0</span> selected</span>
+          <button class="btn err sm">[DELETE SELECTED]</button>
+          <button class="btn ok sm">[SCAN SELECTED]</button>
+        </div>
+        <div class="tscroll">
+          <table class="tbl">
+            <thead><tr>
+              <th class="chk"><input type="checkbox" class="cbx" id="recAll" aria-label="Select all records"></th>
+              <th>METH</th><th>SC</th><th>HOST</th><th>PATH</th><th class="r">MS</th><th>CTYPE</th><th class="r">SIZE</th><th>TITLE</th><th class="r">WORDS</th><th class="r">RISK</th><th>SRC</th><th>TIME</th>
+            </tr></thead>
+            <tbody id="recRows"></tbody>
+          </table>
+        </div>
+        <div class="pager"><span id="recPager">1-26/1284</span><div style="display:flex;align-items:center;gap:4px"><button disabled aria-label="Previous page">&lt;</button><span style="padding:0 4px">1/50</span><button aria-label="Next page">&gt;</button></div></div>
+      </div>
+      <div class="detail"><div class="dpanel" id="recDetail" role="region" aria-label="Record detail" tabindex="-1"></div></div>
+    </div>
+  </section>
+
+  <!-- ── Findings ────────────────────────────────────────────────── -->
+  <section class="view" data-view="findings">
+    <div class="split" id="finSplit">
+      <div class="master">
+        <div class="toolbar">
+          <div class="left">
+            <h2 class="acc b">FINDINGS</h2>
+            <button class="rf" title="Refresh" aria-label="Refresh findings"><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg></button>
+            <div class="tabs" role="group" aria-label="Layout">
+              <button class="on" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-list"/></svg>Table</button>
+              <button aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-layers"/></svg>By Host</button>
+            </div>
+          </div>
+          <div class="right">
+            <button class="btn err sm" id="finClear" disabled><svg class="i" aria-hidden="true"><use href="#i-x"/></svg>clear</button>
+            <button class="dd" id="finSev" data-val=""><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg><span>sev:all</span><span class="caret" aria-hidden="true">▾</span></button>
+            <div class="inp"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg><input id="finDomain" placeholder="domain..." aria-label="Filter by domain"></div>
+            <div class="inp"><svg class="i" aria-hidden="true"><use href="#i-box"/></svg><input id="finModule" placeholder="module..." aria-label="Filter by module"></div>
+            <button class="dd"><span>type:all</span><span class="caret" aria-hidden="true">▾</span></button>
+            <button class="dd"><span>source:all</span><span class="caret" aria-hidden="true">▾</span></button>
+            <button class="dd"><span>status:all</span><span class="caret" aria-hidden="true">▾</span></button>
+            <div class="inp"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input id="finSearch" class="w36" placeholder="search..." aria-label="Search findings"></div>
+            <button class="dd"><svg class="i" aria-hidden="true"><use href="#i-columns"/></svg><span>cols</span><span class="caret" aria-hidden="true">▾</span></button>
+          </div>
+        </div>
+        <div class="selbar hide" id="finSelbar">
+          <span><span id="finSelCount">0</span> selected</span>
+          <button class="btn err sm">[DELETE SELECTED]</button>
+        </div>
+        <div class="tscroll">
+          <table class="tbl">
+            <thead><tr>
+              <th class="chk"><input type="checkbox" class="cbx" id="finAll" aria-label="Select all findings"></th>
+              <th>ID</th><th>SEV</th><th>CONF</th><th>MODULE</th><th>TYPE</th><th>DESCRIPTION</th><th>MATCHED_AT</th><th>TAGS</th><th>SOURCE</th><th>TIME</th>
+            </tr></thead>
+            <tbody id="finRows"></tbody>
+          </table>
+        </div>
+        <div class="pager"><span id="finPager">1-15/15</span><div style="display:flex;align-items:center;gap:4px"><button disabled aria-label="Previous page">&lt;</button><span style="padding:0 4px">1/1</span><button disabled aria-label="Next page">&gt;</button></div></div>
+      </div>
+      <div class="detail"><div class="dpanel" id="finDetail" role="region" aria-label="Finding detail" tabindex="-1"></div></div>
+    </div>
+  </section>
+
+  <!-- ── Placeholder for other pages ─────────────────────────────── -->
+  <section class="view placeholder" data-view="other">
+    <div class="panel" style="height:auto">
+      <h2 class="title" id="otherTitle">PAGE</h2>
+      <div class="muted">not included in this static preview</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <a href="#" class="glow"><svg class="i" aria-hidden="true"><use href="#i-cloud"/></svg>vigolium cloud</a><span>·</span>
+  <a href="#" class="glow">website</a><span>·</span>
+  <a href="#" class="glow">docs</a><span>·</span>
+  <a href="#" class="glow">contact us</a>
+</footer>
+
+<script>
+/* ── Helpers ─────────────────────────────────────────────────────── */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const ico = (n, cls = '') => `<svg class="i ${cls}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+/* Palette colour used as text: .ink clamps its lightness per scheme (see CSS) */
+const ink = (c, cls = '') => `class="ink ${cls}" style="--c:${c}"`;
+const SEV = { critical: 'var(--sev-critical)', high: 'var(--sev-high)', medium: 'var(--sev-medium)', low: 'var(--sev-low)', info: 'var(--sev-info)' };
+const METH = { GET: 'var(--m-get)', POST: 'var(--m-post)', PUT: 'var(--m-put)', PATCH: 'var(--m-patch)', DELETE: 'var(--m-delete)', HEAD: 'var(--m-head)', OPTIONS: 'var(--m-options)' };
+const STAT = { 2: 'var(--s-2xx)', 3: 'var(--s-3xx)', 4: 'var(--s-4xx)', 5: 'var(--s-5xx)' };
+const CONF = { certain: 'var(--c-certain)', firm: 'var(--c-firm)', tentative: 'var(--c-tentative)' };
+const CTYPE = { html: 'var(--mk-secondary)', json: 'var(--mk-accent)', xml: 'var(--mk-cyan)', javascript: '#f0c674', css: '#b294bb', text: 'var(--muted)', image: '#ff5c8f', font: '#c07840', svg: '#ff5c8f', woff: '#c07840' };
+const CHART = ['var(--mk-secondary)', 'var(--mk-success)', 'var(--mk-tertiary)', 'var(--mk-error)', 'var(--m-patch)'];
+const HASHC = ['#7fd962', '#68a8e4', '#e4a868', '#c678dd', '#56b6c2', '#e06c75', '#d19a66', '#98c379', '#e5c07b', '#61afef'];
+const hashColor = (s) => { let h = 0; for (const c of s) h = ((h << 5) - h + c.charCodeAt(0)) | 0; return HASHC[Math.abs(h) % HASHC.length]; };
+const statColor = (c) => STAT[Math.floor(c / 100)] || 'var(--muted)';
+const ctypeColor = (v) => { const k = Object.keys(CTYPE).find((k) => v.toLowerCase().includes(k)); return k ? CTYPE[k] : 'var(--muted)'; };
+const bytes = (n) => n === 0 ? '0 B' : n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
+const blocks = (n, max, w) => '█'.repeat(Math.max(0, Math.round((n / max) * w))) || '░';
+
+/* ── Theme ───────────────────────────────────────────────────────── */
+const root = document.documentElement;
+function applyTheme(t) {
+  root.dataset.theme = t;
+  $('#themeIcon use').setAttribute('href', t === 'dark' ? '#i-sun' : '#i-moon');
+  $('#themeBtn').setAttribute('aria-label', t === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+  $('meta[name="theme-color"]').content = getComputedStyle(root).getPropertyValue('--bg').trim();
+  try { localStorage.setItem('vg-theme', t); } catch (e) {}
+}
+applyTheme((() => { try { return localStorage.getItem('vg-theme') || 'dark'; } catch (e) { return 'dark'; } })());
+$('#themeBtn').addEventListener('click', () => applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
+
+/* ── Sample data ─────────────────────────────────────────────────── */
+const HOSTS = { web: 'acme-web.example.com', api: 'api.acme-web.example.com', cdn: 'cdn.acme-web.example.com', auth: 'auth.acme-web.example.com' };
+const REC_RAW = [
+  ['GET', 200, 'web', '/', 142, 'text/html', 18432, 'Acme Web — Home', 1240, 0, 'proxy', '09:41:07'],
+  ['GET', 200, 'cdn', '/static/app.js', 38, 'application/javascript', 48213, '', 5120, 1, 'proxy', '09:41:07'],
+  ['GET', 200, 'cdn', '/static/app.css', 22, 'text/css', 12044, '', 880, 0, 'proxy', '09:41:07'],
+  ['GET', 304, 'cdn', '/static/logo.svg', 12, 'image/svg+xml', 0, '', 0, 0, 'proxy', '09:41:08'],
+  ['POST', 200, 'auth', '/login', 318, 'application/json', 212, '', 14, 2, 'proxy', '09:41:22'],
+  ['GET', 302, 'web', '/account', 64, 'text/html', 0, '', 0, 0, 'proxy', '09:41:23'],
+  ['GET', 200, 'web', '/account', 177, 'text/html', 22190, 'Your account', 1590, 1, 'proxy', '09:41:23'],
+  ['GET', 200, 'api', '/api/v1/orders', 2310, 'application/json', 90112, '', 6400, 1, 'proxy', '09:41:24'],
+  ['GET', 200, 'api', '/api/v1/orders/1042', 96, 'application/json', 1844, '', 120, 0, 'proxy', '09:41:31'],
+  ['PUT', 200, 'api', '/api/v1/orders/1042', 141, 'application/json', 1844, '', 120, 1, 'proxy', '09:41:40'],
+  ['DELETE', 204, 'api', '/api/v1/cart/items/7', 88, '', 0, '', 0, 1, 'proxy', '09:41:52'],
+  ['GET', 404, 'web', '/docs/api', 41, 'text/html', 3120, 'Not found', 210, 0, 'scan', '09:42:01'],
+  ['GET', 200, 'web', '/checkout', 203, 'text/html', 27800, 'Checkout', 2010, 2, 'proxy', '09:42:10'],
+  ['POST', 201, 'api', '/api/v1/cart/items', 112, 'application/json', 420, '', 30, 1, 'proxy', '09:42:12'],
+  ['GET', 500, 'api', '/api/v1/recommendations', 1890, 'application/json', 96, '', 8, 2, 'proxy', '09:42:13'],
+  ['GET', 200, 'web', '/robots.txt', 18, 'text/plain', 164, '', 24, 0, 'scan', '09:42:30'],
+  ['GET', 200, 'web', '/sitemap.xml', 33, 'application/xml', 8210, '', 610, 0, 'scan', '09:42:30'],
+  ['GET', 200, 'cdn', '/static/fonts/inter.woff2', 15, 'font/woff2', 94120, '', 0, 0, 'proxy', '09:42:31'],
+  ['GET', 200, 'web', '/legacy', 240, 'text/html', 15900, 'Legacy portal', 1100, 1, 'proxy', '09:42:45'],
+  ['GET', 200, 'cdn', '/static/vendor/jquery-1.12.4.min.js', 27, 'application/javascript', 97163, '', 7800, 1, 'proxy', '09:42:45'],
+  ['GET', 403, 'api', '/api/v1/admin/stats', 52, 'application/json', 88, '', 6, 1, 'scan', '09:43:02'],
+  ['GET', 200, 'api', '/api/v1/health', 9, 'application/json', 42, '', 4, 0, 'scan', '09:43:02'],
+  ['POST', 200, 'web', '/newsletter/subscribe', 156, 'text/html', 9800, 'Thanks!', 640, 0, 'proxy', '09:43:18'],
+  ['GET', 200, 'web', '/search?q=shoes', 388, 'text/html', 31020, 'Search results', 2300, 1, 'proxy', '09:43:40'],
+  ['GET', 301, 'web', '/old-catalog', 21, 'text/html', 0, '', 0, 0, 'scan', '09:43:41'],
+  ['GET', 503, 'api', '/api/v1/inventory', 4012, 'text/html', 512, 'Service unavailable', 40, 2, 'proxy', '09:44:05'],
+];
+const RECORDS = REC_RAW.map((r, i) => ({
+  uuid: (0x3a1f0c00 + i * 0x9e37).toString(16).padStart(8, '0').slice(0, 8),
+  method: r[0], status: r[1], hostKey: r[2], host: HOSTS[r[2]], path: r[3], ms: r[4], ctype: r[5], size: r[6],
+  title: r[7], words: r[8], risk: r[9], src: r[10], time: '2026-11-11 ' + r[11],
+}));
+const PHRASE = { 200: 'OK', 201: 'Created', 204: 'No Content', 301: 'Moved Permanently', 302: 'Found', 304: 'Not Modified', 403: 'Forbidden', 404: 'Not Found', 500: 'Internal Server Error', 503: 'Service Unavailable' };
+
+const FINDINGS = [
+  { id: 101, sev: 'medium', conf: 'firm', module: 'cache-headers', type: 'passive', desc: 'Missing cache headers on /static', at: ['https://cdn.acme-web.example.com/static/app.js'], tags: ['cache', 'performance'], src: 'audit', time: '2026-11-11 09:41:07', rec: 1,
+    short: 'Checks static assets for `Cache-Control` and `ETag` headers.',
+    md: '# Missing cache headers\n\nStatic assets under `/static/` are served without a `Cache-Control` header. Browsers will revalidate on every navigation.\n\n## Recommendation\n\n- Add `Cache-Control: public, max-age=31536000, immutable` for fingerprinted assets\n- Emit an `ETag` or `Last-Modified` header' },
+  { id: 102, sev: 'medium', conf: 'certain', module: 'cookie-flags', type: 'passive', desc: 'Cookie set without Secure flag', at: ['https://auth.acme-web.example.com/login'], tags: ['cookie', 'transport'], src: 'audit', time: '2026-11-11 09:41:22', rec: 4,
+    short: 'Inspects `Set-Cookie` headers for `Secure`, `HttpOnly` and `SameSite` attributes.',
+    md: '# Cookie set without Secure flag\n\nThe `session` cookie issued by `/login` omits the `Secure` attribute, so a browser may send it over plain HTTP.\n\n## Recommendation\n\n- Append `; Secure` to the `Set-Cookie` header\n- Consider `SameSite=Lax` as well' },
+  { id: 103, sev: 'high', conf: 'certain', module: 'mixed-content', type: 'passive', desc: 'Mixed content on /checkout', at: ['https://acme-web.example.com/checkout'], tags: ['transport', 'markup'], src: 'audit', time: '2026-11-11 09:42:10', rec: 12,
+    short: 'Flags `http://` sub-resources referenced from HTTPS pages.',
+    md: '# Mixed content on /checkout\n\nThe checkout page references `http://cdn.acme-web.example.com/static/promo.png`. Modern browsers block or upgrade the request, which breaks the layout.\n\n## Recommendation\n\n- Reference the asset via `https://`\n- Add `Content-Security-Policy: upgrade-insecure-requests`' },
+  { id: 104, sev: 'low', conf: 'certain', module: 'server-banner', type: 'passive', desc: 'Verbose server banner', at: ['https://acme-web.example.com/'], tags: ['headers', 'hygiene'], src: 'audit', time: '2026-11-11 09:41:07', rec: 0,
+    short: 'Reports `Server` headers that include a product version.',
+    md: '# Verbose server banner\n\nResponses include `Server: nginx/1.24.0`. Version disclosure is informational but easy to trim.\n\n## Recommendation\n\n- Set `server_tokens off;` in the nginx config' },
+  { id: 105, sev: 'low', conf: 'firm', module: 'perf-latency', type: 'active', desc: 'Slow endpoint p95 2.3s', at: ['https://api.acme-web.example.com/api/v1/orders'], tags: ['performance'], src: 'audit', time: '2026-11-11 09:41:24', rec: 7,
+    short: 'Samples endpoints repeatedly and reports p95 latency above 2s.',
+    md: '# Slow endpoint p95 2.3s\n\n`GET /api/v1/orders` returned a 90 KB payload with a p95 of **2.3s** over 20 samples.\n\n## Recommendation\n\n- Paginate the orders list\n- Add an index on `orders.customer_id`' },
+  { id: 106, sev: 'info', conf: 'certain', module: 'hsts', type: 'passive', desc: 'HSTS header not present', at: ['https://acme-web.example.com/'], tags: ['headers', 'transport'], src: 'audit', time: '2026-11-11 09:41:07', rec: 0,
+    short: 'Checks for `Strict-Transport-Security` on HTTPS responses.',
+    md: '# HSTS header not present\n\nNo `Strict-Transport-Security` header was observed on the site root.\n\n## Recommendation\n\n- Add `Strict-Transport-Security: max-age=63072000; includeSubDomains`' },
+  { id: 107, sev: 'low', conf: 'tentative', module: 'csp-missing', type: 'passive', desc: 'Content-Security-Policy header missing', at: ['https://acme-web.example.com/account'], tags: ['headers'], src: 'audit', time: '2026-11-11 09:41:23', rec: 6,
+    short: 'Checks HTML responses for a `Content-Security-Policy` header.',
+    md: '# Content-Security-Policy header missing\n\nHTML pages are served without a CSP. Start with a report-only policy to measure impact.\n\n## Recommendation\n\n- Add `Content-Security-Policy-Report-Only: default-src \'self\'`' },
+  { id: 108, sev: 'info', conf: 'certain', module: 'robots-txt', type: 'passive', desc: 'robots.txt references sitemap path', at: ['https://acme-web.example.com/robots.txt'], tags: ['discovery'], src: 'spa', time: '2026-11-11 09:42:30', rec: 15,
+    short: 'Parses `robots.txt` for `Sitemap:` and `Disallow:` entries.',
+    md: '# robots.txt references sitemap path\n\n`robots.txt` lists `Sitemap: /sitemap.xml`. Informational; the sitemap was fetched and indexed for crawling.' },
+  { id: 109, sev: 'medium', conf: 'firm', module: 'cors-wildcard', type: 'passive', desc: 'CORS allows wildcard origin on /api/public', at: ['https://api.acme-web.example.com/api/v1/health'], tags: ['headers', 'cors'], src: 'audit', time: '2026-11-11 09:43:02', rec: 21,
+    short: 'Reports `Access-Control-Allow-Origin: *` on JSON endpoints.',
+    md: '# CORS allows wildcard origin\n\n`/api/v1/health` responds with `Access-Control-Allow-Origin: *`. Acceptable for public data; verify no credentialed endpoints share the config.' },
+  { id: 110, sev: 'info', conf: 'certain', module: 'compression', type: 'passive', desc: 'Response not gzip-compressed', at: ['https://cdn.acme-web.example.com/static/vendor/jquery-1.12.4.min.js'], tags: ['performance'], src: 'audit', time: '2026-11-11 09:42:45', rec: 19,
+    short: 'Flags text responses above 10 KB served without `Content-Encoding`.',
+    md: '# Response not gzip-compressed\n\nA 97 KB JavaScript file is served without `Content-Encoding`.\n\n## Recommendation\n\n- Enable `gzip` or `br` for `application/javascript`' },
+  { id: 111, sev: 'low', conf: 'certain', module: 'html-validation', type: 'passive', desc: 'Duplicate id attributes in markup', at: ['https://acme-web.example.com/search?q=shoes'], tags: ['markup', 'a11y'], src: 'spa', time: '2026-11-11 09:43:40', rec: 23,
+    short: 'Runs a lightweight HTML validator over rendered pages.',
+    md: '# Duplicate id attributes\n\nThe search results page renders `id="product-card"` 12 times. Screen readers and `getElementById` will only see the first.\n\n## Recommendation\n\n- Use a class or suffix the id with the product key' },
+  { id: 112, sev: 'info', conf: 'firm', module: 'outdated-lib', type: 'passive', desc: 'jQuery 1.12 referenced on /legacy', at: ['https://acme-web.example.com/legacy'], tags: ['dependency'], src: 'extension', time: '2026-11-11 09:42:45', rec: 18,
+    short: 'Fingerprints bundled front-end libraries and compares against latest release.',
+    md: '# jQuery 1.12 referenced on /legacy\n\nThe legacy portal loads `jquery-1.12.4.min.js` (2016). Consider upgrading or removing it if unused.' },
+  { id: 113, sev: 'critical', conf: 'certain', module: 'tls-expiry', type: 'active', desc: 'TLS certificate expires in 6 days', at: ['https://acme-web.example.com/'], tags: ['transport', 'ops'], src: 'audit', time: '2026-11-11 09:41:07', rec: 0,
+    short: 'Checks certificate `notAfter` against a 14-day warning window.',
+    md: '# TLS certificate expires in 6 days\n\nThe leaf certificate for `acme-web.example.com` expires on **2026-11-17**. Renew before then to avoid browser warnings.\n\n## Recommendation\n\n- Trigger the ACME renewal job\n- Verify auto-renew is scheduled' },
+  { id: 114, sev: 'high', conf: 'certain', module: 'broken-links', type: 'active', desc: 'Broken link 404 on /docs/api', at: ['https://acme-web.example.com/docs/api'], tags: ['content'], src: 'spa', time: '2026-11-11 09:42:01', rec: 11,
+    short: 'Follows in-page anchors and reports 4xx/5xx targets.',
+    md: '# Broken link 404 on /docs/api\n\nThe footer link **API docs** points to `/docs/api`, which returns 404.\n\n## Recommendation\n\n- Update the link to `/docs/api/v1` or restore the page' },
+  { id: 115, sev: 'medium', conf: 'tentative', module: 'x-frame-options', type: 'passive', desc: 'X-Frame-Options header missing', at: ['https://acme-web.example.com/checkout'], tags: ['headers'], src: 'audit', time: '2026-11-11 09:42:10', rec: 12,
+    short: 'Checks HTML responses for frame-ancestors protection.',
+    md: '# X-Frame-Options header missing\n\nThe checkout page can be embedded in a frame by other origins.\n\n## Recommendation\n\n- Add `X-Frame-Options: SAMEORIGIN` or a CSP `frame-ancestors` directive' },
+];
+
+const SCANS = [
+  { st: 'running', name: 'nightly-audit', mode: 'audit / proxy', f: 6, p: 812 },
+  { st: 'completed', name: 'checkout-regression', mode: 'audit / scan', f: 4, p: 310 },
+  { st: 'completed', name: 'spa-crawl', mode: 'spa / scan', f: 3, p: 142 },
+  { st: 'paused', name: 'legacy-portal', mode: 'audit / proxy', f: 2, p: 88 },
+  { st: 'failed', name: 'api-smoke', mode: 'audit / scan', f: 0, p: 12 },
+];
+
+/* ── Raw request/response generators ─────────────────────────────── */
+function rawRequest(r) {
+  const lines = [`${r.method} ${r.path} HTTP/1.1`, `Host: ${r.host}`, 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/537.36 Chrome/131.0 Safari/537.36', 'Accept: */*', 'Accept-Encoding: gzip, deflate, br', 'Accept-Language: en-US,en;q=0.9', 'Connection: keep-alive'];
+  if (r.hostKey !== 'cdn') lines.push('Cookie: session=4f2c9a1e7b3d; theme=dark');
+  if (r.method === 'POST' || r.method === 'PUT') { lines.push('Content-Type: application/json', 'Content-Length: 41', '', '{"quantity":2,"sku":"AW-1042","gift":false}'); }
+  return lines.join('\n');
+}
+function rawResponse(r) {
+  const lines = [`HTTP/1.1 ${r.status} ${PHRASE[r.status] || ''}`, 'Server: nginx/1.24.0', `Date: Wed, 11 Nov 2026 ${r.time.slice(11)} GMT`];
+  if (r.ctype) lines.push(`Content-Type: ${r.ctype}${r.ctype.startsWith('text') ? '; charset=utf-8' : ''}`);
+  lines.push(`Content-Length: ${r.size}`, 'Connection: keep-alive');
+  if (r.hostKey === 'cdn') lines.push('ETag: "6734a1b2-bc55"'); else lines.push('Cache-Control: no-store', 'X-Request-Id: ' + r.uuid + '-7b1e');
+  if (r.hostKey === 'auth') lines.push('Set-Cookie: session=4f2c9a1e7b3d; Path=/; HttpOnly');
+  if (r.hostKey === 'api' && r.path.includes('health')) lines.push('Access-Control-Allow-Origin: *');
+  if (r.status === 301 || r.status === 302) lines.push('Location: https://acme-web.example.com/' + (r.status === 302 ? 'login' : 'catalog'));
+  let body = '';
+  if (r.ctype.includes('html')) body = `<!doctype html>\n<html lang="en">\n<head><title>${r.title || 'Acme Web'}</title><link rel="stylesheet" href="/static/app.css"></head>\n<body>\n  <header class="site-header">…</header>\n  <main id="app"></main>\n  <script src="/static/app.js"><\/script>\n</body>\n</html>`;
+  else if (r.ctype.includes('json')) body = r.status >= 500 ? '{"error":"upstream timeout","request_id":"' + r.uuid + '"}' : r.path.includes('health') ? '{"status":"ok","uptime":"3d4h"}' : '{"data":[{"id":1042,"status":"paid","total":129.5}],"page":1,"per_page":50}';
+  else if (r.ctype.includes('javascript')) body = '(function(){"use strict";var e=document.getElementById("app");/* … 48 KB minified … */})();';
+  else if (r.ctype.includes('css')) body = ':root{--brand:#0e7490}body{margin:0;font-family:Inter,sans-serif}/* … */';
+  else if (r.ctype.includes('plain')) body = 'User-agent: *\nDisallow: /account\nSitemap: https://acme-web.example.com/sitemap.xml';
+  else if (r.ctype.includes('xml')) body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://acme-web.example.com/</loc></url>\n  …\n</urlset>';
+  return lines.join('\n') + (body ? '\n\n' + body : '');
+}
+function highlightResponse(text) {
+  const [head, ...rest] = text.split('\n\n');
+  const out = head.split('\n').map((line, i) => {
+    if (i === 0) { const m = line.match(/^(\S+)\s+(\d{3})(.*)$/); if (m) return `<span class="proto">${esc(m[1])} </span><span ${ink(statColor(+m[2]), 'b')}>${esc(m[2] + m[3])}</span>`; }
+    const idx = line.indexOf(':');
+    return idx > 0 ? `<span class="hn">${esc(line.slice(0, idx))}</span>${esc(line.slice(idx))}` : esc(line);
+  });
+  return out.join('\n') + (rest.length ? '\n\n' + esc(rest.join('\n\n')) : '');
+}
+function copyBtn(label, icon = 'copy') { return `<button class="btn sm">${ico(icon)}${label}</button>`; }
+
+/* ── Dashboard render ────────────────────────────────────────────── */
+(function dashboard() {
+  const sev = [['critical', 1], ['high', 2], ['medium', 5], ['low', 4], ['info', 3]];
+  const max = Math.max(...sev.map((d) => d[1]));
+  /* The scale is 30 blocks where the panel has room, fewer where it has not, so the count never leaves the row */
+  const sevEl = $('#sevBars');
+  let sevW = 30;
+  const drawSev = () => { sevEl.innerHTML = sev.map(([s, n]) => `<div class="row"><span class="lab">${s}</span><span class="bar" style="color:${SEV[s]}" aria-hidden="true">${blocks(n, max, sevW)}</span><span class="n">${n}</span></div>`).join(''); };
+  drawSev();
+  new ResizeObserver(() => {
+    const bar = $('.bar', sevEl), ch = bar.getBoundingClientRect().width / bar.textContent.length;
+    if (!ch) return; /* view is hidden */
+    const w = Math.max(8, Math.min(30, Math.floor((sevEl.clientWidth - 88) / ch) - 2)); /* 72px label + two 8px gaps, then two cells for the count */
+    if (w !== sevW) { sevW = w; drawSev(); }
+  }).observe(sevEl);
+  const tiny = matchMedia('(max-width: 349px)');
+
+  function donut(el, data, colors, labW) {
+    const R = 36, C = 2 * Math.PI * R, total = data.reduce((s, d) => s + d[1], 0), max = Math.max(...data.map((d) => d[1]));
+    let acc = 0;
+    const segs = data.map(([l, n], i) => { const len = (n / total) * C; const s = `<circle class="seg" cx="50" cy="50" r="${R}" fill="none" stroke="${Array.isArray(colors) ? colors[i % colors.length] : colors[l]}" stroke-width="16" stroke-dasharray="0 ${C}" data-len="${len}" stroke-dashoffset="${-acc}" transform="rotate(-90 50 50)"/>`; acc += len; return s; }).join('');
+    /* viewBox is cropped to the ring's own width so it sits flush with the panel's text edge */
+    el.innerHTML = `<svg class="donut" width="88" height="100" viewBox="6 0 88 100" aria-hidden="true"><circle cx="50" cy="50" r="${R}" fill="none" stroke="var(--border)" stroke-width="16" opacity=".5"/>${segs}<text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="700" fill="var(--text)">${total}</text></svg>
+      <div class="bars ${labW || ''}">${data.map(([l, n], i) => `<div class="row"><span class="lab trunc" title="${esc(l)}">${esc(l)}</span><span class="val"><span class="bar" style="color:${Array.isArray(colors) ? colors[i % colors.length] : colors[l]}" aria-hidden="true">${blocks(n, max, tiny.matches ? 6 : 8)}</span><span class="n">${n}</span><span class="pct">(${Math.round((n / total) * 100)}%)</span></span></div>`).join('')}</div>`;
+    requestAnimationFrame(() => requestAnimationFrame(() => $$('circle.seg', el).forEach((c) => c.setAttribute('stroke-dasharray', `${c.dataset.len} ${C}`))));
+  }
+  const drawDonuts = () => {
+    donut($('#donutConf'), [['certain', 8], ['firm', 5], ['tentative', 2]], CONF);
+    donut($('#donutMod'), [['cache-headers', 4], ['cookie-flags', 3], ['perf-latency', 3], ['hsts', 2], ['csp-missing', 2]], CHART, 'w90');
+    donut($('#donutStatus'), [['2xx', 1021], ['4xx', 152], ['3xx', 94], ['5xx', 17]], { '2xx': 'var(--s-2xx)', '3xx': 'var(--s-3xx)', '4xx': 'var(--s-4xx)', '5xx': 'var(--s-5xx)' });
+    donut($('#donutCtype'), [['html', 412], ['json', 388], ['javascript', 211], ['css', 120], ['image', 98]], CHART, 'w90');
+  };
+  drawDonuts();
+  tiny.addEventListener('change', drawDonuts);
+
+  const sc = { running: 'var(--success)', paused: 'var(--warn)', completed: 'var(--accent)', failed: 'var(--error)' };
+  $('#scanRows').innerHTML = SCANS.map((s, i) => {
+    const act = s.st === 'running' ? `<button class="t10 warn glow">[pause]</button><button class="t10 err glow">[stop]</button>` : s.st === 'paused' ? `<button class="t10 ok glow">[resume]</button><button class="t10 err glow">[stop]</button>` : '';
+    return `<tr><td><span class="b up" style="color:${sc[s.st]}">${s.st}</span></td><td>${s.name}</td><td class="muted">${s.mode}</td><td class="r">${s.f}</td><td class="r">${s.p}</td><td class="muted">2026-11-${String(11 - i).padStart(2, '0')} ${['09:40:12', '22:00:00', '18:14:51', '11:02:09', '08:30:44'][i]}</td><td><span class="acts">${act}<button class="t10 muted del">[del]</button></span></td></tr>`;
+  }).join('');
+})();
+
+/* ── HTTP records ────────────────────────────────────────────────── */
+const rec = { sel: null, status: '', meth: '', host: '', q: '', flags: new Set(), checked: new Set() };
+const STATIC_KW = ['image', 'font', 'css', 'javascript', 'svg', 'woff'];
+function recFiltered() {
+  return RECORDS.filter((r) => (!rec.status || String(r.status)[0] === rec.status) && (!rec.meth || r.method === rec.meth) && (!rec.host || r.host.includes(rec.host)) && (!rec.q || (r.path + r.host + r.title).toLowerCase().includes(rec.q))
+    && (!rec.flags.has('title') || r.title) && (!rec.flags.has('remarks') || r.risk >= 2) && (!rec.flags.has('static') || !STATIC_KW.some((k) => r.ctype.includes(k))));
+}
+/* Rows are rebuilt on every change, so keyboard focus is handed back to the same row or checkbox afterwards */
+function keepRowFocus(tbody, render) {
+  const a = document.activeElement, id = tbody.contains(a) ? a.closest('tr').dataset.id : null, box = id && a.classList.contains('cbx');
+  render();
+  const tr = id && tbody.querySelector(`tr[data-id="${id}"]`);
+  if (tr) (box ? $('.cbx', tr) : tr).focus();
+}
+/* Below 900px the detail stacks under the table, so opening one brings it into view */
+const stacked = matchMedia('(max-width: 900px)');
+const reveal = (el) => { if (stacked.matches) el.scrollIntoView({ block: 'start' }); };
+/* Enter or Space on a row opens its detail and moves focus into it */
+function rowKey(e) {
+  if (!e.target.matches('tr[data-id]') || (e.key !== 'Enter' && e.key !== ' ')) return;
+  e.preventDefault();
+  e.target.click();
+  const split = e.currentTarget.closest('.split');
+  if (split.classList.contains('open')) $('.dpanel', split).focus();
+}
+function renderRecords() { keepRowFocus($('#recRows'), drawRecords); }
+function drawRecords() {
+  const rows = recFiltered();
+  $('#recRows').innerHTML = rows.map((r) => `<tr data-id="${r.uuid}" tabindex="0" class="${rec.sel === r.uuid ? 'sel' : ''}">
+    <td class="chk"><input type="checkbox" class="cbx" aria-label="Select ${r.method} ${esc(r.path)}" ${rec.checked.has(r.uuid) ? 'checked' : ''}></td>
+    <td ${ink(METH[r.method], 'b')}>${r.method}</td>
+    <td ${ink(statColor(r.status), 'b')}>${r.status}</td>
+    <td>${r.host}</td><td title="${esc(r.path)}">${esc(r.path)}</td>
+    <td class="r muted tnum">${r.ms}</td>
+    <td ${ink(ctypeColor(r.ctype), 'b')}>${r.ctype || '<span class="dim" style="font-weight:400">—</span>'}</td>
+    <td class="r muted tnum">${bytes(r.size)}</td><td>${esc(r.title)}</td><td class="r tnum">${r.words}</td><td class="r tnum">${r.risk}</td><td class="muted">${r.src}</td><td class="muted">${r.time}</td></tr>`).join('') || `<tr><td colspan="13" class="muted" style="text-align:center;padding:16px">no records</td></tr>`;
+  $('#recPager').textContent = `1-${rows.length}/1284`;
+  const any = rec.status || rec.meth || rec.host || rec.q || rec.flags.size;
+  $('#recClear').disabled = !any;
+  $('#recSelbar').classList.toggle('hide', rec.checked.size === 0);
+  $('#recSelCount').textContent = rec.checked.size;
+}
+function renderRecDetail() {
+  const r = RECORDS.find((x) => x.uuid === rec.sel);
+  $('#recSplit').classList.toggle('open', !!r);
+  if (!r) { $('#recDetail').innerHTML = ''; return; }
+  const url = `https://${r.host}${r.path}`;
+  const params = r.path.includes('?') ? r.path.split('?')[1].split('&').map((p) => p.split('=')) : r.method === 'POST' || r.method === 'PUT' ? [['quantity', 'body', '2'], ['sku', 'body', 'AW-1042']] : [];
+  const remarks = r.risk >= 2 ? ['slow', r.status >= 500 ? 'server-error' : 'sets-cookie'] : r.risk === 1 ? ['json'] : [];
+  $('#recDetail').innerHTML = `
+    <div class="dhdr"><h2 class="t">RECORD ${r.uuid}</h2><button data-close aria-label="Close detail">[x]</button></div>
+    <div class="dbody">
+      <div style="display:flex;gap:12px;align-items:center"><span ${ink(METH[r.method], 'b')}>${r.method}</span><span ${ink(statColor(r.status), 'b')}>${r.status} ${PHRASE[r.status] || ''}</span></div>
+      <div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span class="muted">url:</span>${copyBtn('url')}<button class="btn sm" data-filterhost="${r.host}">${ico('filter')}filter host</button></div>
+        <span style="word-break:break-all">${esc(url)}</span>
+      </div>
+      <div class="kv">
+        <div>scheme: <span class="v">https</span></div><div>host: <span class="v">${r.host}:443</span></div>
+        <div>ip: <span class="v">203.0.113.${10 + Object.keys(HOSTS).indexOf(r.hostKey)}</span></div><div>http_version: <span class="v">HTTP/1.1</span></div>
+        <div>req_size: <span class="v">${bytes(r.method === 'GET' ? 0 : 41)}</span></div><div>res_size: <span class="v">${bytes(r.size)}</span></div>
+        ${r.method !== 'GET' && r.method !== 'DELETE' ? '<div>req_ctype: <span class="v">application/json</span></div>' : ''}
+        ${r.ctype ? `<div>res_ctype: <span class="v">${r.ctype}</span></div>` : ''}
+        <div>response_time: <span class="v">${r.ms}ms</span></div><div>source: <span class="v">${r.src}</span></div>
+        <div>risk_score: <span class="v">${r.risk}</span></div><div>sent_at: <span class="v">${r.time}</span></div>
+      </div>
+      ${params.length ? `<div><div class="muted" style="margin-bottom:2px">parameters:</div>${params.map((p) => `<div><span class="sec">${esc(p[0])}</span><span class="muted"> (${p.length === 3 ? p[1] : 'query'})</span> = ${esc(p[2] ?? p[1])}</div>`).join('')}</div>` : ''}
+      ${remarks.length ? `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap"><span class="muted">remarks:</span>${remarks.map((x) => `<span class="remark">${x}</span>`).join('')}</div>` : ''}
+      <div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><span class="muted">raw_request:</span>${copyBtn('request')}${copyBtn('curl', 'terminal')}</div>
+        <pre class="well h64">${esc(rawRequest(r))}</pre>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><span class="muted">raw_response:</span>${copyBtn('response')}</div>
+        <pre class="well h96">${highlightResponse(rawResponse(r))}</pre>
+      </div>
+    </div>`;
+}
+function closeRec() { const id = rec.sel; rec.sel = null; renderRecords(); renderRecDetail(); $(`#recRows tr[data-id="${id}"]`)?.focus(); }
+$('#recRows').addEventListener('click', (e) => {
+  const tr = e.target.closest('tr[data-id]'); if (!tr) return;
+  const id = tr.dataset.id;
+  /* the whole cell toggles the checkbox, not only its 12px box */
+  if (e.target.closest('td.chk')) { rec.checked.has(id) ? rec.checked.delete(id) : rec.checked.add(id); renderRecords(); return; }
+  rec.sel = rec.sel === id ? null : id; renderRecords(); renderRecDetail();
+  if (rec.sel) reveal($('#recDetail'));
+});
+$('#recRows').addEventListener('keydown', rowKey);
+$('#recAll').addEventListener('change', (e) => { rec.checked = new Set(e.target.checked ? recFiltered().map((r) => r.uuid) : []); renderRecords(); });
+$('#recDetail').addEventListener('click', (e) => {
+  if (e.target.closest('[data-close]')) { closeRec(); return; }
+  const fh = e.target.closest('[data-filterhost]'); if (fh) { rec.host = fh.dataset.filterhost; $('#recHost').value = rec.host; renderRecords(); }
+});
+const setChip = (c, on) => { c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); };
+$('#recStatus').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (!b) return; rec.status = b.dataset.s; $$('#recStatus .chip').forEach((c) => setChip(c, c === b)); renderRecords(); });
+$$('.chip[data-f]').forEach((b) => b.addEventListener('click', () => { setChip(b, !b.classList.contains('on')); b.classList.contains('on') ? rec.flags.add(b.dataset.f) : rec.flags.delete(b.dataset.f); renderRecords(); }));
+$('#recHost').addEventListener('input', (e) => { rec.host = e.target.value.trim(); renderRecords(); });
+$('#recSearch').addEventListener('input', (e) => { rec.q = e.target.value.trim().toLowerCase(); renderRecords(); });
+$('#recMeth').addEventListener('click', (e) => { const order = ['', 'GET', 'POST', 'PUT', 'DELETE']; rec.meth = order[(order.indexOf(rec.meth) + 1) % order.length]; const b = e.currentTarget; b.querySelector('span').textContent = rec.meth ? rec.meth : 'meth:all'; b.classList.toggle('set', !!rec.meth); renderRecords(); });
+$('#recClear').addEventListener('click', () => { Object.assign(rec, { status: '', meth: '', host: '', q: '' }); rec.flags.clear(); $('#recHost').value = ''; $('#recSearch').value = ''; $('#recMeth span').textContent = 'meth:all'; $('#recMeth').classList.remove('set'); $$('#recStatus .chip').forEach((c) => setChip(c, c.dataset.s === '')); $$('.chip[data-f]').forEach((c) => setChip(c, false)); renderRecords(); });
+
+/* ── Findings ────────────────────────────────────────────────────── */
+const fin = { sel: null, sev: '', domain: '', module: '', q: '', checked: new Set(), descTab: 'raw', evTab: 0 };
+function finFiltered() {
+  return FINDINGS.filter((f) => (!fin.sev || f.sev === fin.sev) && (!fin.domain || f.at[0].includes(fin.domain)) && (!fin.module || f.module.includes(fin.module)) && (!fin.q || (f.desc + f.module + f.tags.join()).toLowerCase().includes(fin.q)));
+}
+function renderFindings() { keepRowFocus($('#finRows'), drawFindings); }
+function drawFindings() {
+  const rows = finFiltered();
+  $('#finRows').innerHTML = rows.map((f) => `<tr data-id="${f.id}" tabindex="0" class="${fin.sel === f.id ? 'sel' : ''}">
+    <td class="chk"><input type="checkbox" class="cbx" aria-label="Select finding ${f.id}" ${fin.checked.has(f.id) ? 'checked' : ''}></td>
+    <td class="tnum">${f.id}</td>
+    <td ${ink(SEV[f.sev], 'b up')}>${f.sev}</td>
+    <td ${ink(CONF[f.conf])}>${f.conf}</td>
+    <td>${f.module}</td>
+    <td ${ink(f.type === 'active' ? 'var(--m-post)' : 'var(--m-options)')}>${f.type}</td>
+    <td title="${esc(f.desc)}">${esc(f.desc)}</td>
+    <td title="${esc(f.at.join(', '))}">${esc(f.at.join(', '))}</td>
+    <td>${f.tags.map((t, i) => `${i ? '<span class="muted">, </span>' : ''}<span ${ink(hashColor(t))}>${t}</span>`).join('')}</td>
+    <td>${f.src}</td><td class="muted">${f.time}</td></tr>`).join('') || `<tr><td colspan="11" class="muted" style="text-align:center;padding:16px">no findings</td></tr>`;
+  $('#finPager').textContent = `1-${rows.length}/${rows.length}`;
+  $('#finClear').disabled = !(fin.sev || fin.domain || fin.module || fin.q);
+  $('#finSelbar').classList.toggle('hide', fin.checked.size === 0);
+  $('#finSelCount').textContent = fin.checked.size;
+}
+function mdInline(s) { return esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); }
+function mdRender(md) {
+  const out = []; let ul = false;
+  for (const line of md.split('\n')) {
+    if (line.startsWith('- ')) { if (!ul) { out.push('<ul>'); ul = true; } out.push(`<li>${mdInline(line.slice(2))}</li>`); continue; }
+    if (ul) { out.push('</ul>'); ul = false; }
+    /* the description sits under the panel's own h2, so its markdown headings start at h3 */
+    if (line.startsWith('# ')) out.push(`<h3>${mdInline(line.slice(2))}</h3>`);
+    else if (line.startsWith('## ')) out.push(`<h4>${mdInline(line.slice(3))}</h4>`);
+    else if (line.trim()) out.push(`<p>${mdInline(line)}</p>`);
+  }
+  if (ul) out.push('</ul>');
+  return out.join('');
+}
+function mdRaw(md) {
+  return md.split('\n').map((line) => {
+    if (/^#{1,3} /.test(line)) return `<span class="h ink">${esc(line)}</span>`;
+    let s = esc(line).replace(/`([^`]+)`/g, '<span class="p ink">`</span><span class="c ink">$1</span><span class="p ink">`</span>').replace(/\*\*([^*]+)\*\*/g, '<span class="p ink">**</span><span class="bd ink">$1</span><span class="p ink">**</span>');
+    if (line.startsWith('- ')) s = `<span class="l ink">-</span>${s.slice(1)}`;
+    return s;
+  }).join('\n');
+}
+function renderFinDetail() {
+  const f = FINDINGS.find((x) => x.id === fin.sel);
+  $('#finSplit').classList.toggle('open', !!f);
+  if (!f) { $('#finDetail').innerHTML = ''; return; }
+  const r = RECORDS[f.rec];
+  const hash = (f.id * 2654435761 >>> 0).toString(16).padStart(8, '0') + (f.id * 40503 >>> 0).toString(16).padStart(8, '0');
+  const evidence = [['baseline', r], ['confirm round 1', r], ['confirm round 2', r]];
+  const ev = evidence[fin.evTab] || evidence[0];
+  $('#finDetail').innerHTML = `
+    <div class="dhdr"><h2 class="t">FINDING #${f.id}</h2><span style="display:inline-flex;gap:4px"><button class="lnk" title="Copy link" aria-label="Copy link">${ico('link')}</button><button data-close aria-label="Close detail">[x]</button></span></div>
+    <div class="dbody">
+      <div style="display:flex;flex-wrap:wrap;gap:2px 12px">
+        <div><span class="muted">severity: </span><span ${ink(SEV[f.sev], 'b up')}>${f.sev}</span></div>
+        <div><span class="muted">confidence: </span><span ${ink(CONF[f.conf])}>${f.conf}</span></div>
+        <div><span class="muted">type: </span><span class="sec">${f.type}</span></div>
+        <div><span class="muted">source: </span><span class="cyan">${f.src}</span></div>
+        <div style="display:inline-flex;align-items:center;gap:4px"><span class="muted">status: </span><button class="dd"><span>${f.sev === 'critical' || f.sev === 'high' ? 'confirmed' : 'draft'}</span><span class="caret" aria-hidden="true">▾</span></button></div>
+      </div>
+      <div><span class="muted">module: </span>${f.module}<span class="muted"> (${f.module.replace(/-/g, '_')}_v1)</span></div>
+      <div class="muted md" style="font-style:italic"><span>module_short: </span>${mdInline(f.short)}</div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px"><span class="muted">tags:</span>${f.tags.map((t) => `<span class="tag">${t}</span>`).join('')}</div>
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:0 4px"><span class="muted">matched_at: (${f.at.length})</span><span style="word-break:break-all">${esc(f.at.join(', '))}</span></div>
+        <div class="muted" style="display:flex;flex-wrap:wrap;gap:0 12px"><span>finding_hash: <span style="color:var(--text);word-break:break-all">${hash}</span></span><span>found_at: <span style="color:var(--text)">${f.time}</span></span><span>scan_uuid: <span style="color:var(--text)">c4f1a9e2</span></span></div>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px"><span class="muted">description:</span>
+          <span style="display:inline-flex;gap:2px">
+            <button class="btn t10 ${fin.descTab === 'rendered' ? 'on' : ''}" data-desc="rendered" aria-pressed="${fin.descTab === 'rendered'}">${ico('eye', 's10')}rendered</button>
+            <button class="btn t10 ${fin.descTab === 'raw' ? 'on' : ''}" data-desc="raw" aria-pressed="${fin.descTab === 'raw'}">${ico('code', 's10')}raw</button>
+            <button class="btn t10">${ico('copy', 's10')}copy</button>
+          </span>
+        </div>
+        ${fin.descTab === 'rendered' ? `<div class="well h64 md" style="white-space:normal">${mdRender(f.md)}</div>` : `<pre class="well h64 mdraw">${mdRaw(f.md)}</pre>`}
+      </div>
+      <div><div class="muted" style="margin-bottom:2px">http_records:</div><div class="sec">${r.uuid}</div></div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px"><span class="muted">request:</span><button class="btn t10">${ico('copy', 's10')}copy</button><button class="btn t10">${ico('terminal', 's10')}curl</button></div>
+        <pre class="well h64">${esc(rawRequest(r))}</pre>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px"><span class="muted">response:</span><button class="btn t10">${ico('copy', 's10')}copy</button></div>
+        <pre class="well h64">${highlightResponse(rawResponse(r))}</pre>
+      </div>
+      <div>
+        <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:2px"><span class="muted" style="flex-shrink:0;padding-top:2px">additional_evidence: (${evidence.length})</span>
+          <span style="display:inline-flex;flex-wrap:wrap;gap:2px">${evidence.map((e, i) => `<button class="btn t10 ${fin.evTab === i ? 'on' : ''}" data-ev="${i}" aria-pressed="${fin.evTab === i}">${e[0]}</button>`).join('')}<button class="btn t10">${ico('copy', 's10')}copy</button></span>
+        </div>
+        <div class="evbox"><pre>${esc(rawRequest(ev[1]))}</pre><div class="dash-line"></div><pre>${highlightResponse(rawResponse(ev[1]))}</pre></div>
+      </div>
+    </div>`;
+}
+function closeFin() { const id = fin.sel; fin.sel = null; renderFindings(); renderFinDetail(); $(`#finRows tr[data-id="${id}"]`)?.focus(); }
+$('#finRows').addEventListener('click', (e) => {
+  const tr = e.target.closest('tr[data-id]'); if (!tr) return; const id = +tr.dataset.id;
+  if (e.target.closest('td.chk')) { fin.checked.has(id) ? fin.checked.delete(id) : fin.checked.add(id); renderFindings(); return; }
+  fin.sel = fin.sel === id ? null : id; fin.evTab = 0; renderFindings(); renderFinDetail();
+  if (fin.sel) reveal($('#finDetail'));
+});
+$('#finRows').addEventListener('keydown', rowKey);
+$('#finAll').addEventListener('change', (e) => { fin.checked = new Set(e.target.checked ? finFiltered().map((f) => f.id) : []); renderFindings(); });
+$('#finDetail').addEventListener('click', (e) => {
+  if (e.target.closest('[data-close]')) { closeFin(); return; }
+  /* the panel is rebuilt on a tab change; keep focus on the tab that was pressed */
+  const d = e.target.closest('[data-desc]'); if (d) { fin.descTab = d.dataset.desc; renderFinDetail(); $(`#finDetail [data-desc="${fin.descTab}"]`).focus(); return; }
+  const ev = e.target.closest('[data-ev]'); if (ev) { fin.evTab = +ev.dataset.ev; renderFinDetail(); $(`#finDetail [data-ev="${fin.evTab}"]`).focus(); }
+});
+$('#finSev').addEventListener('click', (e) => { const order = ['', 'critical', 'high', 'medium', 'low', 'info']; fin.sev = order[(order.indexOf(fin.sev) + 1) % order.length]; const b = e.currentTarget; b.querySelector('span').textContent = fin.sev || 'sev:all'; b.classList.toggle('set', !!fin.sev); renderFindings(); });
+$('#finDomain').addEventListener('input', (e) => { fin.domain = e.target.value.trim(); renderFindings(); });
+$('#finModule').addEventListener('input', (e) => { fin.module = e.target.value.trim(); renderFindings(); });
+$('#finSearch').addEventListener('input', (e) => { fin.q = e.target.value.trim().toLowerCase(); renderFindings(); });
+$('#finClear').addEventListener('click', () => { Object.assign(fin, { sev: '', domain: '', module: '', q: '' }); ['#finDomain', '#finModule', '#finSearch'].forEach((s) => $(s).value = ''); $('#finSev span').textContent = 'sev:all'; $('#finSev').classList.remove('set'); renderFindings(); });
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  const view = $('.view.on').dataset.view;
+  if (view === 'http-records' && rec.sel) closeRec();
+  if (view === 'findings' && fin.sel) closeFin();
+});
+
+/* ── Hash router ─────────────────────────────────────────────────── */
+const VIEWS = ['dashboard', 'http-records', 'findings'];
+function route() {
+  const h = location.hash.replace('#', '') || 'dashboard';
+  const view = VIEWS.includes(h) ? h : 'other';
+  $$('.view').forEach((v) => { v.classList.remove('on'); if (v.dataset.view === view) { v.classList.add('on'); v.style.animation = 'none'; void v.offsetWidth; v.style.animation = ''; } });
+  const name = h.replace(/-/g, ' ').toUpperCase();
+  $('#viewTitle').textContent = name;
+  if (view === 'other') $('#otherTitle').textContent = name;
+  $$('#nav a').forEach((a) => {
+    const on = a.getAttribute('href') === '#' + h;
+    a.classList.toggle('active', on);
+    on ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current');
+  });
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', route);
+
+renderRecords(); renderRecDetail();
+renderFindings(); renderFinDetail();
+route();
+</script>
+</body>
+</html>

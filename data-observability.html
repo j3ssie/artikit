@@ -1,0 +1,1682 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Observability (sample)</title>
+<meta name="description" content="A dark observability sample: availability, traces, logs, infrastructure and incidents on generated data.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#09090b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ======================================================================
+   Dark observability sample. Tokens first; nothing below uses
+   a literal colour or font, so the tweak dock can re-theme the
+   whole page by setting these.
+   ====================================================================== */
+:root{
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  --mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+
+  --bg:#09090b;
+  --bg-raise:#111113;            /* hover wash for rows / controls */
+  --bg-raise-2:#18181b;
+  --pop:var(--bg-raise-2);       /* tooltips: stays opaque when the other planes go translucent */
+  --fg:#f4f4f5;                  /* primary text */
+  --fg-2:#9a9ba3;                /* secondary metadata */
+  --fg-3:#7c7d86;                /* tertiary / axis, 4.6:1 on --bg-raise */
+  --fg-4:#3f4047;                /* ghost */
+  --fg-hover:#fff;               /* primary button, hovered */
+  --line:rgba(255,255,255,.06);  /* hairline row separators only */
+  --line-2:rgba(255,255,255,.10);
+  --grid:#17171a;
+  --axis:#232327;
+  --focus:#3b82f6;
+
+  /* series — validated against #0a0a0a (dark band, CVD, contrast) */
+  --s-blue:#3b82f6;
+  --s-teal:#14a089;
+  --s-violet:#8c7cf0;
+  --s-amber:#b8861f;
+  --s-grey:#3f3f46;
+  /* ordinal blue ramp (p50 → p99) */
+  --o1:#a9c9fb; --o2:#5b9cf6; --o3:#2d6fe0;
+  --fg-accent:var(--o1);         /* accent-coloured text: ids in log lines */
+  /* sequential blue for the heatmap (near-surface → bright) */
+  --q0:#101218; --q1:#12203a; --q2:#163160; --q3:#1c4788; --q4:#2662b4; --q5:#3987e5; --q6:#6da7ec; --q7:#a9c9fb;
+  /* status (fixed) */
+  --good:#22b052; --warn:#f0ad26; --serious:#ec835a; --crit:#e5484d;
+  --good-wash:rgba(34,176,82,.12); --warn-wash:rgba(240,173,38,.12); --crit-wash:rgba(229,72,77,.12);
+  --blue-wash:rgba(59,130,246,.14);
+  --glow:rgba(59,130,246,.10);   /* soft light behind the top of the page */
+  --select:rgba(59,130,246,.35);
+  --badge:color-mix(in srgb,var(--crit) 88%,#000); --on-badge:#fff;
+  --pill-edge:rgba(255,255,255,.04);
+  --shadow:rgba(0,0,0,.8);
+
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-io:cubic-bezier(.65,0,.35,1);
+  --t-fast:140ms;
+  --t-med:260ms;
+  --r-sm:6px; --r:8px; --r-lg:12px;
+
+  --container:1200px;
+  --gutter:32px;
+  --section-gap:72px;
+  --bleed:12px;                  /* how far table rows reach past the content edge */
+}
+
+/* ---------- base ---------- */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;overflow-x:clip;background:var(--bg);scrollbar-color:var(--fg-4) var(--bg)}
+body{
+  position:relative;
+  margin:0;min-height:100dvh;overflow-x:clip;
+  background:var(--bg);color:var(--fg);
+  font-family:var(--sans);font-size:14px;line-height:1.5;
+  font-feature-settings:"cv11","ss03";
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;
+}
+body::before{content:"";position:absolute;inset:0 0 auto 0;height:520px;pointer-events:none;z-index:0;
+  background:radial-gradient(60% 100% at 50% -20%,var(--glow),transparent 70%)}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+svg{display:block}
+::selection{background:var(--select);color:var(--fg)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:var(--r-sm)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.mono{font-family:var(--mono);font-feature-settings:normal}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--fg-2)}
+.icon{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.icon.sm{width:14px;height:14px}
+.icon.xs{width:12px;height:12px;stroke-width:1.75}
+
+.wrap{max-width:var(--container);margin:0 auto;padding:0 var(--gutter)}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px)}
+.topbar .wrap{display:flex;align-items:center;gap:20px;height:60px}
+.brand{display:flex;align-items:center;gap:10px;padding-block:9px;font-weight:600;font-size:14px;letter-spacing:-.01em}
+.brand .mark{width:22px;height:22px;color:var(--s-blue)}
+.topbar .wrap.tight .brand{font-size:0;gap:0}  /* no room for everything: the mark stays, the wordmark goes */
+.crumb{display:flex;align-items:center;gap:8px;color:var(--fg-2);font-size:13px}
+.brand,.crumb{white-space:nowrap}             /* at larger text sizes the search label gives way, not these */
+.crumb .sep{color:var(--fg-4)}
+.crumb button{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;margin:-6px -8px;border-radius:var(--r-sm);color:var(--fg);transition:background-color var(--t-fast) var(--ease-out)}
+.crumb button:hover{background:var(--bg-raise-2)}
+.crumb .icon{color:var(--fg-3)}
+.topbar .spacer{flex:1}
+.search{position:relative;display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-radius:var(--r);background:var(--bg-raise);color:var(--fg-3);font-size:13px;min-width:220px;transition:background-color var(--t-fast) var(--ease-out),color var(--t-fast) var(--ease-out),transform var(--t-fast) var(--ease-out)}
+.search:hover{background:var(--bg-raise-2);color:var(--fg-2)}
+.search>span:first-of-type{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search .kbd{margin-left:auto;display:inline-flex;gap:2px}
+.kbd span{font-family:var(--sans);font-size:11px;line-height:18px;min-width:18px;text-align:center;padding:0 4px;border-radius:4px;background:var(--bg-raise-2);color:var(--fg-2)}
+.iconbtn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:var(--r);color:var(--fg-2);transition:background-color var(--t-fast) var(--ease-out),color var(--t-fast) var(--ease-out),transform var(--t-fast) var(--ease-out)}
+.iconbtn:hover{background:var(--bg-raise-2);color:var(--fg)}
+.search:active,.iconbtn:active,.chip:active{transform:scale(.98)}
+.iconbtn .count{position:absolute;top:2px;right:2px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;background:var(--badge);color:var(--on-badge);font-size:11px;font-weight:600;line-height:14px;text-align:center;font-variant-numeric:tabular-nums}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--bg-raise-2);color:var(--fg);font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;letter-spacing:.02em}
+
+/* segmented control (equal-width segments, sliding pill) */
+.seg{position:relative;display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;height:32px;padding:3px;border-radius:var(--r);background:var(--bg-raise);isolation:isolate}
+.seg button{position:relative;z-index:1;padding:0 12px;border-radius:var(--r-sm);font-size:12.5px;font-weight:500;color:var(--fg-2);transition:color var(--t-fast) var(--ease-out);white-space:nowrap}
+.seg button:hover{color:var(--fg)}
+.seg button[aria-pressed="true"]{color:var(--fg)}
+.seg .pill{position:absolute;z-index:0;top:3px;bottom:3px;left:3px;border-radius:var(--r-sm);background:var(--bg-raise-2);box-shadow:0 1px 0 var(--pill-edge) inset;transition:transform var(--t-med) var(--ease-out);will-change:transform}
+
+/* ---------- tabs ---------- */
+.tabs-wrap{position:sticky;top:60px;z-index:39;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px)}
+.tabs-wrap::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--line)}
+.tabs{--fade-l:#000;--fade-r:transparent;position:relative;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;-webkit-mask-image:linear-gradient(90deg,var(--fade-l),#000 28px,#000 calc(100% - 28px),var(--fade-r));mask-image:linear-gradient(90deg,var(--fade-l),#000 28px,#000 calc(100% - 28px),var(--fade-r))}
+.tabs.scrolled{--fade-l:transparent}
+.tabs.at-end{--fade-r:#000}
+.tabs::-webkit-scrollbar{display:none}
+.tabs a{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 12px;color:var(--fg-2);font-size:13.5px;font-weight:500;white-space:nowrap;border-radius:var(--r-sm);transition:color var(--t-fast) var(--ease-out)}
+.tabs a .icon{color:var(--fg-3);transition:color var(--t-fast) var(--ease-out)}
+.tabs a:hover{color:var(--fg)}
+.tabs a:focus-visible{outline-offset:-2px}
+.tabs a:hover .icon{color:var(--fg-2)}
+.tabs a[aria-current="page"]{color:var(--fg)}
+.tabs a[aria-current="page"] .icon{color:var(--fg)}
+.tabs .ind{position:absolute;left:0;bottom:0;height:2px;width:1px;background:var(--fg);transform-origin:left center;transition:transform var(--t-med) var(--ease-out);border-radius:1px}
+.tabs a .cnt{font-size:11px;font-weight:500;line-height:16px;padding:0 5px;border-radius:8px;background:var(--bg-raise-2);color:var(--fg-2);font-variant-numeric:tabular-nums}
+
+/* ---------- pages ---------- */
+main{padding:40px 0 96px}
+.page{display:none}
+.page.is-active{display:block;animation:pageIn .36s var(--ease-out) both}
+.page.is-leaving{animation:pageOut .14s var(--ease-io) both}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pageOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-4px)}}
+
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:40px}
+.page-head h1{margin:0;font-size:24px;line-height:1.2;font-weight:600;letter-spacing:-.02em;text-wrap:balance}
+.page-head p{margin:6px 0 0;color:var(--fg-2);font-size:14px;max-width:62ch;text-wrap:pretty}
+.page-head .actions{display:flex;gap:8px;flex:none}
+.btn{position:relative;display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:var(--r);font-size:13px;font-weight:500;color:var(--fg);background:var(--bg-raise);transition:background-color var(--t-fast) var(--ease-out),transform var(--t-fast) var(--ease-out)}
+.btn:hover{background:var(--bg-raise-2)}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--fg);color:var(--bg)}
+.btn.primary:hover{background:var(--fg-hover)}
+.btn .icon{color:var(--fg-2)}
+.btn.primary .icon{color:var(--bg)}
+
+.section{margin-top:var(--section-gap)}
+.section:first-child{margin-top:0}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:20px}
+.sec-head h2{margin:0;font-size:15px;font-weight:500;letter-spacing:-.005em;text-wrap:balance}
+.sec-head h2 span{color:var(--fg-2);font-weight:400;margin-left:8px}
+.sec-head .right{display:flex;align-items:center;gap:14px;color:var(--fg-2);font-size:12.5px;flex:none}
+.link{position:relative;color:var(--fg-2);display:inline-flex;align-items:center;gap:4px;transition:color var(--t-fast) var(--ease-out)}
+.link:hover{color:var(--fg)}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:48px 64px;align-items:start;margin-bottom:var(--section-gap)}
+.uptime{display:flex;gap:3px;height:22px;margin-top:22px;max-width:380px}
+.uptime i{flex:1;border-radius:2px;background:var(--good);opacity:.8;transform-origin:bottom;transition:opacity var(--t-fast) var(--ease-out)}
+.uptime i.warn{background:var(--warn)} .uptime i.crit{background:var(--crit)}
+.uptime i:hover{opacity:1}
+.page.is-active .uptime i.draw{transform:scaleY(0);animation:grow .5s var(--ease-out) forwards}
+.uptime-cap{display:flex;justify-content:space-between;max-width:380px;margin-top:8px;font-size:11.5px;color:var(--fg-3)}
+.hero .side{padding-top:4px}
+.hero .label{color:var(--fg-2);font-size:13px;margin-bottom:10px}
+.hero .big{font-size:64px;line-height:1;font-weight:500;letter-spacing:-.035em;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.hero .big small{font-size:14px;font-weight:500;letter-spacing:0;color:var(--good);display:inline-flex;align-items:center;gap:4px}
+.hero p{margin:16px 0 0;color:var(--fg-2);font-size:14px;max-width:46ch;text-wrap:pretty}
+.hero .side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 32px}
+
+/* stat tiles */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px 32px}
+.stat{min-width:0}
+.stat .label{color:var(--fg-2);font-size:13px;display:flex;align-items:center;gap:6px}
+.stat .label .icon{color:var(--fg-3)}
+.stat .value{margin-top:6px;font-size:28px;line-height:1.1;font-weight:500;letter-spacing:-.025em;display:flex;align-items:baseline;gap:4px}
+.stat .value .unit{font-size:14px;color:var(--fg-2);font-weight:400;letter-spacing:0}
+.stat .foot{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:24px}
+.delta{display:inline-flex;align-items:center;gap:3px;font-size:12.5px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.delta.up{color:var(--good)} .delta.down{color:var(--crit)} .delta.flat{color:var(--fg-2)}
+.delta .icon{width:12px;height:12px;stroke-width:2}
+.delta small{color:var(--fg-3);font-size:11px;font-weight:400;margin-left:3px}
+.spark{width:84px;height:24px;flex:none}
+
+/* charts */
+.chart{position:relative;width:100%}
+.chart svg{width:100%;height:auto;overflow:visible}
+.chart text{font-family:var(--sans);font-size:11.5px;fill:var(--fg-3);font-variant-numeric:tabular-nums}
+.chart .grid line{stroke:var(--grid);stroke-width:1}
+.chart .axis line{stroke:var(--axis);stroke-width:1}
+.chart .line{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.chart .area{opacity:.12}
+.chart .xh line{stroke:var(--line-2);stroke-width:1}
+.chart .xh circle{stroke:var(--bg);stroke-width:2}
+.chart .xh{opacity:0;transition:opacity var(--t-fast) var(--ease-out)}
+.chart.is-hover .xh{opacity:1}
+.chart .hit{fill:transparent;cursor:crosshair}
+.chart .endlbl{fill:var(--fg-2);font-size:11.5px;font-weight:500}
+.chart .col{transform-box:fill-box;transform-origin:bottom}
+.chart .band{opacity:.18}                    /* stacked area: a wash per band, its upper edge drawn as the series line */
+.chart .pt{stroke:var(--bg);stroke-width:2}  /* scatter dots carry a ring in the surface colour */
+.chart .xh .ring{fill:none;stroke:var(--fg-2);stroke-width:1.5}
+.page.is-active .chart .line.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:draw .9s var(--ease-out) .08s forwards}
+.page.is-active .chart .area.draw{opacity:0;animation:fadeArea .6s var(--ease-out) .5s forwards}
+.page.is-active .chart .col.draw{transform:scaleY(0);animation:grow .6s var(--ease-out) forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes fadeArea{to{opacity:.12}}
+@keyframes grow{to{transform:scaleY(1)}}
+/* the newer charts fade in as one block; from-only keyframes, so nothing stays promoted afterwards */
+.page.is-active .late{animation:late .5s var(--ease-out) .12s backwards}
+@keyframes late{from{opacity:0}}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-bottom:16px;color:var(--fg-2);font-size:12.5px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.legend i.l{width:14px;height:2px;border-radius:1px}
+.legend i.dot{border-radius:50%}
+.tip{position:absolute;z-index:5;pointer-events:none;min-width:150px;padding:10px 12px;border-radius:var(--r);background:var(--pop);box-shadow:0 0 0 1px var(--line-2),0 16px 40px -16px var(--shadow);font-size:12.5px;opacity:0;transform:translateY(4px);transition:opacity var(--t-fast) var(--ease-out),transform var(--t-fast) var(--ease-out)}
+.tip.show{opacity:1;transform:none}
+.tip .t{color:var(--fg-2);margin-bottom:6px;font-size:12px}
+.tip .r{display:flex;align-items:center;gap:8px;line-height:1.7}
+.tip .r i{width:8px;height:8px;border-radius:2px;flex:none}
+.tip .r b{margin-left:auto;font-weight:500;font-variant-numeric:tabular-nums;padding-left:16px}
+
+/* two-up */
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:40px 56px}
+
+/* table — no borders, hairline rows */
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl th{text-align:left;font-weight:400;color:var(--fg-2);font-size:12.5px;padding:0 12px 12px 0;white-space:nowrap}
+.tbl td{padding:12px 12px 12px 0;vertical-align:middle;box-shadow:0 -1px 0 var(--line);white-space:nowrap}
+.tbl th:last-child,.tbl td:last-child{padding-right:0}
+.tbl th.r,.tbl td.r{text-align:right}
+.tbl th.l,.tbl td.l{padding-left:28px}
+.tbl .num{font-variant-numeric:tabular-nums}
+.tbl tbody tr{transition:background-color var(--t-fast) var(--ease-out)}
+.tbl tbody tr:hover td{background:var(--bg-raise)}
+.tbl tbody tr.is-selected td{background:var(--bg-raise)}
+.tbl tbody tr.is-selected td:first-child{box-shadow:0 -1px 0 var(--line),inset 2px 0 0 var(--s-blue)}
+.tbl tr.clickable{cursor:pointer}
+/* the scroll wrapper clips an outline on the row, so the ring is drawn inside the cells */
+.tbl tbody tr.clickable:focus-visible{outline:none}
+.tbl tbody tr.clickable:focus-visible td{box-shadow:inset 0 2px 0 var(--focus),inset 0 -2px 0 var(--focus)}
+.tbl tbody tr.clickable:focus-visible td:first-child{background-image:linear-gradient(var(--focus),var(--focus));background-size:2px 100%;background-position:12px 0;background-repeat:no-repeat}
+.tbl tbody tr.clickable:focus-visible td:last-child{box-shadow:inset 0 2px 0 var(--focus),inset 0 -2px 0 var(--focus),inset -2px 0 0 var(--focus)}
+.tbl td .primary{color:var(--fg);font-weight:500}
+.tbl td .primary.mono{font-size:12.5px}
+.tbl td .sub{color:var(--fg-2);font-size:12.5px;margin-top:1px}
+.tbl td,.tbl th{padding-left:0}
+.tbl tbody tr td:first-child{padding-left:var(--bleed);margin-left:calc(-1 * var(--bleed))}
+.tbl thead th:first-child{padding-left:var(--bleed)}
+.tbl{margin-left:calc(-1 * var(--bleed));width:calc(100% + var(--bleed))}
+
+/* segmented thin bar */
+.segbar{display:flex;gap:2px;height:4px;width:100%;min-width:120px}
+.segbar i{display:block;height:100%;border-radius:2px;min-width:0}
+.segbar i:first-child{border-radius:2px}
+.barcell{display:flex;align-items:center;gap:12px}
+.barcell .segbar{flex:1 0 auto;width:140px;min-width:0}
+.barcell span{min-width:40px;text-align:right}
+
+/* status */
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500}
+.status .icon{width:14px;height:14px}
+.status.good{color:var(--good)} .status.warn{color:var(--warn)} .status.crit{color:var(--crit)} .status.info{color:var(--fg-2)} .status.serious{color:var(--serious)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:11px;font-size:12px;font-weight:500;background:var(--bg-raise-2);color:var(--fg-2)}
+.pill.good{background:var(--good-wash);color:var(--good)}
+.pill.warn{background:var(--warn-wash);color:var(--warn)}
+.pill.crit{background:var(--crit-wash);color:var(--crit)}
+.pill.blue{background:var(--blue-wash);color:var(--fg-accent)}
+
+/* meter */
+.meter{display:flex;align-items:center;gap:10px;min-width:120px}
+.meter .track{flex:1;height:4px;border-radius:2px;background:var(--bg-raise-2);overflow:hidden}
+.meter .fill{height:100%;border-radius:2px;background:var(--s-blue);transform-origin:left;transition:transform .6s var(--ease-out)}
+.meter .fill.warn{background:var(--warn)} .meter .fill.crit{background:var(--crit)}
+.meter span{width:38px;text-align:right;font-variant-numeric:tabular-nums;color:var(--fg)}
+
+/* chips (filters) */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+.chip{position:relative;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:14px;background:var(--bg-raise);color:var(--fg-2);font-size:12.5px;font-weight:500;transition:background-color var(--t-fast) var(--ease-out),color var(--t-fast) var(--ease-out),transform var(--t-fast) var(--ease-out)}
+.chip:hover{background:var(--bg-raise-2);color:var(--fg)}
+.chip.on{background:var(--bg-raise-2);color:var(--fg)}
+.chip .icon{color:var(--fg-3)}
+.chip b{font-weight:500;color:var(--fg)}
+
+/* gantt */
+.gantt{--label:280px;--depth:14px;--tail:0px;position:relative}
+.gantt .axis-row{display:grid;grid-template-columns:var(--label) minmax(0,1fr);margin-bottom:10px}
+.gantt .ticks{position:relative;height:20px;margin-right:var(--tail)}
+.gantt .ticks span{position:absolute;top:0;transform:translateX(-50%);font-size:11.5px;color:var(--fg-3);font-variant-numeric:tabular-nums}
+.gantt .ticks span:first-child{transform:none}
+.gantt .ticks span:last-child{transform:translateX(-100%)}
+.gantt .ticks span{white-space:nowrap}
+.gantt.narrow .ticks span:nth-child(even){display:none}
+.gantt.narrow.every .ticks span:nth-child(n){display:block}
+.gantt .row{display:grid;grid-template-columns:var(--label) minmax(0,1fr);align-items:center;min-height:36px;border-radius:var(--r-sm);transition:background-color var(--t-fast) var(--ease-out)}
+.gantt .row:hover{background:var(--bg-raise)}
+.gantt .lbl{display:flex;align-items:center;gap:8px;min-width:0;padding-left:calc(var(--depth) * var(--d,0) + 8px);font-size:13px}
+.gantt .lbl .icon{color:var(--fg-3);width:14px;height:14px}
+.gantt .lbl .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.gantt .lbl .s{color:var(--fg-2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gantt .track{position:relative;height:36px;margin-right:var(--tail)}
+.gantt .track::before{content:"";position:absolute;left:0;right:calc(-1 * var(--tail));top:50%;height:1px;background:var(--grid)}
+.gantt .bar{position:absolute;top:calc(50% - 3px);height:6px;border-radius:3px;background:var(--s-blue);transform-origin:left center;min-width:3px}
+.gantt .bar.teal{background:var(--s-teal)} .gantt .bar.violet{background:var(--s-violet)} .gantt .bar.amber{background:var(--s-amber)}
+.gantt .bar.crit{background:var(--crit)} .gantt .bar.warn{background:var(--warn)} .gantt .bar.grey{background:var(--s-grey)} .gantt .bar.thin{top:calc(50% - 2px);height:4px}
+.gantt .dur{position:absolute;top:50%;transform:translateY(-50%);font-size:11.5px;color:var(--fg-2);font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:8px}
+.gantt .dur.in{color:var(--fg-2);padding-left:0;padding-right:8px;transform:translate(-100%,-50%)}
+.gantt .dur .status{font-size:inherit}
+.gantt .mark{position:absolute;top:calc(50% - 5px);width:10px;height:10px;transform:translateX(-50%);border-radius:50%;background:var(--crit);box-shadow:0 0 0 2px var(--bg)}
+.gantt .mark.o1,.gantt .mark.o2,.gantt .mark.o3{top:calc(50% - 4px);width:8px;height:8px} /* range plot: smaller dots, so the fast operations do not pile up */
+.gantt .mark.o1{background:var(--o1)} .gantt .mark.o2{background:var(--o2)} .gantt .mark.o3{background:var(--o3)}
+/* bullet rows: bands for the qualitative ranges behind the measure, a tick at the target */
+.gantt .zone{position:absolute;top:calc(50% - 7px);height:14px;border-radius:2px;background:var(--s-grey)}
+.gantt .zone.z1{opacity:.5} .gantt .zone.z2{opacity:.3} .gantt .zone.z3{opacity:.16}
+.gantt .goal{position:absolute;top:calc(50% - 11px);width:2px;height:22px;border-radius:1px;background:var(--fg);transform:translateX(-50%)}
+.gantt .vline{position:absolute;top:0;bottom:0;width:1px;background:var(--line-2)}
+.gantt .vline span{position:absolute;top:-22px;left:0;transform:translateX(-50%);font-size:11px;color:var(--fg-3);white-space:nowrap}
+.page.is-active .gantt .bar.draw{transform:scaleX(0);animation:growX .7s var(--ease-out) forwards}
+@keyframes growX{to{transform:scaleX(1)}}
+.gantt .grp{display:grid;grid-template-columns:var(--label) minmax(0,1fr);height:28px;align-items:end;padding-bottom:6px;margin-top:8px;font-size:12px;color:var(--fg-2)}
+.gantt .grp:first-of-type{margin-top:0}
+
+/* heatmap */
+.heat{display:grid;grid-template-columns:120px minmax(0,1fr);gap:2px 16px;align-items:center}
+.heat .hl{font-size:12.5px;color:var(--fg-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.heat .cells{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:2px;height:22px}
+.heat .cells i{display:block;border-radius:2px;background:var(--q0);transition:transform var(--t-fast) var(--ease-out)}
+.heat .cells i:hover{position:relative;z-index:1;transform:scale(1.18);box-shadow:0 0 0 2px var(--bg)}
+.heat .hx{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:2px;margin-top:6px}
+.heat .hx span{font-size:11px;color:var(--fg-3);text-align:left;font-variant-numeric:tabular-nums}
+.heat-scale{display:flex;align-items:center;gap:8px;color:var(--fg-3);font-size:11.5px;margin-top:20px}
+.heat-scale .ramp{display:flex;gap:2px}
+.heat-scale .ramp i{width:14px;height:8px;border-radius:2px;display:block}
+
+/* log stream */
+.logs{font-size:13px}
+.log{position:relative;display:grid;grid-template-columns:150px 86px 120px minmax(0,1fr);gap:16px;align-items:start;padding:10px 12px;margin:0 -12px;border-radius:var(--r-sm);transition:background-color var(--t-fast) var(--ease-out)}
+.log::before,.inc::before{content:"";position:absolute;left:12px;right:12px;top:-1px;height:1px;background:var(--line)}
+.log:first-child::before,.inc:first-child::before{display:none}
+.log:hover{background:var(--bg-raise)}
+.log .ts{color:var(--fg-3);font-family:var(--mono);font-size:12px;line-height:20px;white-space:nowrap}
+.log .svc{color:var(--fg-2);font-size:12.5px;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log .msg{font-family:var(--mono);font-size:12.5px;line-height:20px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log .msg em{font-style:normal;color:var(--fg-2)}
+.log .msg b{font-weight:500;color:var(--fg-accent)}
+
+/* services grid */
+.svcs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px 32px}
+.svc{display:flex;flex-direction:column;gap:10px;min-width:0}
+.svc .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.svc .name{font-weight:500;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.svc .meta{display:flex;justify-content:space-between;color:var(--fg-2);font-size:12.5px;font-variant-numeric:tabular-nums}
+.svc .meta b{color:var(--fg);font-weight:500}
+.svc .spark{width:100%;height:28px}
+
+/* slo */
+.slo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px 56px;align-items:start}
+.slo .row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;align-items:baseline;padding:14px 0;box-shadow:0 -1px 0 var(--line)}
+.slo .row:first-child{box-shadow:none;padding-top:0}
+.slo .row .n{font-weight:500}
+.slo .row .d{color:var(--fg-2);font-size:12.5px}
+.slo .row .budget{grid-column:1 / -1;display:flex;align-items:center;gap:12px;margin-top:4px}
+.slo .row .budget .segbar{height:6px}
+.slo .row .budget span{font-size:12.5px;color:var(--fg-2);white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* incident list */
+.inc{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px 20px;align-items:center;padding:16px 12px;margin:0 -12px;border-radius:var(--r);transition:background-color var(--t-fast) var(--ease-out)}
+.inc:hover{background:var(--bg-raise)}
+.inc .sev{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:var(--r);background:var(--bg-raise-2)}
+.inc .sev.crit{background:var(--crit-wash);color:var(--crit)} .inc .sev.warn{background:var(--warn-wash);color:var(--warn)} .inc .sev.good{background:var(--good-wash);color:var(--good)}
+.inc .t{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inc .m{color:var(--fg-2);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.inc .side{display:flex;align-items:center;gap:16px;color:var(--fg-2);font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* footer */
+footer{color:var(--fg-3);font-size:12.5px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;padding-top:28px;padding-bottom:40px;box-shadow:0 -1px 0 var(--line)}
+
+.only-m{display:none}
+
+/* ---------- responsive ---------- */
+@media (max-width:1000px){
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .svcs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .hero{grid-template-columns:1fr;gap:36px}
+  .hero .big{font-size:52px}
+  .two,.slo{grid-template-columns:1fr}
+  .search{min-width:0;width:32px;padding:0;justify-content:center}
+  .search span,.search .kbd{display:none}
+}
+@media (max-width:720px){
+  :root{--gutter:18px;--section-gap:56px}
+  main{padding-top:28px}
+  .topbar .wrap{gap:10px;height:56px}
+  .tabs-wrap{top:56px}
+  .crumb{display:none}
+  .seg button{padding:0 9px}
+  .avatar{display:none}
+  .page-head{flex-direction:column;align-items:flex-start;gap:16px;margin-bottom:28px}
+  .page-head h1{font-size:22px}
+  .hero .big{font-size:44px}
+  .hero .side{gap:20px 20px}
+  .stats{gap:22px 20px}
+  .stat .value{font-size:24px}
+  .delta small{display:none}
+  .spark{width:72px}
+  .tbl .hide-m,.hide-m{display:none}
+  .only-m{display:inline}
+  .tbl td,.tbl th{padding-right:10px}
+  .barcell .segbar{width:72px}
+  .gantt{--label:138px;--depth:10px}
+  .gantt .lbl .s{display:none}
+  .gantt .row{min-height:32px}
+  .heat{grid-template-columns:72px minmax(0,1fr);gap:2px 10px}
+  .heat .cells{height:16px}
+  .heat .hx span:nth-child(odd){visibility:hidden}
+  .log{grid-template-columns:62px 72px minmax(0,1fr);gap:10px}
+  .log .svc{display:none}
+  .inc{grid-template-columns:auto minmax(0,1fr)}
+  .inc .side{grid-column:2;gap:12px;flex-wrap:wrap}
+  .legend{gap:6px 14px}
+  .uptime{height:18px}
+  .sec-head{flex-direction:column;align-items:flex-start;gap:6px}
+  footer .wrap{flex-direction:column}
+}
+
+@media (pointer:coarse){
+  .seg button::after,.iconbtn::after,.search::after,.btn::after,.chip::after,.link::after{content:"";position:absolute;inset:-4px 0}
+  .seg button::after{inset:-7px 0}
+  .iconbtn::after,.search::after{inset:-4px}
+  .link::after{inset:-11px -8px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important;transition-duration:.01ms!important}
+  .page.is-active .chart .line.draw{stroke-dasharray:none}
+}
+</style>
+<!-- tweaks:start -->
+<script>
+/* how this page's tokens line up with the shared tweak palettes.
+   The page ships a dark palette only, so every light theme comes from map(). */
+window.TWEAK_PAGE = (() => {
+  const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const blend = (a, pct, b) => { const A = rgb(a), B = rgb(b); return '#' + A.map((v, i) => Math.round(v * pct / 100 + B[i] * (1 - pct / 100)).toString(16).padStart(2, '0')).join(''); };
+  const lin = h => rgb(h).map(v => (v /= 255) <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
+  const lum = h => lin(h).reduce((a, v, i) => a + v * [.2126, .7152, .0722][i], 0);
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+  /* how clearly two neighbouring series separate, as distance in OKLab x100 against the floors the charts are held to:
+     15 with full colour vision, 8 under protan and deutan (Machado 2009, full severity). 1 or more clears all three. */
+  const CVD = [[.152286, 1.052583, -.204868, .114503, .786281, .099216, -.003882, -.048116, 1.051998], [.367322, .860646, -.227968, .280085, .672501, .047413, -.01182, .04294, .968881]];
+  const lab = (h, M) => { let [r, g, b] = lin(h); if (M) [r, g, b] = [0, 3, 6].map(i => Math.min(1, Math.max(0, M[i] * r + M[i + 1] * g + M[i + 2] * b)));
+    const l = Math.cbrt(.4122214708 * r + .5363325363 * g + .0514459929 * b), m = Math.cbrt(.2119034982 * r + .6806995451 * g + .1073969566 * b), s = Math.cbrt(.0883024619 * r + .2817188376 * g + .6299787005 * b);
+    return [.2104542553 * l + .793617785 * m - .0040720468 * s, 1.9779984951 * l - 2.428592205 * m + .4505937099 * s, .0259040371 * l + .7827717662 * m - .808675766 * s]; };
+  const dist = (a, b, M) => { const x = lab(a, M), y = lab(b, M); return 100 * Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]); };
+  const apart = (a, b) => Math.min(dist(a, b) / 15, dist(a, b, CVD[0]) / 8, dist(a, b, CVD[1]) / 8);
+  const TEAL = { dark: '#14a089', light: '#0f8a74' }, OWN = { bg: '#09090b', fg: '#f4f4f5' };
+  /* step a colour toward white (dark themes) or black (light themes) until it passes a contrast test.
+     A palette colour that already passes comes back untouched. */
+  const clear = (c, pole, ok) => { for (let k = 100; k > 40; k -= 5) { const m = blend(c, k, pole); if (ok(m)) return m; } return blend(c, 40, pole); };
+
+  return {
+    key: 'observability',
+    modes: ['dark'],
+    getMode: () => 'dark',
+    setMode: () => {},
+    sans: '--sans', mono: '--mono',
+    scale: { r: ['--r-sm', '--r', '--r-lg'], d: ['--gutter', '--section-gap', '--bleed'] },
+    chrome: { bg: 'var(--bg-raise-2)', fg: 'var(--fg)', dim: 'var(--fg-2)', line: 'var(--line-2)', hover: 'var(--line-2)', accent: 'var(--s-blue)' },
+    accentOwn: { dark: '#3b82f6' },
+    /* the page's own colours in palette order (app surf raised inset hover line line2 text text2 dim green red yellow blue magenta warn); used for glass */
+    own: { dark: '09090b 111113 18181b 0c0c0e 1f1f23 18181a 222224 f4f4f5 9a9ba3 3f4047 22b052 e5484d f0ad26 3b82f6 8c7cf0 ec835a' },
+
+    map: (p, mix) => {
+      const light = p.mode === 'light', pole = light ? '#000000' : '#ffffff';
+      /* the page is flat, with no cards. Dark sits on the darkest plane and its controls go a step lighter;
+         light sits on the paper colour and its controls go a step darker. Under glass the backdrop is the app colour either way. */
+      const bg = light && !p.glass ? p.solid : p.app;
+      /* the least favourable planes that carry text (worked out by hand under glass, where the control steps are translucent):
+         step1 is a hovered row or a control, where status and tertiary text can sit; step2 is a pill, key cap or pressed chip, which only carry primary and secondary text */
+      const step1 = light ? (p.glass ? blend(p.text, 4, p.app) : p.inset) : p.solid;
+      const step2 = light ? (p.glass ? blend(p.text, 7, p.app) : p.hover) : (p.glass ? blend(p.text, 5, p.solid) : p.raised);
+      const own = p.app === OWN.bg && p.text === OWN.fg; /* the page's own palette (page default + glass) was tuned by hand: it passes through as it is */
+      const on = (c, plane, min = 4.5) => own ? c : clear(c, pole, m => ratio(m, plane) >= min), mark = c => own ? c : clear(c, pole, m => ratio(m, bg) >= 3);
+      const fg = on(p.text, step2, 5.5), good = on(p.green, step1), warn = on(p.yellow, step1);
+      const crit = own ? p.red : clear(p.red, pole, m => ratio(m, step1) >= 4.5 && ratio(m, blend(m, 12, bg)) >= 4.5); /* critical is also pill text on its own wash */
+      /* count badge: white on a darkened red where that reads, otherwise the darkest ink on the plain red */
+      const deep = blend(p.red, 88, '#000000'), ink = light ? fg : p.app;
+      const badge = light ? [crit, '#ffffff'] : own || ratio('#ffffff', deep) >= 4.5 || ratio('#ffffff', deep) >= ratio(ink, p.red) ? [deep, '#ffffff'] : [p.red, ink];
+      return {
+        '--bg': bg, '--bg-raise': light ? p.inset : p.surf, '--bg-raise-2': light ? p.hover : p.raised,
+        '--pop': p.glass ? mix(p.solid, 86) : p.raised,
+        '--fg': fg, '--fg-2': on(p.text2, step2, 5), '--fg-3': own ? '#7c7d86' : on(blend(p.text2, 62, p.dim), step1), '--fg-4': p.dim,
+        '--fg-hover': blend(fg, light ? 90 : 60, light ? bg : '#ffffff'),
+        '--line': mix(p.text, light ? 9 : 7), '--line-2': mix(p.text, light ? 15 : 12),
+        '--grid': mix(p.text, light ? 8 : 6), '--axis': mix(p.text, light ? 15 : 11),
+        /* series two to four keep the page's hues; the light set is stepped down for a pale surface */
+        '--s-teal': mark(TEAL[p.mode]), '--s-violet': mark(light ? '#6d54d6' : '#8c7cf0'), '--s-amber': mark(light ? '#a8730f' : '#b8861f'),
+        '--s-grey': mix(p.text, light ? 18 : 22),
+        '--good': good, '--warn': warn, '--serious': on(p.warn, step1), '--crit': crit,
+        '--good-wash': mix(good, 12), '--warn-wash': mix(warn, 12), '--crit-wash': mix(crit, 12),
+        '--badge': badge[0], '--on-badge': badge[1],
+        '--pill-edge': light ? 'rgba(255,255,255,.6)' : mix(p.text, 4),
+        '--shadow': light ? mix(p.text, 32) : 'rgba(0,0,0,.8)',
+      };
+    },
+
+    /* the accent is the first series; the ordinal ramp (p50, p95, p99), the heat ramp and the accent-coloured text are steps of it */
+    accent: (c, mix, mode) => {
+      const light = mode === 'light', st = document.documentElement.style;
+      /* map() has just set the surface and text colours; when it did not run, the page's own are in force */
+      const bg = st.getPropertyValue('--bg').trim() || OWN.bg, fg = st.getPropertyValue('--fg').trim() || OWN.fg;
+      const pale = !light && lum(c) > .6; /* an accent already near white has no room above it: step down only */
+      /* ordinal: pale to deep in both modes, as tints and shades of the one hue. On paper the pale end is the lightest tint that
+         still holds 3:1; an accent with no such tint (it is close to 3:1 itself) starts the ramp instead. */
+      const tint = [55, 60, 65, 70, 75, 80].map(k => blend(c, k, bg)).find(m => ratio(m, bg) >= 3);
+      const ord = light ? (tint ? [tint, c, blend(c, 58, '#000000')] : [c, blend(c, 72, '#000000'), blend(c, 46, '#000000')])
+        : pale ? [c, blend(c, 74, bg), blend(c, 52, bg)] : [blend(c, 50, '#ffffff'), c, blend(c, 76, bg)];
+      /* heat: from the surface up to the accent, then past it toward the far pole */
+      const far = light ? '#000000' : '#ffffff';
+      const heat = pale ? [12, 24, 38, 52, 68, 84, 100].map(k => blend(c, k, bg)) : [16, 32, 50, 72, 92].map(k => blend(c, k, bg)).concat(blend(c, 72, far), blend(c, 48, far));
+      /* series two keeps its hue, but takes another step of it when the accent lands too close */
+      const steps = [[100, bg], [88, '#000000'], [76, '#000000'], [64, '#000000'], [92, '#ffffff'], [84, '#ffffff'], [76, '#ffffff'], [64, '#ffffff']].map(([k, pole]) => blend(TEAL[mode], k, pole)).filter((m, i) => !i || ratio(m, bg) >= 3);
+      const teal = steps.find(m => apart(m, c) >= 1) || steps.reduce((a, m) => apart(m, c) > apart(a, c) + .2 ? m : a); /* none clears: move only for a real gain */
+      const out = {
+        '--focus': c, '--s-blue': c, '--s-teal': teal,
+        '--blue-wash': mix(c, 14), '--glow': mix(c, light ? 7 : 10), '--select': mix(c, light ? 24 : 35),
+        '--fg-accent': light ? clear(c, '#000000', m => ratio(m, bg) >= 4.9) : ord[0], /* 4.9 on the page keeps 4.5 on a hovered row */
+        '--o1': ord[0], '--o2': ord[1], '--o3': ord[2], '--q0': blend(c, 5, bg),
+      };
+      heat.forEach((v, i) => { out['--q' + (i + 1)] = v; });
+      return out;
+    },
+
+    glass: '.tip',
+  };
+})();
+</script>
+<style id="tw-css">
+/* tweak dock: same controls as the terminal design system's config bar. Colours come from --tw-* so it follows whatever theme is active. */
+.tw{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:900;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px 10px;width:max-content;max-width:calc(100vw - 24px);padding:4px 6px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-dim);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+html[data-tw-surface="glass"] .tw{-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}
+.tw[hidden],.tw-chip[hidden]{display:none}
+.tw-ctl{display:flex;align-items:center;gap:6px;height:24px;padding:0 4px;white-space:nowrap}
+.tw button,.tw-chip{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* a chooser is a button showing its value; its list is .tw-menu below, drawn by the page, never the system's popup */
+.tw button.tw-val{display:inline-block;vertical-align:middle;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tw-fg);padding:4px 14px 4px 0;background:linear-gradient(45deg,transparent 50%,var(--tw-dim) 50%) calc(100% - 4px) 55%/4px 4px no-repeat,linear-gradient(135deg,var(--tw-dim) 50%,transparent 50%) 100% 55%/4px 4px no-repeat}
+.tw button.tw-val:hover,.tw button.tw-val[aria-expanded="true"]{color:var(--tw-acc)}
+.tw-seg{display:flex;gap:2px}
+.tw-seg button{padding:4px 7px;border-radius:4px;color:var(--tw-fg);opacity:.72}
+.tw-seg button:hover{background:var(--tw-hover);opacity:1}
+.tw-seg button[aria-pressed="true"]{background:var(--tw-hover);color:var(--tw-acc);font-weight:700;opacity:1}
+.tw-sws{display:flex;align-items:center;gap:8px}
+.tw button.tw-sw{width:11px;height:11px;border-radius:50%;background:var(--c);outline:1px solid transparent;outline-offset:2px}
+.tw button.tw-sw[aria-pressed="true"]{outline-color:var(--tw-fg)}
+.tw button.tw-x{margin-left:2px;padding:4px 7px;border-radius:4px;color:var(--tw-dim)}
+.tw button.tw-x:hover{background:var(--tw-hover);color:var(--tw-fg)}
+.tw button:focus-visible,.tw-chip:focus-visible{outline:2px solid var(--tw-acc);outline-offset:2px}
+.tw-chip{position:fixed;right:12px;bottom:12px;z-index:900;padding:7px 10px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+.tw-chip:hover{color:var(--tw-acc)}
+.tw-space{height:56px}
+.tw-menu{position:fixed;z-index:901;box-sizing:border-box;min-width:132px;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain;padding:4px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-menu);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;text-align:left;box-shadow:0 16px 40px -14px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.14);outline:0;scrollbar-width:thin;scrollbar-color:var(--tw-dim) transparent;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.tw-menu[hidden]{display:none}
+.tw-menu [role="option"]{display:flex;align-items:center;gap:8px;padding:7px 12px 7px 8px;border-radius:4px;white-space:nowrap;cursor:pointer}
+.tw-menu [role="option"].act{background:var(--tw-hover)}
+.tw-menu [role="option"][aria-selected="true"]{color:var(--tw-acc);font-weight:700}
+.tw-menu .tw-grp{padding:9px 8px 5px;color:var(--tw-dim);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.tw-dot{flex:none;width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--a) 50%,var(--b) 50%);box-shadow:0 0 0 1px var(--tw-line)} /* a theme's surface and accent */
+@media (max-width:720px){.tw{left:8px;right:8px;bottom:8px;transform:none;width:auto;max-width:none;justify-content:flex-start}.tw-ctl{height:30px}.tw-space{height:150px}.tw-menu [role="option"]{padding-block:10px}}
+@media print{.tw,.tw-chip,.tw-space,.tw-menu{display:none}}
+/* glass surface: a soft backdrop behind translucent panels */
+html[data-tw-surface="glass"]{background:var(--tw-app)!important}
+html[data-tw-surface="glass"] body{background:transparent!important}
+html[data-tw-surface="glass"]::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 50% at 18% 0%,color-mix(in srgb,var(--tw-acc) 16%,transparent),transparent 70%),radial-gradient(50% 45% at 100% 100%,color-mix(in srgb,var(--tw-warn) 13%,transparent),transparent 70%)}
+</style>
+<script id="tw-js">
+/* Tweaks: mode / theme / surface / font / size / corners / density / accent, as on the terminal design system page.
+   Each page describes itself in window.TWEAK_PAGE (which of its tokens mean what); everything else here is shared.
+   With every control on its default the page's own CSS is untouched.
+   The look is also written to the address as ?mode=&theme=&surface=&font=&size=&corners=&density=&accent=, and read back from it, so a link carries it. */
+(function(){
+'use strict';
+const P = window.TWEAK_PAGE, root = document.documentElement, KEY = 'artikit-tweaks:' + P.key;
+/* palettes, in this order: */
+const ROLES = ['app','surf','raised','inset','hover','line','line2','text','text2','dim','green','red','yellow','blue','magenta','warn'];
+const THEMES = {
+  dark: {
+    Copperplate: '14100b 1a150e 241d14 100c08 2c2418 332917 54432a ead9c0 b59c7a 77664c a4c26f e0705a d8a24a 8aa8bd c98da4 cf8236',
+    Midnight: '0d0d13 16161e 1d1d28 12121a 232330 2a2a38 383848 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f',
+    Graphite: '101012 151517 1c1c1f 0c0c0e 232326 2a2a2e 3a3a40 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f',
+    Phosphor: '060a06 0a120a 101a10 050905 152415 1c301c 2a462a b8e0b0 7aa874 4a6a46 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f',
+    Dracula: '1e1f29 282a36 343746 21222c 3c3f52 3a3d4f 4d5069 f8f8f2 a8abc7 6272a4 50fa7b ff5555 f1fa8c 8be9fd ff79c6 ffb86c',
+    Nord: '242933 2e3440 3b4252 272c37 434c5e 3b4252 4c566a e5e9f0 aeb8cc 616e88 a3be8c bf616a ebcb8b 81a1c1 b48ead d08770',
+    "Solarized Dark": '00212b 002b36 073642 001f27 0a4050 073642 586e75 93a1a1 839496 586e75 859900 dc322f b58900 268bd2 d33682 cb4b16',
+    Tidewatch: '0a1220 0e1728 16233a 091020 1c2c47 1e2f4a 2e4368 d7e3f2 93a8c4 54688a 4fd6be ff6b7f e5c07b 56b3fa c792ea e5a45b',
+    Iris: '14121f 191627 221e35 110f1c 2a2542 2b2545 413866 e6e1f5 a79fc7 675f8a 72e0a5 ff6b9d f0c674 82aaff c792ea f0a35e',
+    Emberline: '0c1210 101915 18241e 0a0f0d 1f2e26 22332a 35503f d8e6dc 96ad9d 587263 7fce6f f26d4f f0a848 6db2c9 d78ab0 f08c3a',
+    Oceanic: '0b141f 0f1a29 172538 0a111c 1d3049 203450 31507a d9e6f5 8ea9c4 526b88 5fd39b f2708a e8c268 58a6ff bc8cff e09a4e',
+    Grove: '0d130c 121a10 1a2618 0b100a 21301e 263a22 3b5a35 dde8d6 a2b797 647a5a 9ccb72 e06c5f d9b656 72aec4 c194bd d19042',
+    Rosewire: '170f14 1e1319 291b23 130c10 32212b 36242e 523847 f0dfe8 bd9cab 7c6070 7fd2a0 ff5c8a e8b465 7ba6e0 e56ba8 e0955a',
+    Halide: '0c0c0c 111111 1a1a1a 080808 222222 262626 3d3d3d e8e8e8 a0a0a0 606060 a9c4a9 cf9a9a c9bd9a 9ab1c4 bda4b8 c4ad8f'
+  },
+  light: {
+    Porcelain: 'efece8 fbf9f6 ffffff f4f1ec e9e5df ddd8d0 c2bab0 33302b 6b655c a39c90 3d8b3d c53a3a a37414 3565c0 ad3d8d bb6a1e',
+    Paper: 'eceff1 fafbfc ffffff f0f2f4 e4e8ec d5dade b8c0c8 2a3138 5a656e 9aa4ac 188038 c5221f a86a00 1a63d0 b8207e c26401',
+    "Solarized Light": 'eee8d5 fdf6e3 ffffff f3edda e8e1cc ddd6c1 c0b99f 586e75 657b83 93a1a1 859900 dc322f b58900 268bd2 d33682 cb4b16',
+    Frost: 'e8edf3 f6f9fc ffffff eef2f7 dfe7ef d0dae4 aabccd 26313c 54687a 93a5b5 2e9440 d13b45 ad7a12 3a6ec4 b8459a c47222',
+    Dawn: 'f2eae8 fcf7f5 ffffff f5edeb ecdfdc e2d3cf c8b1ab 3a2d2a 75605b ab948e 2c8a44 cc3344 a86e10 3565c0 c03a7e bd6420',
+    Linen: 'efe9dd faf6ec fffdf6 f3eee1 e8e1d0 ded5c1 bfb298 38321f 6e6650 a49a80 4c7f22 bd3e2e 976a08 2e6a9e a5498a af6a12',
+    Sage: 'e9eee6 f6f9f3 ffffff eef3ea dfe7da d2ddcb adbfa3 2b352a 5c6c58 93a58c 347a34 c04040 9c7212 33689e 9c4a8a b06a1c',
+    Lavender: 'edeaf3 f9f7fc ffffff f2eff7 e4dfee d9d3e4 b5aacb 312b3d 655c78 a096b3 2f8a48 cc3550 a06d10 4a5ecc a63cae bb681e'
+  }
+};
+const ACCENTS = { cyan:['#66c7d6','#1a7f8e'], green:['#78d670','#2f8a3a'], magenta:['#ec6bb4','#b8328a'], blue:['#6f9ef1','#3565c0'], orange:['#e2953f','#b5651a'] };
+const FONTS = { mono:['JetBrains Mono','Fira Code','IBM Plex Mono','Source Code Pro','Space Mono','Inconsolata','Ubuntu Mono','Victor Mono','Red Hat Mono'], sans:['Inter','Geist','IBM Plex Sans','Hanken Grotesk','Figtree','Manrope'] };
+const TWO_WEIGHTS = ['Space Mono','Ubuntu Mono']; /* static families with only regular and bold */
+const SIZE = { small:.9, default:1, large:1.12, 'x-large':1.25 }, CORNER = { sharp:0, default:1, round:1.8 }, DENSITY = { compact:.72, default:1, relaxed:1.32 };
+const pal = s => Object.fromEntries(s.split(' ').map((h, i) => [ROLES[i], '#' + h]));
+const mix = (a, pct, b) => `color-mix(in srgb, ${a} ${pct}%, ${b || 'transparent'})`;
+
+/* ---- one pass over the page's own rules: px font sizes, radii and spacing get a multiplier that defaults to 1,
+        so nothing moves until size, corners or density is changed ---- */
+const FAMILY = [[/^font-size$/, 'fs'], [/^border-(top|bottom|start|end)-(left|right|start|end)-radius$/, 'r'], [/^(padding|margin)-(top|right|bottom|left|block-start|block-end|inline-start|inline-end)$|^(row|column)-gap$/, 'd']];
+const PX = /-?\d*\.?\d+px/g, tokens = P.scale || {};
+/* negative margins are left alone: they pull a box out to an edge whose gutter is fixed, so scaling them would overshoot */
+const scaled = (v, k) => v.replace(PX, m => parseFloat(m) > 0 ? `calc(${m}*var(--tw-${k},1))` : m);
+(function walk(rules){
+  for (const r of rules){
+    if (r instanceof CSSKeyframesRule) continue;
+    const st = r.style;
+    if (st) for (const prop of Array.from(st)){
+      const k = prop.startsWith('--') ? Object.keys(tokens).find(k => tokens[k].includes(prop)) : (FAMILY.find(f => f[0].test(prop)) || [])[1];
+      if (!k) continue;
+      const v = st.getPropertyValue(prop);
+      if (v && !v.includes('--tw-') && v.search(PX) >= 0) st.setProperty(prop, scaled(v, k), st.getPropertyPriority(prop));
+    }
+    if (r.cssRules && r.cssRules.length) walk(r.cssRules);
+  }
+})(Array.from(document.styleSheets).flatMap(s => { try { return s.ownerNode && s.ownerNode.id === 'tw-css' ? [] : Array.from(s.cssRules); } catch (e) { return []; } }));
+
+/* ---- state ---- */
+const themesFor = m => (P.modes.includes(m) ? ['page'] : []).concat(Object.keys(THEMES[m]));
+const cfg = { mode: P.getMode(), theme: null, surface: 'solid', font: 'default', size: 'default', corner: 'default', density: 'default', accent: 'page', open: null };
+/* one address parameter per control. Values are matched loosely (case, spaces and dashes ignored); "default" means the page's own */
+const QK = { mode: 'mode', theme: 'theme', surface: 'surface', font: 'font', size: 'size', corner: 'corners', density: 'density', accent: 'accent' };
+const norm = v => String(v).toLowerCase().replace(/[^a-z0-9]+/g, ''), among = (v, list) => list.find(o => norm(o) === norm(v));
+function fromURL(){
+  let q; try { q = new URLSearchParams(location.search); } catch (e) { return null; }
+  if (!Object.values(QK).some(name => q.has(name))) return null;
+  const g = k => q.get(QK[k]) || '', own = v => ['default', 'page', 'pagedefault'].includes(norm(v)), th = g('theme');
+  /* a link is a complete look: anything it leaves out is the default, not what this browser had saved */
+  const out = { mode: among(g('mode'), ['dark', 'light']) || (own(th) ? null : ['dark', 'light'].find(m => among(th, Object.keys(THEMES[m])))) || cfg.mode }; /* ?theme=Nord alone implies dark */
+  out.theme = own(th) ? 'page' : among(th, Object.keys(THEMES[out.mode])) || null;
+  out.surface = among(g('surface'), ['solid', 'glass']) || 'solid';
+  out.font = among(g('font'), FONTS.mono.concat(FONTS.sans)) || 'default';
+  out.size = among(g('size'), Object.keys(SIZE)) || 'default'; out.corner = among(g('corner'), Object.keys(CORNER)) || 'default'; out.density = among(g('density'), Object.keys(DENSITY)) || 'default';
+  out.accent = among(g('accent'), Object.keys(ACCENTS)) || 'page';
+  return out;
+}
+let inURL = false;
+function toURL(){
+  try {
+    const q = new URLSearchParams(location.search);
+    for (const k in QK) q.set(QK[k], cfg[k] === 'page' ? 'default' : cfg[k]);
+    history.replaceState(history.state, '', '?' + q + location.hash); inURL = true; /* the page's own #section stays */
+  } catch (e) {}
+}
+let stored = {}; try { stored = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+const linked = fromURL();
+Object.assign(cfg, linked ? { ...linked, open: stored.open == null ? null : stored.open } : stored);
+function settle(){
+  if (!THEMES[cfg.mode]) cfg.mode = P.getMode();
+  if (!themesFor(cfg.mode).includes(cfg.theme)) cfg.theme = themesFor(cfg.mode)[0];
+  if (cfg.surface !== 'glass') cfg.surface = 'solid';
+  if (cfg.font !== 'default' && !FONTS.mono.concat(FONTS.sans).includes(cfg.font)) cfg.font = 'default';
+  if (!(cfg.size in SIZE)) cfg.size = 'default'; if (!(cfg.corner in CORNER)) cfg.corner = 'default'; if (!(cfg.density in DENSITY)) cfg.density = 'default';
+  if (cfg.accent !== 'page' && !ACCENTS[cfg.accent]) cfg.accent = 'page';
+}
+settle();
+
+/* glass: the page names which boxes are panels (they blur what is behind them) and which wrappers must stop painting an opaque fill */
+if (P.glass || P.clear){
+  const st = document.createElement('style'); st.id = 'tw-dyn';
+  st.textContent = (P.glass ? `html[data-tw-surface="glass"] :is(${P.glass}){-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}` : '') +
+    (P.clear ? `html[data-tw-surface="glass"] :is(${P.clear}){background:transparent!important}` : '');
+  document.head.append(st);
+}
+const applied = new Set(), loaded = new Set(); let baseAccent;
+function loadFont(name){
+  if (loaded.has(name)) return; loaded.add(name);
+  const l = document.createElement('link'); l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' + name.replace(/ /g, '+') + ':wght@' + (TWO_WEIGHTS.includes(name) ? '400;700' : '400;500;600;700') + '&display=swap';
+  document.head.append(l);
+}
+function apply(){
+  const c = cfg, light = c.mode === 'light', own = c.theme === 'page', glass = c.surface === 'glass';
+  applied.forEach(k => root.style.removeProperty(k)); applied.clear();
+  const put = (k, v) => { if (k && v != null){ root.style.setProperty(k, String(v)); applied.add(k); } };
+  P.setMode(c.mode);
+  root.dataset.twMode = c.mode; if (glass) root.dataset.twSurface = 'glass'; else delete root.dataset.twSurface;
+  const accent = c.accent === 'page' ? null : ACCENTS[c.accent][light ? 1 : 0];
+  let chrome = P.chrome, warn = 'transparent', app = 'transparent';
+  baseAccent = P.accentOwn[c.mode] || P.accentOwn[P.modes[0]];
+  if (!own || glass){
+    const p = pal(own ? P.own[c.mode] : THEMES[c.mode][c.theme]);
+    p.solid = p.surf; p.mode = c.mode; p.glass = glass; app = p.app; warn = p.warn;
+    if (glass){ /* same recipe as the terminal kit: translucent surface, tinted raised/hover layers, hairlines from the text colour */
+      const t = p.text;
+      p.surf = mix(p.surf, light ? 64 : 72); p.raised = light ? 'rgba(255,255,255,.6)' : mix(t, 5); p.inset = light ? mix(t, 4) : 'rgba(0,0,0,.18)';
+      p.hover = mix(t, light ? 7 : 9); p.line = mix(t, light ? 10 : 9); p.line2 = mix(t, light ? 18 : 16);
+    }
+    Object.entries(P.map(p, mix)).forEach(([k, v]) => put(k, v));
+    put('color-scheme', c.mode);
+    chrome = { bg: glass ? mix(p.solid, 82) : p.raised, fg: p.text, dim: mix(p.text2, 62, p.dim), line: p.line2, hover: p.hover, accent: own ? P.accentOwn[c.mode] : p.blue, menu: p.solid };
+    if (!own) baseAccent = p.blue; /* a shared theme brings its own default accent */
+    if (!own && !accent) Object.entries(P.accent(p.blue, mix, c.mode)).forEach(([k, v]) => put(k, v));
+  }
+  if (accent) Object.entries(P.accent(accent, mix, c.mode)).forEach(([k, v]) => put(k, v));
+  put('--tw-bg', chrome.bg); put('--tw-fg', chrome.fg); put('--tw-dim', chrome.dim); put('--tw-line', chrome.line); put('--tw-hover', chrome.hover);
+  put('--tw-acc', accent || chrome.accent); put('--tw-menu', chrome.menu || chrome.bg); put('--tw-app', app); put('--tw-warn', warn);
+  if (P.mono) put('--tw-font', `var(${P.mono})`);
+  if (c.font !== 'default'){
+    const mono = FONTS.mono.includes(c.font), stack = `"${c.font}",` + (mono ? 'ui-monospace,SFMono-Regular,Menlo,monospace' : 'system-ui,-apple-system,"Segoe UI",sans-serif');
+    loadFont(c.font); put(P.sans, stack); if (mono) put(P.mono, stack);
+  }
+  if (SIZE[c.size] !== 1) put('--tw-fs', SIZE[c.size]);
+  if (CORNER[c.corner] !== 1) put('--tw-r', CORNER[c.corner]);
+  if (DENSITY[c.density] !== 1) put('--tw-d', DENSITY[c.density]);
+}
+apply();
+if (linked || cfg.theme !== 'page' || cfg.surface !== 'solid' || cfg.accent !== 'page' || ['font', 'size', 'corner', 'density'].some(k => cfg[k] !== 'default')) toURL();
+
+/* ---- dock ---- */
+let dock, chip, space;
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
+const seg = (k, opts) => `<span class="tw-seg">${opts.map(o => `<button type="button" data-k="${k}" data-v="${o}" aria-pressed="${cfg[k] === o}">${o}</button>`).join('')}</span>`;
+const NAME = { theme: 'theme', font: 'font', size: 'size', corner: 'corners', density: 'density' };
+const sw = (hexes, b) => ({ a: '#' + hexes.split(' ')[1], b: b || '#' + hexes.split(' ')[13] }); /* surface + accent of a palette */
+const choices = k => k === 'theme' ? themesFor(cfg.mode).map(t => t === 'page' ? { v: t, label: 'page default', sw: P.own && P.own[cfg.mode] ? sw(P.own[cfg.mode], P.accentOwn[cfg.mode]) : null } : { v: t, label: t, sw: sw(THEMES[cfg.mode][t]) })
+  : k === 'font' ? [{ v: 'default', label: 'default' }, { group: 'mono, whole page' }].concat(FONTS.mono.map(f => ({ v: f, label: f })), [{ group: 'sans' }], FONTS.sans.map(f => ({ v: f, label: f })))
+  : Object.keys({ size: SIZE, corner: CORNER, density: DENSITY }[k]).map(o => ({ v: o, label: o }));
+const pick = k => { const now = (choices(k).find(o => o.v === cfg[k]) || { label: cfg[k] }).label; return `<button type="button" class="tw-val" data-k="${k}" aria-haspopup="listbox" aria-expanded="false" aria-controls="tw-menu" aria-label="${NAME[k]}: ${esc(now)}">${esc(now)}</button>`; };
+
+/* the list of a chooser: a listbox the page draws, so it wears the active theme. Arrow keys, Home/End, typing a name, Enter, Escape */
+let menu, menuFor = null, opts = [], at = -1, typed = '', typedAt = 0;
+function setAt(i, quiet){
+  at = i; opts.forEach((o, n) => o.classList.toggle('act', n === i));
+  const o = opts[i]; if (!o) return; menu.setAttribute('aria-activedescendant', o.id);
+  if (quiet) return; /* the pointer is already on it */
+  if (o.offsetTop < menu.scrollTop + 4) menu.scrollTop = o.offsetTop - 4; else if (o.offsetTop + o.offsetHeight > menu.scrollTop + menu.clientHeight - 4) menu.scrollTop = o.offsetTop + o.offsetHeight - menu.clientHeight + 4;
+}
+function place(){ /* above the control when the dock sits at the bottom, kept inside the window */
+  const r = menuFor.getBoundingClientRect(), up = r.top > innerHeight - r.bottom;
+  menu.style.minWidth = Math.max(132, Math.round(r.width) + 18) + 'px';
+  menu.style.maxHeight = Math.max(120, Math.min(480, (up ? r.top : innerHeight - r.bottom) - 14)) + 'px';
+  menu.style.left = Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, r.left - 9)) + 'px';
+  menu.style.top = up ? 'auto' : r.bottom + 6 + 'px'; menu.style.bottom = up ? innerHeight - r.top + 6 + 'px' : 'auto';
+}
+function openMenu(btn){
+  closeMenu(); const k = btn.dataset.k;
+  menu.innerHTML = choices(k).map((o, i) => o.group ? `<div class="tw-grp" role="presentation">${esc(o.group)}</div>` :
+    `<div role="option" id="tw-o${i}" data-v="${esc(o.v)}" aria-selected="${cfg[k] === o.v}">${o.sw ? `<i class="tw-dot" style="--a:${o.sw.a};--b:${o.sw.b}"></i>` : ''}${esc(o.label)}</div>`).join('');
+  opts = Array.from(menu.querySelectorAll('[role="option"]')); menuFor = btn; typed = '';
+  btn.setAttribute('aria-expanded', 'true'); menu.setAttribute('aria-label', NAME[k]); menu.hidden = false; menu.scrollTop = 0;
+  place(); setAt(Math.max(0, opts.findIndex(o => o.getAttribute('aria-selected') === 'true'))); menu.focus({ preventScroll: true });
+}
+function closeMenu(refocus){
+  if (!menuFor) return; const b = menuFor; menuFor = null; menu.hidden = true;
+  if (b.isConnected){ b.setAttribute('aria-expanded', 'false'); if (refocus) b.focus({ preventScroll: true }); }
+}
+function choose(i){ const b = menuFor, o = opts[i]; closeMenu(true); if (b && o && cfg[b.dataset.k] !== o.dataset.v) set({ [b.dataset.k]: o.dataset.v }); }
+function menuKey(e){
+  const n = opts.length, k = e.key;
+  if (k === 'ArrowDown') setAt((at + 1) % n); else if (k === 'ArrowUp') setAt((at - 1 + n) % n);
+  else if (k === 'Home' || k === 'PageUp') setAt(0); else if (k === 'End' || k === 'PageDown') setAt(n - 1);
+  else if (k === 'Enter' || k === ' ') choose(at); else if (k === 'Escape') closeMenu(true);
+  else if (k === 'Tab'){ closeMenu(true); return; } /* focus is back on the control, so Tab moves on from there */
+  else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey){ /* type a name to jump to it */
+    const t = Date.now(); typed = (t - typedAt > 700 ? '' : typed) + k.toLowerCase(); typedAt = t;
+    for (let j = 0, from = typed.length > 1 ? at : at + 1; j < n; j++){ const i = (from + j) % n; if (opts[i].textContent.trim().toLowerCase().startsWith(typed)){ setAt(i); break; } }
+  } else return;
+  e.preventDefault(); e.stopPropagation();
+}
+
+function render(){
+  if (!dock) return;
+  closeMenu();
+  const light = cfg.mode === 'light', had = document.activeElement, keep = had && dock.contains(had) ? [had.dataset.k, had.dataset.v] : null;
+  dock.innerHTML =
+    `<div class="tw-ctl">mode ${seg('mode', ['dark', 'light'])}</div>` +
+    `<div class="tw-ctl">theme ${pick('theme')}</div>` +
+    `<div class="tw-ctl">surface ${seg('surface', ['solid', 'glass'])}</div>` +
+    `<div class="tw-ctl">font ${pick('font')}</div>` +
+    `<div class="tw-ctl">size ${pick('size')}</div>` +
+    `<div class="tw-ctl">corners ${pick('corner')}</div>` +
+    `<div class="tw-ctl">density ${pick('density')}</div>` +
+    `<div class="tw-ctl">accent <span class="tw-sws">${['page'].concat(Object.keys(ACCENTS)).map(a => `<button type="button" class="tw-sw" data-k="accent" data-v="${a}" title="${a === 'page' ? 'default' : a}" aria-label="${a === 'page' ? 'default' : a} accent" aria-pressed="${cfg.accent === a}" style="--c:${a === 'page' ? baseAccent : ACCENTS[a][light ? 1 : 0]}"></button>`).join('')}</span></div>` +
+    `<button type="button" class="tw-x" data-k="open" data-v="" aria-label="Hide tweaks" title="Hide tweaks">hide</button>`;
+  dock.hidden = !cfg.open; chip.hidden = !!cfg.open; if (space) space.hidden = !cfg.open;
+  if (keep){ const el = keep[1] != null ? dock.querySelector(`[data-k="${keep[0]}"][data-v="${keep[1]}"]`) : dock.querySelector(`.tw-val[data-k="${keep[0]}"]`); if (el) el.focus({ preventScroll: true }); }
+}
+function set(patch){
+  const before = { ...cfg };
+  Object.assign(cfg, patch);
+  if (patch.mode && patch.mode !== before.mode && !('theme' in patch)) cfg.theme = cfg.theme === 'page' && P.modes.includes(cfg.mode) ? 'page' : themesFor(cfg.mode)[0];
+  settle(); apply(); render();
+  try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {}
+  if (inURL || Object.keys(QK).some(k => cfg[k] !== before[k])) toURL();
+  document.dispatchEvent(new CustomEvent('tweakchange', { detail: { ...cfg } }));
+  /* text, spacing and font changes move boxes: let the page redraw anything it sized in script */
+  if (['font', 'size', 'density', 'corner'].some(k => cfg[k] !== before[k])){
+    const again = () => window.dispatchEvent(new Event('resize'));
+    requestAnimationFrame(() => requestAnimationFrame(again));
+    if (cfg.font !== before.font && document.fonts) document.fonts.ready.then(() => setTimeout(again, 60));
+  }
+}
+function mount(){
+  dock = document.createElement('div'); dock.className = 'tw'; dock.id = 'tweaks'; dock.setAttribute('role', 'group'); dock.setAttribute('aria-label', 'Theme tweaks');
+  chip = document.createElement('button'); chip.type = 'button'; chip.className = 'tw-chip'; chip.textContent = 'tweaks'; chip.setAttribute('aria-label', 'Show tweaks');
+  if (P.spacer !== false){ space = document.createElement('div'); space.className = 'tw-space'; space.setAttribute('aria-hidden', 'true'); document.body.append(space); }
+  menu = document.createElement('div'); menu.className = 'tw-menu'; menu.id = 'tw-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1; menu.hidden = true;
+  document.body.append(dock, chip, menu);
+  if (cfg.open == null) cfg.open = innerWidth > 720;
+  dock.addEventListener('click', e => {
+    const v = e.target.closest('.tw-val'); if (v){ if (menuFor === v) closeMenu(true); else openMenu(v); return; }
+    const b = e.target.closest('button[data-k]'); if (!b) return; set({ [b.dataset.k]: b.dataset.k === 'open' ? false : b.dataset.v }); if (b.dataset.k === 'open') chip.focus();
+  });
+  dock.addEventListener('keydown', e => { const v = e.target.closest('.tw-val'); if (v && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){ e.preventDefault(); openMenu(v); } });
+  menu.addEventListener('keydown', menuKey);
+  menu.addEventListener('click', e => { const o = e.target.closest('[role="option"]'); if (o) choose(opts.indexOf(o)); });
+  menu.addEventListener('pointermove', e => { const o = e.target.closest('[role="option"]'), i = opts.indexOf(o); if (o && i !== at) setAt(i, true); });
+  menu.addEventListener('focusout', e => { if (menuFor && e.relatedTarget !== menuFor && !menu.contains(e.relatedTarget)) closeMenu(); });
+  document.addEventListener('pointerdown', e => { if (menuFor && !menu.contains(e.target) && !menuFor.contains(e.target)) closeMenu(); }, true);
+  addEventListener('resize', () => closeMenu()); addEventListener('blur', () => closeMenu());
+  chip.addEventListener('click', () => { set({ open: true }); const f = dock.querySelector('button'); if (f) f.focus(); });
+  render();
+}
+if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
+window.Tweaks = { get: () => ({ ...cfg }), set, themes: THEMES, mix };
+})();
+</script>
+<!-- tweaks:end -->
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 4 12 2.5-6h5"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-trace" viewBox="0 0 24 24"><path d="M4 7h10M8 12h12M6 17h8"/></symbol>
+    <symbol id="i-logs" viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5"/></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3z"/><path d="M12 10v4M12 17h.01"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16z"/><path d="M10 20a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 5-5.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7z"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="10" y="10" width="4" height="4"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4-2v-4L3 5z"/></symbol>
+    <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M12 15c-3-3-3-9 0-12 3 3 3 9 0 12z"/><path d="M12 15 9 19H7l1-4M12 15l3 4h2l-1-4M12 9h.01"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.5 6.5a4 4 0 0 0 5 5L9 22l-3-3L16.5 8.5l-2-2z"/></symbol>
+    <symbol id="i-git" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 3-3 4-6 4.5-2 .3-4 1-4 3"/></symbol>
+    <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/></symbol>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#overview" aria-label="Home">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".35"/><path d="M5 12h3l2.2-5 3.6 10 2.2-5H19" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Observability
+    </a>
+    <div class="crumb">
+      <span class="sep" aria-hidden="true">/</span>
+      <button type="button"><span>production</span><svg class="icon sm" aria-hidden="true"><use href="#i-chev"/></svg></button>
+      <span class="sep" aria-hidden="true">/</span>
+      <button type="button"><span>us-east</span><svg class="icon sm" aria-hidden="true"><use href="#i-chev"/></svg></button>
+    </div>
+    <div class="spacer"></div>
+    <button class="search" type="button" aria-label="Search traces, logs, hosts">
+      <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+      <span>Search traces, logs, hosts</span>
+      <span class="kbd" aria-hidden="true"><span>⌘</span><span>K</span></span>
+    </button>
+    <div class="seg" id="range" role="group" aria-label="Time range">
+      <span class="pill" aria-hidden="true"></span>
+      <button type="button" data-range="1h" aria-pressed="false">1h</button>
+      <button type="button" data-range="24h" aria-pressed="true">24h</button>
+      <button type="button" data-range="7d" aria-pressed="false">7d</button>
+      <button type="button" data-range="30d" aria-pressed="false">30d</button>
+    </div>
+    <button class="iconbtn" type="button" aria-label="Notifications, 3 unread"><svg class="icon" aria-hidden="true"><use href="#i-bell"/></svg><span class="count" aria-hidden="true">3</span></button>
+    <span class="avatar" role="img" aria-label="Signed in as J. S.">JS</span>
+  </div>
+</header>
+
+<div class="tabs-wrap">
+  <div class="wrap">
+    <nav class="tabs" id="tabs" aria-label="Sections">
+      <a href="#overview"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Overview</a>
+      <a href="#traces"><svg class="icon" aria-hidden="true"><use href="#i-trace"/></svg>Traces</a>
+      <a href="#logs"><svg class="icon" aria-hidden="true"><use href="#i-logs"/></svg>Logs</a>
+      <a href="#infra"><svg class="icon" aria-hidden="true"><use href="#i-server"/></svg>Infrastructure</a>
+      <a href="#incidents"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>Incidents <span class="cnt">1</span></a>
+      <span class="ind" aria-hidden="true"></span>
+    </nav>
+  </div>
+</div>
+
+<main>
+<!-- ============================ OVERVIEW ============================ -->
+<section class="page" data-page="overview" id="page-overview">
+  <div class="wrap">
+    <h1 class="sr-only">Overview</h1>
+    <div class="hero">
+      <div>
+        <div class="label">Availability, trailing 30 days</div>
+        <div class="big"><span id="hero-avail">99.982%</span><small><svg class="icon xs" aria-hidden="true"><use href="#i-check"/></svg>within SLO</small></div>
+        <div class="uptime" id="uptime" role="img" aria-label="Daily availability, last 30 days"></div>
+        <div class="uptime-cap"><span>30 days ago</span><span>today</span></div>
+        <p>13 of 14 services are healthy. Payments is running hot after the 13:40 deploy, and the error budget has 71% remaining for the month.</p>
+      </div>
+      <div class="side" id="hero-side"></div>
+    </div>
+
+    <section class="section">
+      <div class="sec-head">
+        <h2>Request volume <span>requests per second, all edges</span></h2>
+        <div class="right"><span id="rv-peak"></span></div>
+      </div>
+      <div class="chart" id="c-requests"></div>
+    </section>
+
+    <section class="section">
+      <div class="two">
+        <div>
+          <div class="sec-head"><h2>Latency <span>milliseconds, by percentile</span></h2></div>
+          <div class="chart" id="c-latency"></div>
+        </div>
+        <div>
+          <div class="sec-head"><h2>Errors <span>5xx responses per minute</span></h2></div>
+          <div class="chart" id="c-errors"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="sec-head">
+        <h2>Top routes <span>by request share</span></h2>
+        <div class="right"><a class="link" href="#traces">All routes <svg class="icon xs" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+      </div>
+      <div style="overflow-x:auto">
+      <table class="tbl" id="t-routes">
+        <thead><tr><th>Route</th><th class="r">Requests</th><th class="r hide-m">p95</th><th class="r">Errors</th><th class="hide-m l">Share</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="two">
+        <div>
+          <div class="sec-head"><h2>Traffic by route <span>requests per second, stacked</span></h2></div>
+          <div class="legend">
+            <span><i style="background:var(--s-blue)"></i>products</span>
+            <span><i style="background:var(--s-teal)"></i>cart</span>
+            <span><i style="background:var(--s-violet)"></i>search</span>
+            <span><i style="background:var(--s-grey)"></i>other routes</span>
+          </div>
+          <div class="chart late" id="c-routes"></div>
+        </div>
+        <div>
+          <div class="sec-head"><h2>Load and latency <span>p95 against throughput</span></h2></div>
+          <div class="legend">
+            <span><i class="dot" style="background:var(--s-blue)"></i>service</span>
+            <span><i class="dot" style="background:var(--s-teal)"></i>datastore</span>
+            <span><i class="dot" style="background:var(--warn)"></i>degraded</span>
+          </div>
+          <div class="chart late" id="c-load"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="sec-head">
+        <h2>Services <span>health across the fleet</span></h2>
+        <div class="right"><span class="status good"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>13 healthy</span><span class="status warn"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>1 degraded</span></div>
+      </div>
+      <div class="svcs" id="svcs"></div>
+    </section>
+  </div>
+</section>
+
+<!-- ============================ TRACES ============================ -->
+<section class="page" data-page="traces" id="page-traces">
+  <div class="wrap">
+    <div class="page-head">
+      <div>
+        <h1>Traces</h1>
+        <p>Distributed traces sampled at 10%. Select a trace to inspect its spans.</p>
+      </div>
+      <div class="actions">
+        <button class="btn" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-filter"/></svg>Filter</button>
+        <button class="btn" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-dl"/></svg>Export</button>
+      </div>
+    </div>
+
+    <div class="chips">
+      <button class="chip on" type="button"><svg class="icon xs" aria-hidden="true"><use href="#i-box"/></svg>service <b>checkout</b></button>
+      <button class="chip" type="button">status <b>any</b></button>
+      <button class="chip" type="button">duration <b>&gt; 200 ms</b></button>
+      <button class="chip" type="button"><svg class="icon xs" aria-hidden="true"><use href="#i-plus"/></svg>Add filter</button>
+    </div>
+
+    <section class="section">
+      <div class="sec-head">
+        <h2>Duration <span>distribution of sampled traces</span></h2>
+        <div class="right"><span id="dist-note"></span></div>
+      </div>
+      <div class="chart" id="c-dist"></div>
+    </section>
+
+    <section class="section">
+      <div class="sec-head"><h2>Recent traces <span id="trace-count"></span></h2></div>
+      <div style="overflow-x:auto">
+      <table class="tbl" id="t-traces">
+        <thead><tr><th>Trace</th><th class="hide-m">Service</th><th class="r">Duration</th><th class="r hide-m">Spans</th><th class="r">Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="sec-head">
+        <h2 id="wf-title">Waterfall</h2>
+        <div class="right legend" style="margin:0">
+          <span><i style="background:var(--s-blue)"></i>service</span>
+          <span><i style="background:var(--s-teal)"></i>datastore</span>
+          <span><i style="background:var(--s-violet)"></i>external</span>
+        </div>
+      </div>
+      <div class="gantt" id="waterfall"></div>
+    </section>
+
+    <section class="section">
+      <div class="sec-head">
+        <h2>Operations <span>span duration from p50 to p99, slowest first</span></h2>
+        <div class="right legend" style="margin:0">
+          <span><i class="dot" style="background:var(--o1)"></i>p50</span>
+          <span><i class="dot" style="background:var(--o2)"></i>p95</span>
+          <span><i class="dot" style="background:var(--o3)"></i>p99</span>
+        </div>
+      </div>
+      <div class="gantt late" id="ops"></div>
+    </section>
+  </div>
+</section>
+
+<!-- ============================ LOGS ============================ -->
+<section class="page" data-page="logs" id="page-logs">
+  <div class="wrap">
+    <div class="page-head">
+      <div>
+        <h1>Logs</h1>
+        <p>Structured logs from every service, indexed within two seconds of emission.</p>
+      </div>
+      <div class="actions">
+        <button class="btn" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-filter"/></svg>Filter</button>
+        <button class="btn primary" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-zap"/></svg>Live tail</button>
+      </div>
+    </div>
+
+    <div class="chips" id="log-chips">
+      <button class="chip on" type="button" data-level="all" aria-pressed="true">All levels</button>
+      <button class="chip" type="button" data-level="error" aria-pressed="false"><svg class="icon xs" aria-hidden="true" style="color:var(--crit)"><use href="#i-x"/></svg>error</button>
+      <button class="chip" type="button" data-level="warn" aria-pressed="false"><svg class="icon xs" aria-hidden="true" style="color:var(--warn)"><use href="#i-alert"/></svg>warn</button>
+      <button class="chip" type="button" data-level="info" aria-pressed="false"><svg class="icon xs" aria-hidden="true" style="color:var(--o2)"><use href="#i-info"/></svg>info</button>
+      <button class="chip" type="button"><svg class="icon xs" aria-hidden="true"><use href="#i-box"/></svg>service <b>any</b></button>
+    </div>
+
+    <section class="section">
+      <div class="sec-head">
+        <h2>Volume <span>lines per minute, by level</span></h2>
+        <div class="right"><span id="log-total"></span></div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--s-blue)"></i>info</span>
+        <span><i style="background:var(--warn)"></i>warn</span>
+        <span><i style="background:var(--crit)"></i>error</span>
+      </div>
+      <div class="chart" id="c-logs"></div>
+    </section>
+
+    <section class="section">
+      <div class="sec-head"><h2>Stream <span>newest first</span></h2></div>
+      <div class="logs" id="log-stream"></div>
+    </section>
+  </div>
+</section>
+
+<!-- ============================ INFRA ============================ -->
+<section class="page" data-page="infra" id="page-infra">
+  <div class="wrap">
+    <div class="page-head">
+      <div>
+        <h1>Infrastructure</h1>
+        <p>48 hosts across three regions, running 612 pods behind the edge.</p>
+      </div>
+      <div class="actions">
+        <button class="btn" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-globe"/></svg>All regions</button>
+      </div>
+    </div>
+
+    <div class="stats" id="infra-stats"></div>
+
+    <section class="section">
+      <div class="sec-head">
+        <h2>CPU by host <span>hourly average, last 24 hours</span></h2>
+      </div>
+      <div class="heat" id="heat"></div>
+      <div class="heat-scale" id="heat-scale"></div>
+    </section>
+
+    <section class="section">
+      <div class="sec-head"><h2>Network <span>gigabits per second at the edge</span></h2></div>
+      <div class="legend">
+        <span><i class="l" style="background:var(--s-blue)"></i>ingress</span>
+        <span><i class="l" style="background:var(--s-teal)"></i>egress</span>
+      </div>
+      <div class="chart" id="c-net"></div>
+    </section>
+
+    <section class="section">
+      <div class="sec-head">
+        <h2>Hosts <span>busiest first</span></h2>
+        <div class="right"><a class="link" href="#infra">All 48 hosts <svg class="icon xs" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+      </div>
+      <div style="overflow-x:auto">
+      <table class="tbl" id="t-hosts">
+        <thead><tr><th>Host</th><th class="hide-m">Region</th><th>CPU</th><th class="hide-m">Memory</th><th class="r hide-m">Pods</th><th class="r">Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ============================ INCIDENTS ============================ -->
+<section class="page" data-page="incidents" id="page-incidents">
+  <div class="wrap">
+    <div class="page-head">
+      <div>
+        <h1>Incidents</h1>
+        <p>One incident open. Mean time to resolve is down 12 minutes over the last quarter.</p>
+      </div>
+      <div class="actions">
+        <button class="btn primary" type="button"><svg class="icon sm" aria-hidden="true"><use href="#i-plus"/></svg>Declare incident</button>
+      </div>
+    </div>
+
+    <div class="stats" id="inc-stats"></div>
+
+    <section class="section">
+      <div class="sec-head">
+        <h2>Timeline <span>deploys, maintenance and incidents, last 7 days</span></h2>
+        <div class="right legend" style="margin:0">
+          <span><i style="background:var(--s-blue)"></i>deploy</span>
+          <span><i style="background:var(--s-teal)"></i>maintenance</span>
+          <span><i style="background:var(--crit);border-radius:50%"></i>incident</span>
+        </div>
+      </div>
+      <div class="gantt" id="timeline"></div>
+    </section>
+
+    <section class="section">
+      <div class="sec-head">
+        <h2>Burn rate <span>error budget spent in the last 24 hours, where 1× is an even pace</span></h2>
+        <div class="right"><span id="burn-note"></span></div>
+      </div>
+      <div class="gantt late" id="burn"></div>
+    </section>
+
+    <section class="section">
+      <div class="slo">
+        <div>
+          <div class="sec-head"><h2>Service objectives <span>30-day error budget</span></h2></div>
+          <div id="slo-list"></div>
+        </div>
+        <div>
+          <div class="sec-head"><h2>Recent incidents</h2></div>
+          <div id="inc-list"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Sample data, generated locally. Nothing here is live.</span>
+    <span>Updated <span id="updated"></span></span>
+  </div>
+</footer>
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const NS = 'http://www.w3.org/2000/svg';
+// colours reach SVG and inline styles as var() references, so a theme change repaints the charts without a redraw
+const css = (n) => `var(${n})`;
+// tweak-dock multipliers (text size, corner radius); 1 while the dock is untouched
+const dial = (n) => { const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(n)); return Number.isFinite(v) ? v : 1; };
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- utils ---------- */
+function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function svg(tag, attrs = {}, parent) { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (parent) parent.appendChild(n); return n; }
+function h(tag, attrs = {}, html) { const n = document.createElement(tag); for (const k in attrs) { if (k === 'class') n.className = attrs[k]; else if (k === 'style') n.style.cssText = attrs[k]; else n.setAttribute(k, attrs[k]); } if (html != null) n.innerHTML = html; return n; }
+const ico = (id, cls = 'icon') => `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
+function compact(n, d = 1) { const a = Math.abs(n); if (a >= 1e9) return (n / 1e9).toFixed(d) + 'B'; if (a >= 1e6) return (n / 1e6).toFixed(d) + 'M'; if (a >= 1e4) return (n / 1e3).toFixed(a >= 1e5 ? 0 : d) + 'K'; if (a >= 1e3) return n.toLocaleString('en-US', { maximumFractionDigits: 0 }); return n % 1 ? n.toFixed(d) : String(n); }
+function niceScale(maxV, count = 4) { const raw = (maxV || 1) / count; const p = Math.pow(10, Math.floor(Math.log10(raw))); const f = raw / p; const step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; const max = Math.ceil(maxV / step) * step; return { step, max, ticks: Math.round(max / step) }; }
+function axisFmt(max, step) { if (max >= 1e6) return v => (v / 1e6).toFixed(step >= 1e6 ? 0 : 1) + 'M'; if (max >= 1e4) return v => (v / 1e3).toFixed(step >= 1e3 ? 0 : 1) + 'K'; if (step >= 1) return v => v.toLocaleString('en-US', { maximumFractionDigits: 0 }); return v => v.toFixed(step >= 0.1 ? 1 : 2); }
+function labelEvery(n, iw, base = 1) { const need = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(iw / (78 * dial('--tw-fs')))))); return Math.ceil(need / base) * base; }
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+/* ---------- state ---------- */
+const state = { range: '24h', page: null, trace: 0, level: 'all' };
+const RANGES = {
+  '1h':  { n: 60, per: 10, span: '1 hour' },
+  '24h': { n: 48, per: 4, label: i => `${pad2(Math.floor(i / 2))}:${i % 2 ? '30' : '00'}`, span: '24 hours' },
+  '7d':  { n: 56, per: 8, label: i => ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][Math.floor(i / 8)], span: '7 days' },
+  '30d': { n: 60, per: 2, span: '30 days' },
+};
+function labelsFor(r) { const R = RANGES[r]; const out = []; for (let i = 0; i < R.n; i++) { if (r === '1h') { const m = i; out.push(`13:${pad2(m)}`); } else if (r === '30d') { const d = 10 + Math.floor(i / 2); out.push(d <= 31 ? `Oct ${d}` : `Nov ${d - 31}`); } else out.push(R.label(i)); } return out; }
+function series(seed, n, base, amp, opts = {}) {
+  const r = rng(seed); const out = []; let v = base; const trend = opts.trend || 0;
+  for (let i = 0; i < n; i++) {
+    const daily = opts.daily ? Math.sin((i / n) * Math.PI * 2 * (opts.cycles || 1) - 1.2) * amp * 0.5 : 0;
+    v = v + (r() - 0.5) * amp * 0.5 + trend; v = Math.max(opts.min ?? 0, v * 0.92 + base * 0.08);
+    let y = v + daily; if (opts.spike && r() < opts.spike) y += amp * (1.5 + r() * 2);
+    out.push(Math.max(opts.min ?? 0, y));
+  }
+  return out;
+}
+
+/* ---------- tooltip ---------- */
+function tooltip(chart) {
+  let tip = chart.querySelector('.tip'); if (!tip) { tip = h('div', { class: 'tip' }); chart.appendChild(tip); }
+  return {
+    show(x, y, html) {
+      tip.innerHTML = html; tip.classList.add('show');
+      const w = chart.clientWidth, tw = tip.offsetWidth;
+      let left = x + 14; if (left + tw > w) left = x - tw - 14; if (left < 0) left = 0;
+      tip.style.left = left + 'px'; tip.style.top = Math.max(0, y - 10) + 'px';
+    },
+    hide() { tip.classList.remove('show'); },
+  };
+}
+
+/* ---------- line / area chart ---------- */
+function lineChart(el, { labels, series: S, height = 220, area = false, stacked = false, yFmt, tipFmt, unit = '', ticks = 4, endLabels = false, grid = true, xBase = 1, label = '' }) {
+  el.innerHTML = '';
+  const W = Math.max(280, el.clientWidth), H = height;
+  // stacked: the first series is the top band, so each one rests on the sum of those listed after it
+  const base = S.map((_, si) => labels.map((_, i) => stacked ? S.slice(si + 1).reduce((a, s) => a + s.values[i], 0) : 0));
+  const all = S.flatMap((s, si) => s.values.map((v, i) => v + base[si][i])); const sc = niceScale(Math.max(...all) * 1.06, ticks); let max = sc.max; ticks = sc.ticks; let min = 0; if (!yFmt) yFmt = axisFmt(max, sc.step); if (!tipFmt) tipFmt = yFmt;
+  // the top tick carries the unit; widen the gutter so it stays on the content edge
+  const padL = Math.max(44, Math.ceil((yFmt(max) + unit).length * 6.4 * dial('--tw-fs')) + 12), padR = endLabels ? 56 : 12, padT = 12, padB = 28;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const n = labels.length;
+  const x = i => padL + (i / (n - 1)) * iw; const y = v => padT + ih - ((v - min) / (max - min)) * ih;
+  const root = svg('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': label }, el);
+  const g = svg('g', { class: 'grid' }, root);
+  for (let t = 0; t <= ticks; t++) { const v = min + (max - min) * t / ticks; const yy = y(v); if (grid || t === 0) svg('line', { x1: padL, x2: W - padR, y1: yy, y2: yy, class: t === 0 ? 'axis' : '' }, g); const tx = svg('text', { x: padL - 10, y: yy + 4, 'text-anchor': 'end' }, g); tx.textContent = yFmt(v) + (t === ticks && unit ? unit : ''); }
+  const every = labelEvery(n, iw, xBase);
+  for (let i = 0; i < n; i += every) { if (i > n - every * 0.6) continue; const tx = svg('text', { x: x(i), y: H - 6, 'text-anchor': i === 0 ? 'start' : 'middle' }, root); tx.textContent = labels[i]; }
+  const defs = svg('defs', {}, root);
+  S.forEach((s, si) => {
+    const pts = s.values.map((v, i) => [x(i), y(v + base[si][i])]);
+    const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('');
+    if (stacked) {
+      const floor = base[si].map((b, i) => 'L' + x(i).toFixed(1) + ' ' + y(b).toFixed(1)).reverse().join('');
+      svg('path', { d: d + floor + 'Z', fill: s.color, class: 'band' }, root);
+    } else if (area || s.area) {
+      const gid = `g${si}-${Math.random().toString(36).slice(2, 7)}`;
+      const lg = svg('linearGradient', { id: gid, x1: 0, x2: 0, y1: 0, y2: 1 }, defs);
+      svg('stop', { offset: '0', 'stop-color': s.color, 'stop-opacity': 1 }, lg); svg('stop', { offset: '1', 'stop-color': s.color, 'stop-opacity': 0.05 }, lg);
+      svg('path', { d: d + `L${x(n - 1)} ${y(min)}L${x(0)} ${y(min)}Z`, fill: `url(#${gid})`, class: 'area draw' }, root);
+    }
+    svg('path', { d, stroke: s.color, class: stacked ? 'line' : 'line draw', pathLength: 1, style: `animation-delay:${0.08 + si * 0.08}s` }, root);
+    if (endLabels) { const last = pts[n - 1]; const t = svg('text', { x: last[0] + 10, y: last[1] + 4, class: 'endlbl' }, root); t.textContent = s.name; }
+  });
+  // hover layer
+  const xh = svg('g', { class: 'xh' }, root);
+  const vl = svg('line', { x1: 0, x2: 0, y1: padT, y2: padT + ih }, xh);
+  const dots = S.map(s => svg('circle', { r: 4.5, fill: s.color }, xh));
+  const hit = svg('rect', { x: padL, y: padT, width: iw, height: ih, class: 'hit' }, root);
+  const tip = tooltip(el);
+  const move = (ev) => {
+    const r = root.getBoundingClientRect(); const px = (ev.clientX - r.left) * (W / r.width); const i = Math.max(0, Math.min(n - 1, Math.round((px - padL) / iw * (n - 1))));
+    const xx = x(i); vl.setAttribute('x1', xx); vl.setAttribute('x2', xx);
+    S.forEach((s, k) => { dots[k].setAttribute('cx', xx); dots[k].setAttribute('cy', y(s.values[i] + base[k][i])); });
+    el.classList.add('is-hover');
+    const rows = S.map(s => `<div class="r"><i style="background:${s.color}"></i>${s.name}<b>${tipFmt(s.values[i])}${unit}</b></div>`).join('');
+    const sum = stacked ? `<div class="r" style="margin-top:4px;color:var(--fg-2)">total<b>${tipFmt(S.reduce((a, s) => a + s.values[i], 0))}${unit}</b></div>` : '';
+    tip.show(xx * (r.width / W), (ev.clientY - r.top), `<div class="t">${labels[i]}</div>${rows}${sum}`);
+  };
+  hit.addEventListener('mousemove', move); hit.addEventListener('mouseleave', () => { el.classList.remove('is-hover'); tip.hide(); });
+}
+
+/* ---------- stacked columns ---------- */
+function columnChart(el, { labels, xLabels, series: S, height = 200, yFmt, ticks = 4, highlight, xBase = 1, label = '' }) {
+  el.innerHTML = '';
+  const W = Math.max(280, el.clientWidth), H = height; const padL = Math.round(44 * dial('--tw-fs')), padR = 8, padT = 12, padB = 28; const iw = W - padL - padR, ih = H - padT - padB; const cap = 4 * dial('--tw-r');
+  const n = labels.length; const totals = labels.map((_, i) => S.reduce((a, s) => a + s.values[i], 0)); const sc = niceScale(Math.max(...totals) * 1.08, ticks); const max = sc.max; ticks = sc.ticks; if (!yFmt) yFmt = axisFmt(max, sc.step);
+  const slot = iw / n; const bw = Math.min(24, Math.max(3, slot * 0.6)); const gap = 2;
+  const x = i => padL + slot * i + (slot - bw) / 2; const y = v => padT + ih - (v / max) * ih;
+  const root = svg('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': label }, el);
+  const g = svg('g', { class: 'grid' }, root);
+  for (let t = 0; t <= ticks; t++) { const v = max * t / ticks; const yy = y(v); svg('line', { x1: padL, x2: W - padR, y1: yy, y2: yy, class: t === 0 ? 'axis' : '' }, g); const tx = svg('text', { x: padL - 10, y: yy + 4, 'text-anchor': 'end' }, g); tx.textContent = yFmt(v); }
+  const every = labelEvery(n, iw, xBase); const xl = xLabels || labels;
+  for (let i = 0; i < n; i += every) { if (i > n - every * 0.6) continue; const tx = svg('text', { x: x(i) + bw / 2, y: H - 6, 'text-anchor': i === 0 ? 'start' : 'middle' }, root); tx.textContent = xl[i]; }
+  const tip = tooltip(el);
+  for (let i = 0; i < n; i++) {
+    let acc = 0; const grp = svg('g', {}, root);
+    S.forEach((s, si) => {
+      const v = s.values[i]; if (v <= 0) return; const y0 = y(acc + v), y1 = y(acc); acc += v;
+      const top = y0, bot = y1; // the gap between stacked segments is taken off the lower one's height
+      const isTop = S.slice(si + 1).every(t => t.values[i] <= 0);
+      const hgt = Math.max(1, (bot - top) - (isTop ? 0 : gap));
+      const r = isTop ? Math.min(cap, bw / 2, hgt) : 0; const xx = x(i);
+      const d = r ? `M${xx} ${bot}V${top + r}a${r} ${r} 0 0 1 ${r} -${r}h${bw - 2 * r}a${r} ${r} 0 0 1 ${r} ${r}V${bot}Z` : `M${xx} ${bot}V${top}h${bw}V${bot}Z`;
+      const p = svg('path', { d, fill: highlight && highlight !== i ? s.dim || s.color : s.color, class: 'col draw', style: `animation-delay:${(i / n) * 0.35}s` }, grp);
+      if (highlight != null && highlight !== i) p.style.opacity = s.dimOpacity ?? 0.45;
+    });
+    const hit = svg('rect', { x: padL + slot * i, y: padT, width: slot, height: ih, class: 'hit' }, root);
+    hit.addEventListener('mousemove', ev => { const r = root.getBoundingClientRect(); const rows = S.map(s => `<div class="r"><i style="background:${s.color}"></i>${s.name}<b>${yFmt(s.values[i])}</b></div>`).join(''); tip.show((x(i) + bw / 2) * (r.width / W), ev.clientY - r.top, `<div class="t">${labels[i]}</div>${rows}${S.length > 1 ? `<div class="r" style="margin-top:4px;color:var(--fg-2)">total<b>${yFmt(totals[i])}</b></div>` : ''}`); });
+    hit.addEventListener('mouseleave', () => tip.hide());
+  }
+}
+
+/* ---------- scatter ---------- */
+function scatterChart(el, { points, height = 220, xUnit = '', yUnit = '', label = '' }) {
+  el.innerHTML = '';
+  const k = dial('--tw-fs'), W = Math.max(280, el.clientWidth), H = height;
+  const sx = niceScale(Math.max(...points.map(p => p.x)) * 1.02, 5), sy = niceScale(Math.max(...points.map(p => p.y)) * 1.06, 4);
+  const xFmt = axisFmt(sx.max, sx.step), yFmt = axisFmt(sy.max, sy.step);
+  const padL = Math.max(44, Math.ceil((yFmt(sy.max) + yUnit).length * 6.4 * k) + 12), padR = 12, padT = 12, padB = 28; const iw = W - padL - padR, ih = H - padT - padB;
+  const x = v => padL + (v / sx.max) * iw, y = v => padT + ih - (v / sy.max) * ih;
+  const root = svg('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': label }, el);
+  const g = svg('g', { class: 'grid' }, root);
+  for (let t = 0; t <= sy.ticks; t++) { const v = sy.max * t / sy.ticks, yy = y(v); svg('line', { x1: padL, x2: W - padR, y1: yy, y2: yy, class: t === 0 ? 'axis' : '' }, g); const tx = svg('text', { x: padL - 10, y: yy + 4, 'text-anchor': 'end' }, g); tx.textContent = yFmt(v) + (t === sy.ticks ? yUnit : ''); }
+  // the last tick carries the unit and is always kept; the ones before it thin out when the plot is narrow
+  const every = iw / sx.ticks < 64 * k ? 2 : 1;
+  for (let t = sx.ticks; t >= 0; t -= every) { const tx = svg('text', { x: x(sx.max * t / sx.ticks), y: H - 6, 'text-anchor': t === sx.ticks ? 'end' : t === 0 ? 'start' : 'middle' }, root); tx.textContent = xFmt(sx.max * t / sx.ticks) + (t === sx.ticks ? xUnit : ''); }
+  const P = points.map(p => ({ ...p, cx: x(p.x), cy: y(p.y) }));
+  P.forEach(p => svg('circle', { cx: p.cx.toFixed(1), cy: p.cy.toFixed(1), r: 5, fill: p.color, class: 'pt' }, root));
+  // a few direct labels: to the right of the dot, or above it where the right edge is close
+  P.filter(p => p.label).forEach(p => { const fits = p.cx + 12 + p.label.length * 6.6 * k <= W - padR; const t = svg('text', fits ? { x: p.cx + 10, y: p.cy + 4, class: 'endlbl' } : { x: p.cx + 5, y: p.cy - 10, 'text-anchor': 'end', class: 'endlbl' }, root); t.textContent = p.label; });
+  // hover: the nearest dot answers, so the pointer never has to land on one
+  const xh = svg('g', { class: 'xh' }, root); const ring = svg('circle', { r: 9, class: 'ring' }, xh);
+  const hit = svg('rect', { x: padL - 10, y: 0, width: iw + 10 + padR, height: padT + ih + 10, class: 'hit' }, root);
+  const tip = tooltip(el);
+  hit.addEventListener('mousemove', ev => {
+    const r = root.getBoundingClientRect(), f = W / r.width; const px = (ev.clientX - r.left) * f, py = (ev.clientY - r.top) * f;
+    const near = P.reduce((a, p) => (p.cx - px) ** 2 + (p.cy - py) ** 2 < (a.cx - px) ** 2 + (a.cy - py) ** 2 ? p : a);
+    ring.setAttribute('cx', near.cx); ring.setAttribute('cy', near.cy); el.classList.add('is-hover');
+    tip.show(near.cx / f, near.cy / f, near.tip);
+  });
+  hit.addEventListener('mouseleave', () => { el.classList.remove('is-hover'); tip.hide(); });
+}
+
+/* ---------- sparkline ---------- */
+function sparkline(values, color, w = 84, hh = 24) {
+  const max = Math.max(...values), min = Math.min(...values); const n = values.length;
+  const pts = values.map((v, i) => [(i / (n - 1)) * (w - 4) + 2, hh - 3 - ((v - min) / ((max - min) || 1)) * (hh - 6)]);
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('');
+  const last = pts[n - 1];
+  return `<svg class="spark" viewBox="0 0 ${w} ${hh}" aria-hidden="true"><path d="${d}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/><circle cx="${last[0]}" cy="${last[1]}" r="2.5" fill="${color}"/></svg>`;
+}
+
+/* ---------- stat tile ---------- */
+function statTile({ label, value, unit, delta, deltaGood = true, vs = 'vs prior', spark, color, icon }) {
+  const dir = delta == null ? null : delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat';
+  const good = dir === 'flat' ? 'flat' : ((dir === 'up') === deltaGood) ? 'up' : 'down';
+  const deltaHtml = delta == null ? '' : dir === 'flat' ? `<span class="delta flat">no change</span>` : `<span class="delta ${good}">${ico(dir === 'up' ? 'i-up' : 'i-down', 'icon')}<span class="sr-only">${dir} </span>${Math.abs(delta).toFixed(1)}%<small>${vs}</small></span>`;
+  return `<div class="stat"><div class="label">${icon ? ico(icon, 'icon sm') : ''}${label}</div><div class="value">${value}${unit ? `<span class="unit">${unit}</span>` : ''}</div><div class="foot">${deltaHtml}${spark ? sparkline(spark, color || css('--s-blue')) : ''}</div></div>`;
+}
+
+/* ---------- gantt ---------- */
+function gantt(el, { rows, total, unit = 'ms', ticks = 5, groups, markers = [], tickFmt, draw = true, label, every = false }) {
+  el.innerHTML = ''; el.classList.toggle('narrow', el.clientWidth < 640); el.classList.toggle('every', every); el.style.setProperty('--tail', '0px');
+  if (label) { el.setAttribute('role', 'img'); el.setAttribute('aria-label', label); }
+  let tip;
+  const ax = h('div', { class: 'axis-row' }); ax.appendChild(h('div')); const tk = h('div', { class: 'ticks' });
+  for (let t = 0; t <= ticks; t++) { const v = total * t / ticks; tk.appendChild(h('span', { style: `left:${(t / ticks) * 100}%` }, tickFmt ? tickFmt(v, t) : `${Math.round(v)}${t === ticks ? ' ' + unit : ''}`)); }
+  ax.appendChild(tk); el.appendChild(ax);
+  const body = h('div', { style: 'position:relative' });
+  markers.forEach(m => { const v = h('div', { class: 'vline', style: `left:calc(var(--label) + (100% - var(--label) - var(--tail)) * ${m.at / total})` }); if (m.label) v.appendChild(h('span', {}, m.label)); body.appendChild(v); });
+  let lastGroup = null;
+  rows.forEach((r, i) => {
+    if (groups && r.group !== lastGroup) { body.appendChild(h('div', { class: 'grp' }, `<span>${r.group}</span>`)); lastGroup = r.group; }
+    const row = h('div', { class: 'row' }); row.style.setProperty('--d', r.depth || 0);
+    row.appendChild(h('div', { class: 'lbl' }, `${r.icon ? ico(r.icon) : ''}<span class="n">${r.name}</span>${r.sub ? `<span class="s">${r.sub}</span>` : ''}`));
+    const track = h('div', { class: 'track' });
+    // bullet rows: range bands sit behind the measure, with the same 2px gap as the segmented bars
+    (r.zones || []).forEach(([from, to], zi) => track.appendChild(h('i', { class: `zone z${zi + 1}`, style: `left:${(from / total) * 100}%;width:calc(${((to - from) / total) * 100}% - ${to < total ? 2 : 0}px)` })));
+    (r.bars || [{ start: r.start, dur: r.dur, color: r.color, label: r.label }]).forEach((b, bi) => {
+      const left = (b.start / total) * 100, width = Math.max(0.4, (b.dur / total) * 100);
+      const bar = h('div', { class: `bar${draw ? ' draw' : ''} ${b.color || ''}${b.thin ? ' thin' : ''}`, style: `left:${left}%;width:${width}%;animation-delay:${Math.min(i, 14) * 0.03 + bi * 0.02}s`, title: b.title || '' });
+      track.appendChild(bar);
+      if (b.label !== undefined) { const inside = left + width > 86; track.appendChild(h('span', { class: 'dur' + (inside ? ' in' : ''), style: inside ? `left:${left}%` : `left:${left + width}%`, 'data-end': left + width }, b.label)); }
+    });
+    if (r.goal != null) track.appendChild(h('i', { class: 'goal', style: `left:${(r.goal / total) * 100}%` }));
+    // range dots (the ones given a colour) stay inside the track
+    (r.marks || []).forEach(m => { const mk = h('span', { class: 'mark' + (m.color ? ' ' + m.color : ''), style: m.color ? `left:max(4px, ${(m.at / total) * 100}%)` : `left:${(m.at / total) * 100}%`, title: m.title || '' }); track.appendChild(mk); });
+    if (r.value != null) track.appendChild(h('span', { class: 'dur', style: 'left:100%', 'data-end': 100 }, r.value)); // sits in the tail, past the end of the track
+    if (r.tip) { row.addEventListener('mousemove', ev => { const b = el.getBoundingClientRect(); tip.show(ev.clientX - b.left, ev.clientY - b.top, r.tip); }); row.addEventListener('mouseleave', () => tip.hide()); }
+    row.appendChild(track); body.appendChild(row);
+  });
+  el.appendChild(body); if (rows.some(r => r.tip)) tip = tooltip(el);
+  // a label with no room before its bar goes after it; then reserve a tail so no label leaves the row
+  $$('.dur.in', el).forEach(d => { if (d.offsetLeft < d.offsetWidth) { d.classList.remove('in'); d.style.left = d.dataset.end + '%'; } });
+  const tw = ($('.track', el) || el).clientWidth; let tail = 0;
+  $$('.dur:not(.in)', el).forEach(d => { const f = parseFloat(d.style.left) / 100; if (f > 0) tail = Math.max(tail, (d.offsetWidth - tw * (1 - f)) / f); });
+  el.style.setProperty('--tail', Math.ceil(tail) + 'px');
+}
+
+/* ---------- data ---------- */
+const SERVICES = [
+  ['edge-router', 'blue'], ['checkout-api', 'blue'], ['auth', 'blue'], ['cart', 'blue'], ['pricing', 'blue'], ['payments', 'blue'], ['search', 'blue'], ['catalog', 'blue'],
+  ['notifications', 'blue'], ['postgres', 'teal'], ['redis', 'teal'], ['kafka', 'teal'], ['clickhouse', 'teal'], ['object-store', 'teal'],
+];
+const ROUTES = [
+  ['GET /api/products', 1842000, 61, 0.02], ['GET /api/cart', 1210000, 88, 0.05], ['POST /api/checkout', 412000, 318, 0.31], ['GET /api/search', 988000, 142, 0.08],
+  ['POST /api/auth/token', 640000, 72, 0.11], ['GET /api/orders/:id', 322000, 109, 0.04], ['PUT /api/cart/items', 286000, 96, 0.07],
+];
+
+// the six services without a card on the overview: [p95 in ms, throughput per second]
+const QUIET = { notifications: [212, 640], postgres: [38, 4120], redis: [4, 4860], kafka: [12, 3540], clickhouse: [412, 310], 'object-store': [96, 1120] };
+// span duration across sampled traces: [operation, service, icon, p50, p95, p99] in ms
+const OPS = [
+  ['payment.authorize', 'payments', 'i-box', 124, 410, 780], ['cart.load', 'cart', 'i-box', 101, 228, 342], ['pg SELECT cart_items', 'postgres', 'i-db', 66, 164, 290], ['pricing.quote', 'pricing', 'i-box', 86, 186, 265],
+  ['pg SELECT prices', 'postgres', 'i-db', 60, 128, 190], ['auth.verify', 'auth', 'i-box', 41, 92, 140], ['redis MGET items', 'redis', 'i-db', 15, 38, 110], ['kafka PRODUCE order.created', 'kafka', 'i-db', 8, 19, 31],
+];
+
+function dataFor(range) {
+  const R = RANGES[range]; const n = R.n; const seed = { '1h': 11, '24h': 42, '7d': 7, '30d': 30 }[range];
+  const labels = labelsFor(range);
+  const rps = series(seed, n, 11800, 5200, { daily: true, cycles: range === '7d' ? 7 : range === '30d' ? 4 : 1, min: 2000 });
+  const p50 = series(seed + 1, n, 58, 14, { min: 30 }); const p95 = p50.map((v, i) => v * 2.9 + series(seed + 2, n, 10, 20)[i]); const p99 = p95.map((v, i) => v * 1.7 + series(seed + 3, n, 20, 40, { spike: 0.04 })[i]);
+  const errors = series(seed + 4, n, 14, 18, { min: 0, spike: 0.06 }).map(v => Math.round(v));
+  return { labels, rps, p50, p95, p99, errors, per: R.per };
+}
+
+/* ---------- renderers ---------- */
+function renderOverview() {
+  const D = dataFor(state.range); const R = RANGES[state.range];
+  const avgRps = D.rps.reduce((a, b) => a + b, 0) / D.rps.length; const peak = Math.max(...D.rps);
+  const p95 = D.p95[D.p95.length - 1]; const avgErr = D.errors.reduce((a, b) => a + b, 0) / D.errors.length; const errRate = avgErr * 50 / avgRps;
+  const ur = rng(99); $('#uptime').innerHTML = Array.from({ length: 30 }, (_, i) => { const k = i === 4 ? 'crit' : i === 17 ? 'warn' : ''; const pct = k === 'crit' ? '99.41' : k === 'warn' ? '99.89' : (99.95 + ur() * 0.05).toFixed(2); return `<i class="${k} draw" style="animation-delay:${i * 12}ms" title="${i === 29 ? 'Today' : i === 28 ? '1 day ago' : `${29 - i} days ago`}: ${pct}%"></i>`; }).join('');
+  $('#hero-side').innerHTML =
+    statTile({ label: 'Requests', value: compact(avgRps, 1), unit: 'req/s', delta: 8.4, spark: D.rps.slice(-16), icon: 'i-pulse' }) +
+    statTile({ label: 'p95 latency', value: Math.round(p95), unit: 'ms', delta: -3.1, deltaGood: false, spark: D.p95.slice(-16), color: css('--o2'), icon: 'i-clock' }) +
+    statTile({ label: 'Error rate', value: errRate.toFixed(2), unit: '%', delta: 0.4, deltaGood: false, spark: D.errors.slice(-16), color: css('--crit'), icon: 'i-x' }) +
+    statTile({ label: 'Deploys', value: state.range === '1h' ? 2 : state.range === '24h' ? 11 : state.range === '7d' ? 63 : 241, delta: 12.0, spark: series(5, 16, 5, 4), color: css('--s-teal'), icon: 'i-rocket' });
+  $('#rv-peak').textContent = `peak ${compact(peak)} req/s · ${R.span}`;
+  lineChart($('#c-requests'), { labels: D.labels, series: [{ name: 'requests', color: css('--s-blue'), values: D.rps }], height: 240, area: true, xBase: D.per, label: `Requests per second over the last ${R.span}, peak ${compact(peak)}` });
+  lineChart($('#c-latency'), { labels: D.labels, series: [{ name: 'p99', color: css('--o3'), values: D.p99 }, { name: 'p95', color: css('--o2'), values: D.p95 }, { name: 'p50', color: css('--o1'), values: D.p50 }], height: 200, endLabels: true, xBase: D.per, label: `Latency in milliseconds at p50, p95 and p99 over the last ${R.span}` });
+  columnChart($('#c-errors'), { labels: D.labels, series: [{ name: 'errors', color: css('--crit'), values: D.errors }], height: 200, xBase: D.per, label: `5xx responses per minute over the last ${R.span}` });
+  // routes
+  const total = ROUTES.reduce((a, r) => a + r[1], 0);
+  $('#t-routes tbody').innerHTML = ROUTES.slice().sort((a, b) => b[1] - a[1]).map(r => `<tr><td><span class="primary mono">${r[0]}</span></td><td class="r num">${compact(r[1])}</td><td class="r num hide-m">${r[2]} ms</td><td class="r num"><span class="${r[3] > 0.25 ? 'status warn' : ''}" style="justify-content:flex-end">${r[3] > 0.25 ? ico('i-alert', 'icon') : ''}${r[3].toFixed(2)}%</span></td><td class="hide-m"><div class="barcell"><div class="segbar"><i style="background:var(--s-blue);width:${(r[1] / total * 100).toFixed(1)}%"></i><i style="background:var(--s-grey);flex:1"></i></div><span class="num muted">${(r[1] / total * 100).toFixed(0)}%</span></div></td></tr>`).join('');
+  // traffic by route: the three busiest routes and the rest, splitting the same total as the request volume chart
+  const parts = [[ROUTES[0][1] / total, 0.10, -0.4], [ROUTES[1][1] / total, 0.14, -1.1], [ROUTES[3][1] / total, 0.18, 2.2]]; parts.push([1 - parts.reduce((a, q) => a + q[0], 0), 0.06, 1]);
+  const split = parts.map(() => []);
+  D.rps.forEach((v, i) => { const th = (i / D.rps.length) * Math.PI * 2; const w = parts.map(([sh, amp, ph]) => sh * (1 + amp * Math.sin(th + ph))); const sum = w.reduce((a, b) => a + b, 0); w.forEach((q, j) => split[j].push(v * q / sum)); });
+  lineChart($('#c-routes'), { labels: D.labels, stacked: true, height: 220, xBase: D.per, tipFmt: v => compact(v), series: [{ name: 'products', color: css('--s-blue'), values: split[0] }, { name: 'cart', color: css('--s-teal'), values: split[1] }, { name: 'search', color: css('--s-violet'), values: split[2] }, { name: 'other routes', color: css('--s-grey'), values: split[3] }], label: `Requests per second by route, stacked, over the last ${R.span}: products, cart, search and all other routes` });
+  // services: the cards and the scatter read the same figures
+  const svcVals = SERVICES.slice(0, 8).map(([name, kind], i) => series(100 + i, 20, kind === 'teal' ? 3 : 90, kind === 'teal' ? 2 : 50, { min: 1 }));
+  const svc = SERVICES.map(([name, kind], i) => { const hot = name === 'payments'; if (i >= 8) return { name, kind, hot, p95: QUIET[name][0], rate: QUIET[name][1] }; const last = svcVals[i][svcVals[i].length - 1]; return { name, kind, hot, p95: Math.round(last * (kind === 'teal' ? 1 : 2.4) * (hot ? 1.6 : 1)), rate: 800 + i * 310 + last * 3 }; });
+  scatterChart($('#c-load'), { height: 220, yUnit: ' ms', xUnit: '/s', label: `p95 latency against throughput for ${svc.length} services; payments is the outlier at ${svc.find(v => v.hot).p95} milliseconds`,
+    points: svc.map(v => { const col = css(v.hot ? '--warn' : v.kind === 'teal' ? '--s-teal' : '--s-blue'); return { x: v.rate, y: v.p95, color: col, label: v.hot || v.name === 'redis' || v.name === 'clickhouse' ? v.name : '', tip: `<div class="t">${v.name}</div><div class="r"><i style="background:${col}"></i>p95<b>${v.p95} ms</b></div><div class="r" style="color:var(--fg-2)">${v.kind === 'teal' ? 'operations' : 'requests'}<b>${compact(v.rate)}/s</b></div>${v.hot ? `<div class="r" style="margin-top:4px"><span class="status warn">${ico('i-alert')}degraded</span></div>` : ''}` }; }) });
+  $('#svcs').innerHTML = svc.slice(0, 8).map(({ name, kind, hot, p95, rate }) => `<div class="svc"><div class="top"><span class="name">${name}</span><span class="status ${hot ? 'warn' : 'good'}">${ico(hot ? 'i-alert' : 'i-check')}${hot ? 'degraded' : 'healthy'}</span></div><div class="sparkslot"></div><div class="meta"><span>p95 <b>${p95} ms</b></span><span>${kind === 'teal' ? 'ops' : 'req'}/s <b>${compact(rate)}</b></span></div></div>`).join('');
+  $$('#svcs .svc').forEach((sv, i) => { const w = sv.clientWidth || 200; sv.querySelector('.sparkslot').outerHTML = sparkline(svcVals[i], css(SERVICES[i][0] === 'payments' ? '--warn' : SERVICES[i][1] === 'teal' ? '--s-teal' : '--s-blue'), w, 28); });
+}
+
+const TRACES = (() => { const r = rng(77); const names = ['POST /api/checkout', 'GET /api/cart', 'GET /api/search', 'POST /api/checkout', 'GET /api/products', 'POST /api/auth/token', 'GET /api/orders/:id', 'POST /api/checkout']; return names.map((n, i) => { const dur = Math.round(120 + r() * 700); const err = i === 3 || i === 6; return { id: Array.from({ length: 8 }, () => '0123456789abcdef'[Math.floor(r() * 16)]).join(''), name: n, svc: n.includes('checkout') ? 'checkout-api' : n.includes('auth') ? 'auth' : n.includes('search') ? 'search' : n.includes('cart') ? 'cart' : n.includes('orders') ? 'checkout-api' : 'catalog', dur, spans: 6 + Math.floor(r() * 12), err, ago: 4 + i * 37 + Math.floor(r() * 20) }; }); })();
+TRACES.forEach(t => { t.spans = spansFor(t).length; }); // the table and the waterfall count the same spans
+
+function spansFor(t) {
+  const r = rng(t.dur); const T = t.dur; const sp = [];
+  const push = (name, sub, color, depth, start, dur, icon) => sp.push({ name, sub, color, depth, bars: [{ start, dur, color, label: `${Math.round(dur)} ms` }], icon });
+  push(t.name, t.svc, 'blue', 0, 0, T, 'i-globe');
+  let cur = T * 0.02;
+  const authD = T * (0.08 + r() * 0.06); push('auth.verify', 'auth', 'blue', 1, cur, authD, 'i-box'); push('redis GET session', 'redis', 'teal', 2, cur + authD * 0.2, authD * 0.4, 'i-db'); cur += authD + T * 0.01;
+  const cartD = T * (0.22 + r() * 0.1); push('cart.load', 'cart', 'blue', 1, cur, cartD, 'i-box'); push('redis MGET items', 'redis', 'teal', 2, cur + cartD * 0.05, cartD * 0.15, 'i-db'); push('pg SELECT cart_items', 'postgres', 'teal', 2, cur + cartD * 0.25, cartD * 0.65, 'i-db'); cur += cartD + T * 0.01;
+  const prD = T * (0.18 + r() * 0.1); push('pricing.quote', 'pricing', 'blue', 1, cur, prD, 'i-box'); push('pg SELECT prices', 'postgres', 'teal', 2, cur + prD * 0.1, prD * 0.7, 'i-db'); cur += prD + T * 0.01;
+  if (t.name.startsWith('POST /api/checkout')) { const payD = T - cur - T * 0.03; push('payment.authorize', 'payments', 'blue', 1, cur, payD, 'i-box'); push('POST card-gateway/v1/charges', 'external', 'violet', 2, cur + payD * 0.08, payD * 0.8, 'i-zap'); if (t.err) sp[sp.length - 1].bars[0].color = 'crit'; push('kafka PRODUCE order.created', 'kafka', 'teal', 1, T - T * 0.03, T * 0.02, 'i-db'); }
+  else { const idxD = T - cur - T * 0.02; push(t.name.includes('search') ? 'search.query' : 'catalog.hydrate', t.svc, 'blue', 1, cur, idxD, 'i-box'); push(t.name.includes('search') ? 'clickhouse SELECT' : 'object-store GET', t.name.includes('search') ? 'clickhouse' : 'object-store', 'teal', 2, cur + idxD * 0.1, idxD * 0.75, 'i-db'); if (t.err) sp[sp.length - 1].bars[0].color = 'crit'; }
+  return sp;
+}
+
+function renderTraces() {
+  const r = rng(9); const bins = Array.from({ length: 24 }, (_, i) => Math.round(Math.exp(-Math.pow((i - 7) / 5, 2)) * 420 + Math.exp(-Math.pow((i - 16) / 3, 2)) * 90 + r() * 20));
+  const labels = bins.map((_, i) => `${i * 50}–${i * 50 + 50} ms`); const xLabels = bins.map((_, i) => i === 0 ? '0' : `${i * 50} ms`);
+  $('#dist-note').textContent = `${compact(bins.reduce((a, b) => a + b, 0))} traces · p95 at 760 ms`;
+  columnChart($('#c-dist'), { labels, xLabels, series: [{ name: 'traces', color: css('--s-blue'), values: bins }], height: 180, xBase: 2, label: 'Sampled traces by duration, in 50 millisecond bins' });
+  $('#trace-count').textContent = `${TRACES.length} of 1,284 matching`;
+  $('#t-traces tbody').innerHTML = TRACES.map((t, i) => `<tr class="clickable${i === state.trace ? ' is-selected' : ''}" data-i="${i}" tabindex="0"${i === state.trace ? ' aria-current="true"' : ''}><td><div class="primary mono">${t.name}</div><div class="sub"><span class="mono">${t.id}</span> · ${t.ago}s ago</div></td><td class="hide-m muted">${t.svc}</td><td class="r num">${t.dur} ms</td><td class="r num hide-m">${t.spans}</td><td class="r"><span class="status ${t.err ? 'crit' : 'good'}" style="justify-content:flex-end">${ico(t.err ? 'i-x' : 'i-check')}${t.err ? '500' : '200'}</span></td></tr>`).join('');
+  $$('#t-traces tr.clickable').forEach(tr => { const pick = () => { state.trace = +tr.dataset.i; $$('#t-traces tr.clickable').forEach(x => { x.classList.toggle('is-selected', x === tr); if (x === tr) x.setAttribute('aria-current', 'true'); else x.removeAttribute('aria-current'); }); renderWaterfall(); }; tr.addEventListener('click', pick); tr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } }); });
+  renderWaterfall();
+  gantt($('#ops'), { total: 1000, ticks: 5, draw: false, label: `Span duration by operation at p50, p95 and p99 across sampled traces, slowest first: ${OPS.map(o => `${o[0]} ${o[3]}, ${o[4]} and ${o[5]} milliseconds`).join('; ')}`,
+    rows: OPS.map(([name, sub, icon, p50, p95, p99]) => ({ name, sub, icon, bars: [{ start: p50, dur: p99 - p50, color: 'grey', thin: true, label: `${p99} ms` }], marks: [{ at: p50, color: 'o1' }, { at: p95, color: 'o2' }, { at: p99, color: 'o3' }],
+      tip: `<div class="t">${name}</div>` + [['p50', p50, '--o1'], ['p95', p95, '--o2'], ['p99', p99, '--o3']].map(([q, v, c]) => `<div class="r"><i style="background:var(${c})"></i>${q}<b>${v} ms</b></div>`).join('') })) });
+}
+function renderWaterfall() {
+  const t = TRACES[state.trace]; const sp = spansFor(t);
+  $('#wf-title').innerHTML = `${t.name} <span>${t.dur}&nbsp;ms · ${sp.length}&nbsp;spans · <span class="mono">${t.id}</span></span>`;
+  gantt($('#waterfall'), { rows: sp, total: Math.ceil(t.dur / 100) * 100, unit: 'ms', ticks: 5 });
+}
+
+const LOGS = [
+  ['error', 'payments', 'stripe charge failed <em>code=</em>card_declined <em>order=</em><b>ord_8f2a</b> <em>latency=</em>812ms'],
+  ['info', 'checkout-api', 'order created <em>order=</em><b>ord_8f29</b> <em>total=</em>$184.20 <em>items=</em>3'],
+  ['warn', 'postgres', 'slow query 1.9s: SELECT * FROM cart_items WHERE user_id = $1 <em>rows=</em>2,114'],
+  ['info', 'edge-router', 'GET /api/products 200 <em>42ms</em> <em>region=</em>iad <em>cache=</em>HIT'],
+  ['info', 'auth', 'token refreshed <em>sub=</em><b>usr_19d2</b> <em>ttl=</em>3600'],
+  ['warn', 'cart', 'retrying redis MGET after timeout <em>attempt=</em>2 <em>key=</em>cart:usr_19d2'],
+  ['info', 'search', 'query served <em>q=</em>"wool runner" <em>hits=</em>48 <em>took=</em>61ms'],
+  ['error', 'checkout-api', 'upstream 503 from payments <em>trace=</em><b>a3f91c0e</b> <em>retry=</em>false'],
+  ['info', 'kafka', 'partition rebalance complete <em>group=</em>order-events <em>partitions=</em>12'],
+  ['info', 'edge-router', 'POST /api/checkout 200 <em>318ms</em> <em>region=</em>sfo'],
+  ['info', 'notifications', 'email queued <em>template=</em>order_confirmation <em>to=</em>j***@example.com'],
+  ['warn', 'clickhouse', 'merge backlog growing <em>parts=</em>412 <em>table=</em>events_v3'],
+  ['info', 'catalog', 'cache warmed <em>keys=</em>18,204 <em>took=</em>4.1s'],
+  ['info', 'pricing', 'quote computed <em>sku=</em>WR-1024 <em>price=</em>$98.00 <em>promo=</em>none'],
+];
+function renderLogs() {
+  const D = dataFor(state.range); const n = D.labels.length;
+  const info = series(61, n, 2400, 900, { daily: true, min: 400 }).map(Math.round), warn = series(62, n, 320, 160, { min: 40 }).map(Math.round), err = series(63, n, 110, 90, { min: 10, spike: 0.05 }).map(Math.round);
+  const show = l => state.level === 'all' || state.level === l;
+  const S = [{ name: 'info', color: css('--s-blue'), values: info, k: 'info' }, { name: 'warn', color: css('--warn'), values: warn, k: 'warn' }, { name: 'error', color: css('--crit'), values: err, k: 'error' }].filter(s => show(s.k));
+  const total = S.reduce((a, s) => a + s.values.reduce((x, y) => x + y, 0), 0);
+  $('#log-total').textContent = `${compact(total)} lines · ${RANGES[state.range].span}`;
+  columnChart($('#c-logs'), { labels: D.labels, series: S, height: 200, xBase: D.per, label: `Log lines per minute by level over the last ${RANGES[state.range].span}` });
+  const base = new Date(2026, 10, 9, 13, 42, 17);
+  $('#log-stream').innerHTML = LOGS.filter(l => show(l[0])).map((l, i) => { const d = new Date(base - i * 2371 - i * i * 600); const ts = `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3, '0')}`; const cls = l[0] === 'error' ? 'crit' : l[0] === 'warn' ? 'warn' : 'info'; const ic = l[0] === 'error' ? 'i-x' : l[0] === 'warn' ? 'i-alert' : 'i-info'; return `<div class="log"><span class="ts"><span class="hide-m">${ts}</span><span class="only-m">${ts.slice(0, 8)}</span></span><span class="status ${cls}">${ico(ic)}${l[0]}</span><span class="svc">${l[1]}</span><span class="msg">${l[2]}</span></div>`; }).join('');
+}
+
+const HOSTS = ['web-01', 'web-02', 'web-03', 'api-01', 'api-02', 'worker-01', 'worker-02', 'db-primary', 'db-replica', 'cache-01'];
+function renderInfra() {
+  $('#infra-stats').innerHTML =
+    statTile({ label: 'Hosts', value: 48, delta: 0, icon: 'i-server' }) +
+    statTile({ label: 'CPU', value: 41, unit: '%', delta: 4.2, deltaGood: false, spark: series(21, 16, 41, 10), icon: 'i-cpu' }) +
+    statTile({ label: 'Memory', value: 63, unit: '%', delta: 1.1, deltaGood: false, spark: series(22, 16, 63, 6), icon: 'i-db' }) +
+    statTile({ label: 'Pods', value: 612, delta: 2.5, spark: series(23, 16, 600, 40), color: css('--s-teal'), icon: 'i-box' });
+  const heat = $('#heat'); heat.innerHTML = ''; heat.style.setProperty('--n', 24); const r = rng(5);
+  const ramp = ['--q1', '--q2', '--q3', '--q4', '--q5', '--q6', '--q7'].map(css);
+  const tip = tooltip(heat); heat.style.position = 'relative';
+  HOSTS.slice(0, 8).forEach((hn, hi) => { heat.appendChild(h('div', { class: 'hl' }, hn)); const cells = h('div', { class: 'cells' }); for (let hr = 0; hr < 24; hr++) { const load = Math.max(4, Math.min(98, 30 + hi * 4 + Math.sin((hr - 6) / 24 * Math.PI * 2) * 28 + (r() - 0.5) * 24 + (hi === 5 && hr > 13 && hr < 17 ? 35 : 0))); const step = Math.min(ramp.length - 1, Math.floor(load / 100 * ramp.length)); const c = h('i', { style: `background:${ramp[step]}`, role: 'img', 'aria-label': `${hn} ${pad2(hr)}:00 ${Math.round(load)}%` }); c.addEventListener('mouseenter', ev => { const rr = heat.getBoundingClientRect(); const cr = c.getBoundingClientRect(); tip.show(cr.left - rr.left + cr.width / 2, cr.top - rr.top, `<div class="t">${hn} · ${pad2(hr)}:00</div><div class="r">CPU<b>${Math.round(load)}%</b></div>`); }); c.addEventListener('mouseleave', () => tip.hide()); cells.appendChild(c); } heat.appendChild(cells); });
+  heat.appendChild(h('div')); const hx = h('div', { class: 'hx' }); for (let hr = 0; hr < 24; hr++) hx.appendChild(h('span', {}, hr % 3 === 0 ? `${pad2(hr)}` : '')); heat.appendChild(hx);
+  $('#heat-scale').innerHTML = `<span>0%</span><span class="ramp">${ramp.map(c => `<i style="background:${c}"></i>`).join('')}</span><span>100%</span>`;
+  const D = dataFor(state.range); const n = D.labels.length;
+  lineChart($('#c-net'), { labels: D.labels, series: [{ name: 'ingress', color: css('--s-blue'), values: series(31, n, 4.2, 1.6, { daily: true, min: 1 }) }, { name: 'egress', color: css('--s-teal'), values: series(32, n, 9.1, 3.2, { daily: true, min: 2 }) }], height: 220, unit: ' Gb/s', xBase: D.per, label: `Edge ingress and egress in gigabits per second over the last ${RANGES[state.range].span}` });
+  const rr = rng(8);
+  $('#t-hosts tbody').innerHTML = HOSTS.map((hn, i) => { const cpu = Math.round(Math.max(8, Math.min(97, 88 - i * 8 + rr() * 10))); const mem = Math.round(Math.max(20, Math.min(95, 50 + rr() * 40))); const region = ['us-east', 'us-east', 'us-west', 'us-east', 'eu-west', 'us-west', 'eu-west', 'us-east', 'us-west', 'us-east'][i]; const st = cpu > 90 ? ['crit', 'i-x', 'saturated'] : cpu > 75 ? ['warn', 'i-alert', 'hot'] : ['good', 'i-check', 'ok']; const m = (v) => `<div class="meter"><div class="track"><div class="fill ${v > 90 ? 'crit' : v > 75 ? 'warn' : ''}" style="transform:scaleX(${v / 100})"></div></div><span>${v}%</span></div>`; return `<tr><td><span class="primary mono">${hn}</span></td><td class="hide-m muted">${region}</td><td>${m(cpu)}</td><td class="hide-m">${m(mem)}</td><td class="r num hide-m">${6 + Math.round(rr() * 18)}</td><td class="r"><span class="status ${st[0]}" style="justify-content:flex-end">${ico(st[1])}${st[2]}</span></td></tr>`; }).join('');
+}
+
+function renderIncidents() {
+  $('#inc-stats').innerHTML =
+    statTile({ label: 'Open incidents', value: 1, delta: -50, deltaGood: false, icon: 'i-alert' }) +
+    statTile({ label: 'Time to acknowledge', value: '4', unit: 'min', delta: -18.0, deltaGood: false, spark: series(41, 16, 5, 2), icon: 'i-clock' }) +
+    statTile({ label: 'Time to resolve', value: '38', unit: 'min', delta: -24.0, deltaGood: false, spark: series(42, 16, 44, 12), icon: 'i-check' }) +
+    statTile({ label: 'Error budget left', value: 71, unit: '%', delta: -6.0, spark: series(43, 16, 80, 6, { trend: -0.6 }), color: css('--s-teal'), icon: 'i-pulse' });
+  // timeline: 7 days, in hours
+  const DAYS = 7, total = DAYS * 24; const r = rng(3);
+  const svcRows = [['edge-router', 'i-globe'], ['checkout-api', 'i-box'], ['payments', 'i-box'], ['search', 'i-box'], ['postgres', 'i-db'], ['kafka', 'i-db']];
+  const rows = svcRows.map(([name, icon], i) => { const bars = []; const k = 2 + Math.floor(r() * 3); for (let j = 0; j < k; j++) { const s = 6 + r() * (total - 16); bars.push({ start: s, dur: 4 + r() * 5, color: 'blue', title: `rollout v${4 + j}.${Math.floor(r() * 30)}` }); } if (name === 'postgres' || name === 'kafka') bars.push({ start: 24 * 1 + 2, dur: 5, color: 'teal', title: 'maintenance window' }); if (name === 'edge-router') bars.push({ start: 24 * 4 + 1, dur: 4, color: 'teal', title: 'maintenance window' }); const marks = []; if (name === 'payments') marks.push({ at: 24 * 5 + 15.5, title: 'INC-2041 card gateway timeouts' }); if (name === 'postgres') marks.push({ at: 24 * 2 + 9, title: 'INC-2039 replica lag' }); if (name === 'checkout-api') marks.push({ at: total - 2.2, title: 'INC-2042 upstream 503s' }); return { name, icon, bars, marks }; });
+  const day0 = new Date(2026, 10, 2);
+  gantt($('#timeline'), { rows, total, ticks: 7, tickFmt: (v, t) => { const d = new Date(day0.getTime() + v * 3600e3); return t === 7 ? 'now' : `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]} ${d.getDate()}`; }, markers: [{ at: total - 2.2 }] });
+  // objective, target, budget left (%), state, burn rate over the last 24 hours (1 = the pace that spends the budget in exactly 30 days)
+  const slos = [['Availability', 'edge-router · 99.95%', 71, 'good', 0.8], ['Checkout latency', 'p95 < 400 ms · 99.5%', 54, 'good', 1.3], ['Payments success', 'non-5xx · 99.9%', 18, 'warn', 3.4], ['Search freshness', 'index lag < 60 s · 99%', 88, 'good', 0.4]];
+  const runway = s => { const days = s[2] / (s[4] * 100 / 30); return days >= 30 ? 'over 30 days' : days < 2 ? `${Math.round(days * 24)} hours` : `${Math.round(days)} days`; };
+  const worst = slos.reduce((a, s) => s[4] > a[4] ? s : a);
+  $('#burn-note').textContent = `${worst[0].toLowerCase()} runs out in ${runway(worst)}`;
+  const tight = $('#burn').clientWidth < 640; // the narrow axis keeps all five ticks and drops the words
+  gantt($('#burn'), { total: 4, ticks: 4, draw: false, every: true, tickFmt: (v, t) => t === 0 ? '0' : t === 1 && !tight ? '1× even pace' : t === 3 && !tight ? '3× alert' : `${v}×`,
+    label: `Error budget burn rate over the last 24 hours, against an even pace: ${slos.map(s => `${s[0]} ${s[4]} times`).join(', ')}`,
+    rows: slos.map(s => { const hot = s[4] >= 3; return { name: s[0], sub: s[1], zones: [[0, 1], [1, 3], [3, 4]], goal: 1, bars: [{ start: 0, dur: s[4], color: hot ? 'warn' : 'blue' }], value: hot ? `<span class="status warn">${ico('i-alert')}${s[4].toFixed(1)}×</span>` : `${s[4].toFixed(1)}×`,
+      tip: `<div class="t">${s[0]}</div><div class="r"><i style="background:var(${hot ? '--warn' : '--s-blue'})"></i>burn rate<b>${s[4].toFixed(1)}×</b></div><div class="r" style="color:var(--fg-2)">budget left<b>${s[2]}%</b></div><div class="r" style="color:var(--fg-2)">runs out in<b>${runway(s)}</b></div>` }; }) });
+  $('#slo-list').innerHTML = slos.map(s => `<div class="row"><span class="n">${s[0]}</span><span class="d">${s[2]}% budget left</span><span class="d" style="grid-column:1">${s[1]}</span><div class="budget"><div class="segbar"><i style="background:var(${s[3] === 'warn' ? '--warn' : '--s-teal'});width:${s[2]}%"></i><i style="background:var(--s-grey);flex:1"></i></div></div></div>`).join('');
+  const inc = [['crit', 'i-x', 'INC-2042 · Upstream 503s from payments', 'checkout-api · open · 2h 14m', 'investigating'], ['warn', 'i-alert', 'INC-2041 · Card gateway timeouts above threshold', 'payments · resolved in 26 min', 'Nov 7'], ['warn', 'i-alert', 'INC-2039 · Postgres replica lag 40 s', 'postgres · resolved in 51 min', 'Nov 4'], ['good', 'i-check', 'INC-2037 · Elevated p99 on search', 'search · resolved in 12 min', 'Oct 29']];
+  $('#inc-list').innerHTML = inc.map(x => `<div class="inc"><span class="sev ${x[0]}">${ico(x[1])}</span><div><div class="t">${x[2]}</div><div class="m">${x[3]}</div></div><div class="side">${x[0] === 'crit' ? `<span class="pill crit">${x[4]}</span>` : `<span>${x[4]}</span>`}</div></div>`).join('');
+}
+
+const RENDER = { overview: renderOverview, traces: renderTraces, logs: renderLogs, infra: renderInfra, incidents: renderIncidents };
+
+/* ---------- routing / tabs ---------- */
+const tabs = $('#tabs'); const ind = $('.ind', tabs);
+function moveInd(a, animate = true) { if (!a) return; const r = a.getBoundingClientRect(), p = tabs.getBoundingClientRect(); const pad = parseFloat(getComputedStyle(a).paddingLeft) || 12; const x = r.left - p.left + tabs.scrollLeft + pad, w = r.width - 2 * pad; if (!animate) ind.style.transition = 'none'; ind.style.transform = `translateX(${x}px) scaleX(${w})`; if (!animate) requestAnimationFrame(() => ind.style.transition = ''); }
+const TITLE = document.title;
+let nav = 0;
+function go(id, first = false) {
+  if (!RENDER[id]) id = 'overview';
+  const next = $('#page-' + id), cur = $('.page.is-active'), turn = ++nav;
+  $$('a', tabs).forEach(a => { const on = a.getAttribute('href') === '#' + id; if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); if (on) { moveInd(a, !first); a.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: first || reduced ? 'auto' : 'smooth' }); } });
+  state.page = id; document.title = id === 'overview' ? TITLE : `${$('h1', next).textContent} · Observability`;
+  if (cur === next) { cur.classList.remove('is-leaving'); return; }
+  // only the latest navigation swaps, so a second click during the leave animation cannot show two pages
+  const swap = () => { if (turn !== nav) return; if (cur) cur.classList.remove('is-active', 'is-leaving'); next.classList.add('is-active'); RENDER[id](); if (!first) window.scrollTo({ top: 0, behavior: 'instant' }); };
+  if (cur && !reduced && !first) { cur.classList.add('is-leaving'); cur.addEventListener('animationend', swap, { once: true }); } else swap();
+}
+window.addEventListener('hashchange', () => go(location.hash.slice(1) || 'overview'));
+const fades = () => { tabs.classList.toggle('scrolled', tabs.scrollLeft > 4); tabs.classList.toggle('at-end', tabs.scrollLeft + tabs.clientWidth >= tabs.scrollWidth - 4); };
+tabs.addEventListener('scroll', fades, { passive: true });
+tabs.addEventListener('click', e => { const a = e.target.closest('a'); if (!a) return; e.preventDefault(); const id = a.getAttribute('href').slice(1); if (id !== state.page) history.pushState(null, '', '#' + id); go(id); });
+$$('a.link, .brand').forEach(a => a.addEventListener('click', e => { const href = a.getAttribute('href'); if (href && href.startsWith('#')) { e.preventDefault(); history.pushState(null, '', href); go(href.slice(1)); } }));
+
+/* ---------- range control ---------- */
+const seg = $('#range'); const pill = $('.pill', seg);
+function movePill(b, animate = true) { const w = b.offsetWidth; if (!animate) pill.style.transition = 'none'; pill.style.width = w + 'px'; pill.style.transform = `translateX(${b.offsetLeft - 3}px)`; if (!animate) requestAnimationFrame(() => pill.style.transition = ''); }
+seg.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); movePill(b); state.range = b.dataset.range; if (state.page) RENDER[state.page](); });
+
+/* ---------- log level chips ---------- */
+$('#log-chips').addEventListener('click', e => { const c = e.target.closest('.chip[data-level]'); if (!c) return; $$('#log-chips .chip[data-level]').forEach(x => { x.classList.toggle('on', x === c); x.setAttribute('aria-pressed', String(x === c)); }); state.level = c.dataset.level; renderLogs(); });
+
+/* ---------- top bar ---------- */
+// larger text or looser spacing can ask for more room than a narrow screen has
+const bar = $('.topbar .wrap');
+function fitBar() { bar.classList.remove('tight'); bar.classList.toggle('tight', bar.scrollWidth > bar.clientWidth + 1); }
+
+/* ---------- resize ---------- */
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { fitBar(); if (state.page) RENDER[state.page](); moveInd($('a[aria-current]', tabs), false); movePill($('#range button[aria-pressed="true"]'), false); fades(); }, 120); });
+
+/* ---------- tweak dock ---------- */
+// the charts take their colours from var() references, so only the browser chrome colour has to be copied over
+const syncThemeColor = () => { const m = $('meta[name="theme-color"]'), c = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(); if (m && c) m.setAttribute('content', c); };
+document.addEventListener('tweakchange', syncThemeColor); syncThemeColor();
+
+/* ---------- boot ---------- */
+$('#updated').textContent = new Date(2026, 10, 9, 13, 42).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const boot = () => { fitBar(); movePill($('#range button[aria-pressed="true"]'), false); go(location.hash.slice(1) || 'overview', true); fades(); };
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(boot, boot); else boot();
+})();
+</script>
+</body>
+</html>

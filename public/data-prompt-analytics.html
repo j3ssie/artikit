@@ -1,0 +1,1174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f9efe1">
+<meta name="description" content="Sample prompt analytics dashboard: request volume, versions, latency, token use and quantiles for each prompt.">
+<title>Prompt analytics (sample)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1b1a18;
+  --sub:#57524d;
+  --mute:#6b6660;
+  --hair:#e5ded5;
+  --hair2:#d8d0c6;
+  --surf:#faf7f3;
+  --glass:rgba(255,255,255,.54);
+  --edge:rgba(255,255,255,.9);
+  --brand:#f0641e;
+  /* chart marks: checked with the dataviz palette validator against the panel surface */
+  --or:#e85a12;
+  --peri:#6f7be0;
+  --prev:#85858c;
+  --q1:#ee9a5c;--q2:#e2741f;--q3:#bf520e;--q4:#8a3608;
+  --good:#15803d;
+  --bad:#c2371c;
+  --sans:Figtree,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  /* the rest were literals in the rules below: named so the tweak dock can re-theme the page, light or dark */
+  /* page wash */
+  --bg:#f5f2ee;--bg1:#f9efe1;--bg2:#f6f2ed;--bg3:#f3f3f2;--glow:#fbe2c6;--glow0:rgba(251,226,198,0);--grain:.5;--scroll:#c9bfb3;
+  /* translucent control layers, and what lifts off them */
+  --tray:rgba(255,255,255,.44);--tray-edge:rgba(255,255,255,.75);--ctl:rgba(255,255,255,.5);--field:rgba(255,255,255,.52);
+  --hov:rgba(255,255,255,.5);--row:rgba(255,255,255,.6);--lift:#fff;--lift-h:#f4eee6;
+  --wash:rgba(0,0,0,.05);--wash2:rgba(0,0,0,.09);--flag-ring:rgba(0,0,0,.08);
+  --icon:#3b3733;--on-ink:#fff;--ink-h:#34312d;--dot-ring:#fbf6f0;--av:#d9d2c8;
+  --chip:#efe6da;--chip-ink:#4a443e;--bar1:#f0e3d2;--bar2:#f3e9dc;--th:#f8f3ec;--xh:#b9b0a5;
+  --sel:rgba(240,100,30,.2);--focus:rgba(240,100,30,.14);
+  --sh-card:0 1px 2px rgba(70,45,20,.03),0 18px 34px -26px rgba(70,45,20,.35);
+  --sh-tab:0 1px 2px rgba(70,45,20,.08),0 6px 14px -8px rgba(70,45,20,.25);
+  --sh-seg:0 1px 2px rgba(70,45,20,.1);
+  --sh-knob:rgba(0,0,0,.25);
+  /* tooltip, dialog, code block */
+  --tip:#201e1c;--tip-ink:#fff;--tip-dim:rgba(255,255,255,.62);--tip-edge:transparent;--sh-tip:rgba(0,0,0,.5);
+  --dlg:#fbf8f4;--sh-dlg:rgba(0,0,0,.55);--scrim:rgba(20,16,12,.5);
+  --code:#201e1c;--code-ink:#ece6de;--code-dim:#8d867e;--code-em:#ff9a57;--code-sel:rgba(255,154,87,.34);
+  /* chart fills: the heat scale, the bar gradient, the pale end of the one-hue ramp, and the two hues a second series can take */
+  --heat1:#9bc76a;--heat2:#e6cf62;--heat3:#f0a14e;--heat4:#e85a12;
+  --b1:#a9cc72;--b2:#ecc968;--b3:#ee7a3c;
+  --q0:#f4dcc7;--qf:#f0a14e;--cool:#6f7be0;--warm:#e85a12;
+}
+*{box-sizing:border-box}
+html{background:var(--bg);scrollbar-color:var(--scroll) var(--bg);-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;font:400 14.5px/1.45 var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+svg{display:block}
+h1,h2,h3,p{margin:0}
+.ic{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.num{font-variant-numeric:tabular-nums}
+.sp{flex:1}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+:focus-visible{outline:2px solid var(--or);outline-offset:2px;border-radius:10px}
+::selection{background:var(--sel)}
+
+/* ---------- page surface ---------- */
+.panel{position:relative;isolation:isolate;flex:1;display:flex;flex-direction:column;min-height:100vh;padding:10px clamp(16px,2.5vw,40px) 26px;background:
+  radial-gradient(980px 430px at 10% -6%,var(--glow) 0,var(--glow0) 72%) 0 0/100% calc(100% - var(--tail,0px)) no-repeat,
+  linear-gradient(180deg,var(--bg1) 0,var(--bg2) 40%,var(--bg3) 100%) 0 0/100% calc(100% - var(--tail,0px)) no-repeat,
+  var(--bg3)} /* --tail: how much of the panel lies below the first screen (set in script); the wash is drawn over the first screen only and its last colour carries on */
+.panel::before{content:"";position:absolute;inset:0;z-index:-1;opacity:var(--grain);mix-blend-mode:multiply;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .3 0 0 0 .1 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ---------- header ---------- */
+.top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;column-gap:24px;min-height:68px}
+.logo{display:inline-flex;align-items:center;font-size:25px;font-weight:700;letter-spacing:-.035em;line-height:1}
+.logo svg{width:23px;height:25px;margin-right:1px}
+.logo path{stroke:var(--brand)}
+.nav{justify-self:center;display:flex;gap:2px;max-width:100%;padding:6px;border-radius:17px;background:var(--tray);box-shadow:inset 0 0 0 1px var(--tray-edge);overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav a{flex:none;height:40px;padding:0 17px;display:grid;place-items:center;border-radius:12px;font-size:14.5px;color:var(--mute);transition:color .15s,background .15s}
+.nav a:hover{color:var(--ink);background:var(--hov)}
+.nav a.on{color:var(--ink);font-weight:500;background:var(--lift);box-shadow:var(--sh-tab)}
+.tools{display:flex;align-items:center;gap:9px}
+.tbtn{position:relative;width:44px;height:44px;border-radius:13px;display:grid;place-items:center;color:var(--icon);background:var(--ctl);box-shadow:inset 0 0 0 1px var(--edge);transition:background .15s,transform .15s}
+.tbtn:hover{background:var(--lift)}
+.tbtn:active{transform:scale(.96)}
+.tbtn .dot{position:absolute;right:11px;top:10px;width:8px;height:8px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 2px var(--dot-ring)}
+.acct{display:flex;gap:6px;margin-left:10px;padding:5px;border-radius:17px;background:var(--tray);box-shadow:inset 0 0 0 1px var(--tray-edge)}
+.acct .tbtn{border-radius:12px}
+.me{width:44px;height:44px;border-radius:12px;overflow:hidden;background:var(--av);transition:box-shadow .15s,transform .15s}
+.me:hover{box-shadow:0 0 0 2px var(--lift)}
+.me:active{transform:scale(.96)}
+.me svg{width:100%;height:100%}
+
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.title{display:flex;align-items:center;flex-wrap:wrap;gap:14px 12px;margin:14px 0 20px}
+.title h1{margin-right:auto;font-size:44px;font-weight:400;letter-spacing:-.035em;line-height:1.1}
+.seg{display:flex;padding:4px;border-radius:13px;background:var(--ctl);box-shadow:inset 0 0 0 1px var(--edge)}
+.seg button{position:relative;height:34px;padding:0 13px;border-radius:9px;font-size:14px;color:var(--mute);transition:color .15s,background .15s}
+.seg button::after,.more::after{content:"";position:absolute;inset:-4px 0} /* hit area only: 42px tall, same visual size */
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{color:var(--ink);font-weight:500;background:var(--lift);box-shadow:var(--sh-seg)}
+.field{position:relative;width:268px}
+.field input{width:100%;height:42px;padding:0 14px;border:0;border-radius:12px;-webkit-appearance:none;appearance:none;background:var(--field);box-shadow:inset 0 0 0 1px var(--edge);font-size:14.5px;caret-color:var(--or);outline:2px solid transparent;transition:box-shadow .15s,background .15s}
+.field input::placeholder{color:var(--mute)}
+.field input::-webkit-search-cancel-button{-webkit-appearance:none;width:16px;height:16px;margin:0 -2px 0 8px;cursor:pointer;background:var(--mute);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.5 6.5l11 11M17.5 6.5l-11 11' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat}
+.field input::-webkit-search-cancel-button:hover{background:var(--ink)}
+.field input:focus{background:var(--lift);box-shadow:inset 0 0 0 1px var(--or),0 0 0 4px var(--focus)}
+.btn{height:42px;padding:0 15px;display:inline-flex;align-items:center;gap:9px;border-radius:12px;background:var(--field);box-shadow:inset 0 0 0 1px var(--edge);font-size:14.5px;white-space:nowrap;transition:background .15s,transform .15s}
+.btn:hover{background:var(--lift)}
+.btn:active{transform:scale(.98)}
+.btn .ic{width:17px;height:17px}
+.btn.sq{width:42px;padding:0;justify-content:center}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--on-ink);box-shadow:none}
+.btn[aria-pressed="true"]:hover{background:var(--ink-h)}
+
+/* ---------- cards ---------- */
+.cards,.lower{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.cards{flex:1.18}
+.lower{flex:1;margin-top:20px}
+.card{display:flex;flex-direction:column;min-width:0;padding:18px 20px 20px;border-radius:17px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--edge),var(--sh-card)}
+.meta{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--sub)}
+.meta .ic{width:15px;height:15px;color:var(--mute)}
+.meta b{margin-left:auto;font-size:15.5px;font-weight:600;color:var(--ink)}
+.meta.hd{font-size:16px;color:var(--ink)}
+.meta h2{font:inherit}
+.ch{display:flex;align-items:center;gap:8px;margin-top:7px;min-height:30px}
+.ch h2{min-width:0;font-size:21px;font-weight:600;letter-spacing:-.022em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.more{position:relative;width:28px;height:28px;flex:none;margin-left:auto;border-radius:8px;display:grid;place-items:center;color:var(--mute);transition:background .15s,color .15s}
+.more::after{inset:-6px}
+.more:hover{background:var(--wash);color:var(--ink)}
+.more:active{background:var(--wash2)}
+.chart{flex:1;display:flex;flex-direction:column;margin-top:14px;min-width:0}
+.plot{position:relative;flex:1;min-height:var(--ph,172px);border-radius:8px}
+.plot:focus-visible{outline-offset:4px}
+.plot svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;touch-action:pan-y}
+.grid{stroke:var(--hair);stroke-width:1}
+.tick{font-size:10.5px;fill:var(--mute);font-variant-numeric:tabular-nums}
+.val{font-size:12px;font-weight:600;fill:var(--ink);paint-order:stroke;stroke:var(--surf);stroke-width:3px;stroke-linejoin:round}
+.xh{stroke:var(--xh);stroke-width:1}
+.bar{transition:opacity .15s}
+.dim .bar{opacity:.38}
+.dim .bar.on{opacity:1}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:10px;font-size:12.5px;color:var(--sub)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.key{width:14px;height:0;border-top:2px solid var(--c);border-radius:1px}
+.key.d{border-top:1.5px dashed var(--c)}
+.key.b{width:9px;height:9px;border:0;border-radius:3px;background:var(--c)}
+.foot{display:flex;align-items:baseline;gap:8px;padding-top:14px;font-size:14px;color:var(--sub)}
+.foot b{margin-left:auto;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.chip{height:23px;padding:0 9px;display:inline-grid;place-items:center;border-radius:7px;background:var(--chip);font-size:12.5px;color:var(--chip-ink)}
+
+.vers{flex:1;display:flex;flex-direction:column;margin-top:12px}
+#vers{flex:1;display:flex;flex-direction:column}
+.vh,.vr{display:grid;grid-template-columns:minmax(0,1fr) 46px 74px;align-items:center;column-gap:10px}
+.vh{padding-bottom:6px;font-size:11.5px;letter-spacing:.02em;color:var(--mute)}
+.vh span:nth-child(n+2),.vr>:nth-child(n+2){text-align:right}
+.vr{flex:1;min-height:56px;max-height:84px;border-top:1px solid var(--hair);font-size:14px}
+.vr b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vr small{font-size:13px;color:var(--sub)}
+.delta{display:inline-flex;align-items:center;justify-content:flex-end;gap:3px;font-size:13.5px;font-weight:500}
+.delta .ic{width:13px;height:13px;stroke-width:2}
+.delta.up{color:var(--good)}.delta.dn{color:var(--bad)}
+
+.rows{flex:1;display:flex;flex-direction:column;gap:7px;margin-top:14px}
+.geo{position:relative;flex:1;display:flex;align-items:center;gap:10px;min-height:38px;max-height:50px;padding:0 2px 0 12px;font-size:15px;border-radius:9px;transition:background .15s}
+.geo:hover{background:var(--row)}
+.geo i{position:absolute;left:0;top:0;bottom:0;width:var(--w);border-radius:9px 5px 5px 9px;background:linear-gradient(90deg,var(--bar1),var(--bar2));transition:width .5s cubic-bezier(.2,.7,.2,1)}
+.geo>*{position:relative}
+.geo svg{width:19px;height:14px;flex:none;border-radius:3px;box-shadow:0 0 0 1px var(--flag-ring)}
+.geo span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.geo small{color:var(--mute);font-size:13px}
+.geo b{margin-left:auto;padding-left:8px;font-weight:500;font-size:14px;color:var(--sub)}
+
+.metric{display:flex;flex-direction:column;min-width:0;padding:6px 6px 0 24px;border-left:1px solid var(--hair2)}
+.metric .lab{font-size:14.5px;font-weight:400;color:var(--sub)}
+.metric .hero{margin-top:7px;font-size:27px;font-weight:600;letter-spacing:-.025em;line-height:1.15}
+.metric .hero small{font-size:17px;font-weight:500;letter-spacing:-.01em;color:var(--sub)}
+.metric .chart{margin-top:10px;--ph:124px}
+#c-tips{--ph:222px}
+@media (min-width:1181px){ /* one-screen layout: charts may shrink further before the page scrolls */
+  .chart{--ph:140px}
+  #c-tips{--ph:180px}
+  .metric .chart{--ph:100px}
+}
+.metric .legend{margin-top:8px}
+.qs{flex:1;display:flex;flex-direction:column;justify-content:center;gap:clamp(11px,1.6vh,20px);padding:14px 0 4px}
+.q{display:grid;grid-template-columns:32px minmax(0,1fr) minmax(56px,max-content);align-items:center;column-gap:8px;font-size:13.5px;color:var(--sub)}
+.q i{display:block;height:8px;width:var(--w);min-width:6px;border-radius:0 4px 4px 0;background:var(--c);transition:width .5s cubic-bezier(.2,.7,.2,1)}
+.q b{text-align:right;font-weight:600;color:var(--ink);white-space:nowrap}
+.meter{padding-top:18px}
+.meter .cap2{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 8px;margin-bottom:8px;font-size:12.5px;color:var(--mute);white-space:nowrap}
+.meter .cap2 b{font-weight:500;color:var(--sub)}
+.track{position:relative;display:flex;gap:2px;height:10px;border-radius:6px}
+.track.heat{background:linear-gradient(90deg,var(--heat1),var(--heat2) 46%,var(--heat3) 72%,var(--heat4))}
+.track.heat::after{content:"";position:absolute;left:var(--p);top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 2.5px var(--surf),0 2px 6px var(--sh-knob);transition:left .5s cubic-bezier(.2,.7,.2,1)}
+.track.split i{height:100%;width:var(--w);border-radius:6px;background:var(--c);transition:width .5s cubic-bezier(.2,.7,.2,1)}
+.track.fill{background:var(--q0);overflow:hidden}
+.track.fill i{height:100%;width:var(--w);border-radius:6px;background:linear-gradient(90deg,var(--qf),var(--or));transition:width .5s cubic-bezier(.2,.7,.2,1)}
+
+/* ---------- third band: sources, funnel, hour grid, cost against latency ---------- */
+.fold{flex:none;display:flex;flex-direction:column;min-width:0}
+.lower.deep{flex:none;margin-bottom:20px} /* the page ends a little lower so nothing sits under a floating control */
+.deep .track i,.deep .track.heat::after{transition:none}
+#c-src,#c-fun{--ph:150px}
+#c-heat{--ph:176px}
+#c-dots{--ph:190px}
+.hole{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;font-size:12.5px;line-height:1.3;color:var(--mute);pointer-events:none}
+.hole b{font-size:24px;font-weight:600;letter-spacing:-.025em;line-height:1.15;color:var(--ink)}
+.sls{margin-top:14px}
+.sl{display:grid;grid-template-columns:9px minmax(0,1fr) auto 3.7em;align-items:center;column-gap:9px;min-height:34px;border-top:1px solid var(--hair);font-size:14px}
+.sl small{font-size:13px;color:var(--sub)}
+.sl b{font-weight:600;text-align:right}
+.fun{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:var(--g);touch-action:pan-y}
+.fr{display:grid;grid-template-columns:4.9em minmax(0,1fr) 4em;align-items:center;column-gap:8px;font-size:13.5px;color:var(--sub)}
+.fr b{text-align:right;font-weight:600;color:var(--ink)}
+.fb{position:relative;height:22px}
+.fb i{display:block;width:var(--w);height:100%;margin:0 auto;border-radius:4px;background:var(--c)}
+.fr:not(:last-child) .fb::after{content:"";position:absolute;left:0;right:0;top:calc(100% + 2px);height:calc(var(--g) - 4px);background:var(--q0);clip-path:polygon(calc(50% - var(--w)/2) 0,calc(50% + var(--w)/2) 0,calc(50% + var(--n)/2) 100%,calc(50% - var(--n)/2) 100%)} /* what carries on to the next stage */
+.cell{rx:calc(3px*var(--tw-r,1))} /* follows the corner tweak when the dock is present */
+.lv0{fill:var(--q0)}.lv1{fill:var(--q1)}.lv2{fill:var(--q2)}.lv3{fill:var(--q3)}.lv4{fill:var(--q4)}
+.cell.on{stroke:var(--ink);stroke-width:1.5px}
+.ref{fill:var(--prev)}
+.tick.nm{fill:var(--sub)}
+.key.o{width:9px;height:9px;border:0;border-radius:50%;background:var(--c)}
+.legend .ramp{gap:2px}
+.ramp i{width:11px;height:11px;border-radius:3px;background:var(--c)}
+@media (min-width:1181px){
+  .fold{min-height:calc(100vh - 104px)} /* the first screen keeps its one-screen fit: the viewport less the header (68px) and the panel padding (10px + 26px) */
+  .lower.deep{margin-top:26px} /* starts right below it */
+}
+
+/* ---------- table view ---------- */
+.tv{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%)}
+.tables .chart{position:relative}
+.tables .plot{display:none}
+.tables .tv{position:static;flex:1 1 0;width:auto;height:auto;min-height:var(--ph,172px);margin:0;clip-path:none;overflow:auto;border-radius:10px;box-shadow:inset 0 0 0 1px var(--hair);background:var(--ctl);scrollbar-width:thin;scrollbar-color:var(--scroll) transparent}
+.tv table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.tv th,.tv td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--hair);white-space:nowrap}
+.tv th:first-child,.tv td:first-child{text-align:left}
+.tv th{position:sticky;top:0;background:var(--th);font-weight:500;color:var(--sub)}
+.tv tr:last-child td{border-bottom:0}
+
+/* ---------- tooltip + dialog ---------- */
+#tip{position:fixed;left:0;top:0;z-index:60;min-width:118px;padding:9px 11px 10px;border-radius:11px;background:var(--tip);color:var(--tip-ink);font-size:12.5px;line-height:1.35;box-shadow:0 14px 30px -10px var(--sh-tip),0 0 0 1px var(--tip-edge);pointer-events:none;opacity:0;transition:opacity .12s}
+#tip .t{margin-bottom:5px;color:var(--tip-dim)}
+#tip .r{display:flex;align-items:center;gap:8px;white-space:nowrap}
+#tip .r b{font-weight:600;font-variant-numeric:tabular-nums}
+#tip .r span{color:var(--tip-dim)}
+#tip .key{flex:none}
+.dlg{width:min(600px,calc(100% - 28px));padding:0;border:0;border-radius:20px;background:var(--dlg);color:var(--ink);box-shadow:0 40px 90px -20px var(--sh-dlg)}
+.dlg::backdrop{background:var(--scrim,rgba(20,16,12,.5));-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.dlg header{display:flex;align-items:flex-start;gap:12px;padding:20px 20px 14px 24px}
+.dlg header small{font-size:12.5px;color:var(--mute)}
+.dlg header h3{margin-top:2px;font-size:19px;font-weight:600;letter-spacing:-.015em;text-wrap:balance}
+.dlg pre{margin:0 24px;padding:16px 18px;border-radius:12px;background:var(--code);color:var(--code-ink);font:400 13px/1.7 var(--mono);white-space:pre-wrap;overflow-x:auto}
+.dlg pre::selection,.dlg pre ::selection{background:var(--code-sel)}
+.dlg pre em{font-style:normal;color:var(--code-em)}
+.dlg pre i{font-style:normal;color:var(--code-dim)}
+.dlg footer{display:flex;align-items:center;gap:10px;padding:14px 24px 20px;font-size:13px;color:var(--mute)}
+.dlg .btn{height:36px;background:var(--lift);box-shadow:inset 0 0 0 1px var(--hair2)}
+.dlg .btn:hover{background:var(--lift-h)}
+
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion:no-preference){
+  .rise{animation:rise .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--d,0)*60ms)}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}}
+  .draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw .9s cubic-bezier(.4,.1,.2,1) .15s forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .grow{transform-box:fill-box;transform-origin:50% 100%;animation:grow .5s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes grow{from{transform:scaleY(0)}}
+  .dlg[open]{animation:pop .22s cubic-bezier(.2,.8,.2,1)}
+  @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}}
+}
+@media (prefers-reduced-motion:reduce){ /* range changes settle at once instead of sliding */
+  .geo i,.q i,.track i,.track.heat::after{transition:none}
+}
+
+/* ---------- responsive ---------- */
+@media (min-width:1181px) and (max-width:1279px){ /* four narrow columns: hand the gutters to the labels so version names are not cut */
+  .card{padding-left:16px;padding-right:16px}
+  .vh,.vr{grid-template-columns:minmax(0,1fr) 46px 66px;column-gap:8px}
+  .geo{gap:8px}
+}
+@media (max-width:1180px){
+  .top{grid-template-columns:auto minmax(0,1fr);row-gap:10px;padding-top:6px}
+  .tools{justify-self:end}
+  .nav{grid-column:1/-1;grid-row:2;justify-self:start}
+  .title h1{flex-basis:100%}
+  .field{flex:1;width:auto;min-width:180px}
+  .cards,.lower{flex:none;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .metric{padding-top:14px}
+  .lower .metric:nth-child(3){border-left:0;padding-left:20px}
+  .lower{row-gap:26px}
+}
+@media (max-width:760px){
+  .panel{padding:8px 14px 26px}
+  .top{min-height:0}
+  .logo{font-size:22px}
+  .tools .hide-s{display:none}
+  .acct{margin-left:0}
+  .tbtn,.me{width:40px;height:40px}
+  .title{margin:18px 0 18px}
+  .title h1{width:100%;font-size:36px}
+  .field{flex:1 1 100%;width:auto;order:3}
+  .field input{font-size:16px} /* below 16px iOS zooms the page on focus */
+  .title .btn.src{flex:1;justify-content:center;order:4}
+  .cards,.lower{grid-template-columns:minmax(0,1fr)}
+  .card{padding:16px 16px 18px}
+  .lower{row-gap:0}
+  .metric,.lower .metric:nth-child(3){border-left:0;border-top:1px solid var(--hair2);margin-top:22px;padding:20px 4px 0}
+}
+</style>
+<!-- tweaks:start -->
+<script>
+/* how this page's tokens line up with the shared tweak palettes */
+window.TWEAK_PAGE = {
+  key: 'prompt-analytics',
+  modes: ['light'], /* the page ships one light palette; every dark look comes from map() */
+  getMode: () => 'light', setMode: () => {},
+  sans: '--sans', mono: '--mono', scale: {},
+  chrome: { bg: 'var(--surf)', fg: 'var(--ink)', dim: 'var(--mute)', line: 'var(--hair2)', hover: 'var(--chip)', accent: 'var(--brand)' },
+  accentOwn: { light: '#f0641e' },
+  /* the page's own colours in palette order (app surf raised inset hover line line2 text text2 dim green red yellow blue magenta warn); used for glass */
+  own: { light: 'f5f2ee faf7f3 ffffff f3ede5 efe6da e5ded5 d8d0c6 1b1a18 57524d 8c877f 15803d c2371c c48a12 6f7be0 b0489a e85a12' },
+
+  /* the shared palettes are plain hex, so legibility is computed here instead of guessed per theme */
+  rgb: h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)),
+  lerp(a, b, k){ const x = this.rgb(a), y = this.rgb(b); return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * k).toString(16).padStart(2, '0')).join(''); },
+  lum(h){ const [r, g, b] = this.rgb(h).map(v => (v /= 255) <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4); return .2126 * r + .7152 * g + .0722 * b; },
+  cr(a, b){ const x = this.lum(a), y = this.lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); },
+  /* step c towards `to` until it reaches min:1 on every background given */
+  fit(c, to, min, ...on){ for (let k = 0; k < 1; k += .05){ const m = this.lerp(c, to, k); if (on.every(b => this.cr(m, b) >= min)) return m; } return to; },
+  hue(h){ const [r, g, b] = this.rgb(h), mx = Math.max(r, g, b), d = mx - Math.min(r, g, b); return !d ? 0 : ((mx === r ? (g - b) / d % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60 + 360) % 360; },
+
+  map(p, mix){
+    const L = p.mode === 'light', t = p.text, S = p.solid, A = p.app, far = L ? '#000000' : '#ffffff';
+    const edge = L ? p.raised : p.line; /* light panels keep the page's bright inner edge, dark ones get a hairline */
+    const panels = {
+      '--bg': A, '--bg1': A, '--bg2': A, '--bg3': A, '--glow': 'transparent', '--glow0': 'transparent',
+      '--glass': p.surf, '--edge': edge, '--tray': p.surf, '--tray-edge': edge, '--ctl': p.surf, '--field': p.surf,
+    };
+    /* page default + glass: only the panels change, every ink and chart colour stays the page's own */
+    if (t === '#1b1a18' && A === '#f5f2ee') return panels;
+    const hov = /^#/.test(p.hover) ? p.hover : this.lerp(S, t, .08);
+    const sub = this.fit(p.text2, t, 4.5, S, A), mute = this.fit(this.lerp(p.text2, p.dim, .38), t, 4.5, S, A);
+    const soft = c => L ? this.lerp(c, S, .22) : c; /* the heat fills are large marks: a step lighter on light surfaces */
+    const code = L ? this.lerp(S, t, .05) : this.lerp(S, '#000000', .3);
+    return Object.assign(panels, {
+      '--ink': t, '--sub': sub, '--mute': mute, '--icon': this.lerp(t, p.text2, .2), '--on-ink': S, '--ink-h': this.lerp(t, S, .14),
+      '--hair': p.line, '--hair2': p.line2, '--xh': this.lerp(S, t, .34), '--scroll': p.line2, '--grain': L ? .5 : 0,
+      '--surf': S, '--dot-ring': S, '--av': p.hover, '--th': this.lerp(S, t, .04),
+      '--lift': L ? p.raised : p.hover, '--lift-h': L ? p.hover : mix(t, 15),
+      '--hov': mix(t, L ? 5 : 7), '--row': mix(t, L ? 5 : 7), '--wash': mix(t, 6), '--wash2': mix(t, 11), '--flag-ring': mix(t, 10),
+      '--chip': p.hover, '--chip-ink': this.fit(this.lerp(t, p.text2, .4), t, 4.5, hov), '--bar1': p.hover, '--bar2': mix(p.hover, 76),
+      '--sh-card': L ? `0 1px 2px ${mix(t, 4)},0 18px 34px -26px ${mix(t, 34)}` : '0 1px 2px rgba(0,0,0,.24),0 18px 34px -26px rgba(0,0,0,.7)',
+      '--sh-tab': L ? `0 1px 2px ${mix(t, 8)},0 6px 14px -8px ${mix(t, 24)}` : '0 1px 2px rgba(0,0,0,.3),0 6px 14px -8px rgba(0,0,0,.6)',
+      '--sh-seg': L ? `0 1px 2px ${mix(t, 10)}` : '0 1px 2px rgba(0,0,0,.3)', '--sh-knob': L ? 'rgba(0,0,0,.25)' : 'rgba(0,0,0,.5)',
+      /* tooltip, dialog and code block sit on the theme's own surfaces: the page's dark-on-light inversion only suits its own inks */
+      '--tip': L ? this.lerp(S, '#ffffff', .5) : this.lerp(S, t, .09), '--tip-ink': t, '--tip-dim': sub, '--tip-edge': p.line2, '--sh-tip': L ? mix(t, 26) : 'rgba(0,0,0,.6)',
+      '--dlg': S, '--sh-dlg': L ? mix(t, 40) : 'rgba(0,0,0,.7)', '--scrim': L ? mix(t, 42) : 'rgba(0,0,0,.6)',
+      '--code': code, '--code-ink': t, '--code-dim': this.fit(mute, t, 4.5, code),
+      /* chart marks */
+      '--prev': this.fit(this.lerp(p.text2, S, .3), t, 3, S, A),
+      '--cool': this.fit(p.blue, far, 3, S, A), '--warm': this.fit(p.warn, far, 3, S, A),
+      '--good': this.fit(p.green, far, 4.5, S, A), '--bad': this.fit(p.red, far, 4.5, S, A),
+      '--heat1': soft(p.green), '--heat2': soft(p.yellow), '--heat3': soft(p.warn), '--heat4': soft(p.red),
+      '--b1': soft(p.green), '--b2': soft(p.yellow), '--b3': soft(p.warn),
+    });
+  },
+
+  /* the accent is the page's brand, its first chart series and the one-hue ramp behind the quantiles, the funnel and the heat grid */
+  accent(c, mix, mode){
+    const st = document.documentElement.style, own = (k, d) => st.getPropertyValue(k).trim() || d;
+    const L = mode === 'light', S = own('--surf', '#faf7f3'), A = own('--bg', '#f5f2ee'), code = own('--code', '#201e1c'), h = this.hue(c);
+    const q1 = this.fit(this.lerp(c, S, L ? .5 : .62), c, 2.1, S, A); /* pale end of the ramp still reads as a mark */
+    const top = L ? c : this.fit(c, '#ffffff', 5, S, A); /* a dim accent on a dark surface leaves too little room for four steps: let the bright end go lighter */
+    const q = L ? [q1, c, this.lerp(c, '#000000', .26), this.lerp(c, '#000000', .5)] : [q1, this.lerp(q1, top, 1 / 3), this.lerp(q1, top, 2 / 3), top];
+    return {
+      '--brand': c, '--or': c, '--q0': mix(c, L ? 20 : 18), '--q1': q[0], '--q2': q[1], '--q3': q[2], '--q4': q[3], '--qf': L ? q[0] : q[1],
+      /* second series: the palette's orange beside a cool or magenta accent, its blue beside a green or warm one (checked for colour-blind separation) */
+      '--peri': h >= 150 && h < 345 ? 'var(--warm)' : 'var(--cool)',
+      '--sel': mix(c, L ? 20 : 34), '--focus': mix(c, L ? 14 : 26), '--code-sel': mix(c, 34),
+      '--code-em': this.fit(c, this.lum(code) < .2 ? '#ffffff' : '#000000', 4.5, code),
+    };
+  },
+
+  glass: '#tip', /* only the floating tooltip blurs: on the in-flow cards the blur looked identical over the smooth backdrop and cost GPU time while scrolling */
+  clear: '.panel', /* paints the page wash */
+};
+</script>
+<style id="tw-css">
+/* tweak dock: same controls as the terminal design system's config bar. Colours come from --tw-* so it follows whatever theme is active. */
+.tw{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:900;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px 10px;width:max-content;max-width:calc(100vw - 24px);padding:4px 6px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-dim);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+html[data-tw-surface="glass"] .tw{-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}
+.tw[hidden],.tw-chip[hidden]{display:none}
+.tw-ctl{display:flex;align-items:center;gap:6px;height:24px;padding:0 4px;white-space:nowrap}
+.tw button,.tw-chip{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* a chooser is a button showing its value; its list is .tw-menu below, drawn by the page, never the system's popup */
+.tw button.tw-val{display:inline-block;vertical-align:middle;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tw-fg);padding:4px 14px 4px 0;background:linear-gradient(45deg,transparent 50%,var(--tw-dim) 50%) calc(100% - 4px) 55%/4px 4px no-repeat,linear-gradient(135deg,var(--tw-dim) 50%,transparent 50%) 100% 55%/4px 4px no-repeat}
+.tw button.tw-val:hover,.tw button.tw-val[aria-expanded="true"]{color:var(--tw-acc)}
+.tw-seg{display:flex;gap:2px}
+.tw-seg button{padding:4px 7px;border-radius:4px;color:var(--tw-fg);opacity:.72}
+.tw-seg button:hover{background:var(--tw-hover);opacity:1}
+.tw-seg button[aria-pressed="true"]{background:var(--tw-hover);color:var(--tw-acc);font-weight:700;opacity:1}
+.tw-sws{display:flex;align-items:center;gap:8px}
+.tw button.tw-sw{width:11px;height:11px;border-radius:50%;background:var(--c);outline:1px solid transparent;outline-offset:2px}
+.tw button.tw-sw[aria-pressed="true"]{outline-color:var(--tw-fg)}
+.tw button.tw-x{margin-left:2px;padding:4px 7px;border-radius:4px;color:var(--tw-dim)}
+.tw button.tw-x:hover{background:var(--tw-hover);color:var(--tw-fg)}
+.tw button:focus-visible,.tw-chip:focus-visible{outline:2px solid var(--tw-acc);outline-offset:2px}
+.tw-chip{position:fixed;right:12px;bottom:12px;z-index:900;padding:7px 10px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+.tw-chip:hover{color:var(--tw-acc)}
+.tw-space{height:56px}
+.tw-menu{position:fixed;z-index:901;box-sizing:border-box;min-width:132px;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain;padding:4px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-menu);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;text-align:left;box-shadow:0 16px 40px -14px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.14);outline:0;scrollbar-width:thin;scrollbar-color:var(--tw-dim) transparent;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.tw-menu[hidden]{display:none}
+.tw-menu [role="option"]{display:flex;align-items:center;gap:8px;padding:7px 12px 7px 8px;border-radius:4px;white-space:nowrap;cursor:pointer}
+.tw-menu [role="option"].act{background:var(--tw-hover)}
+.tw-menu [role="option"][aria-selected="true"]{color:var(--tw-acc);font-weight:700}
+.tw-menu .tw-grp{padding:9px 8px 5px;color:var(--tw-dim);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.tw-dot{flex:none;width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--a) 50%,var(--b) 50%);box-shadow:0 0 0 1px var(--tw-line)} /* a theme's surface and accent */
+@media (max-width:720px){.tw{left:8px;right:8px;bottom:8px;transform:none;width:auto;max-width:none;justify-content:flex-start}.tw-ctl{height:30px}.tw-space{height:150px}.tw-menu [role="option"]{padding-block:10px}}
+@media print{.tw,.tw-chip,.tw-space,.tw-menu{display:none}}
+/* glass surface: a soft backdrop behind translucent panels */
+html[data-tw-surface="glass"]{background:var(--tw-app)!important}
+html[data-tw-surface="glass"] body{background:transparent!important}
+html[data-tw-surface="glass"]::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 50% at 18% 0%,color-mix(in srgb,var(--tw-acc) 16%,transparent),transparent 70%),radial-gradient(50% 45% at 100% 100%,color-mix(in srgb,var(--tw-warn) 13%,transparent),transparent 70%)}
+</style>
+<script id="tw-js">
+/* Tweaks: mode / theme / surface / font / size / corners / density / accent, as on the terminal design system page.
+   Each page describes itself in window.TWEAK_PAGE (which of its tokens mean what); everything else here is shared.
+   With every control on its default the page's own CSS is untouched.
+   The look is also written to the address as ?mode=&theme=&surface=&font=&size=&corners=&density=&accent=, and read back from it, so a link carries it. */
+(function(){
+'use strict';
+const P = window.TWEAK_PAGE, root = document.documentElement, KEY = 'artikit-tweaks:' + P.key;
+/* palettes, in this order: */
+const ROLES = ['app','surf','raised','inset','hover','line','line2','text','text2','dim','green','red','yellow','blue','magenta','warn'];
+const THEMES = {
+  dark: {
+    Copperplate: '14100b 1a150e 241d14 100c08 2c2418 332917 54432a ead9c0 b59c7a 77664c a4c26f e0705a d8a24a 8aa8bd c98da4 cf8236',
+    Midnight: '0d0d13 16161e 1d1d28 12121a 232330 2a2a38 383848 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f',
+    Graphite: '101012 151517 1c1c1f 0c0c0e 232326 2a2a2e 3a3a40 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f',
+    Phosphor: '060a06 0a120a 101a10 050905 152415 1c301c 2a462a b8e0b0 7aa874 4a6a46 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f',
+    Dracula: '1e1f29 282a36 343746 21222c 3c3f52 3a3d4f 4d5069 f8f8f2 a8abc7 6272a4 50fa7b ff5555 f1fa8c 8be9fd ff79c6 ffb86c',
+    Nord: '242933 2e3440 3b4252 272c37 434c5e 3b4252 4c566a e5e9f0 aeb8cc 616e88 a3be8c bf616a ebcb8b 81a1c1 b48ead d08770',
+    "Solarized Dark": '00212b 002b36 073642 001f27 0a4050 073642 586e75 93a1a1 839496 586e75 859900 dc322f b58900 268bd2 d33682 cb4b16',
+    Tidewatch: '0a1220 0e1728 16233a 091020 1c2c47 1e2f4a 2e4368 d7e3f2 93a8c4 54688a 4fd6be ff6b7f e5c07b 56b3fa c792ea e5a45b',
+    Iris: '14121f 191627 221e35 110f1c 2a2542 2b2545 413866 e6e1f5 a79fc7 675f8a 72e0a5 ff6b9d f0c674 82aaff c792ea f0a35e',
+    Emberline: '0c1210 101915 18241e 0a0f0d 1f2e26 22332a 35503f d8e6dc 96ad9d 587263 7fce6f f26d4f f0a848 6db2c9 d78ab0 f08c3a',
+    Oceanic: '0b141f 0f1a29 172538 0a111c 1d3049 203450 31507a d9e6f5 8ea9c4 526b88 5fd39b f2708a e8c268 58a6ff bc8cff e09a4e',
+    Grove: '0d130c 121a10 1a2618 0b100a 21301e 263a22 3b5a35 dde8d6 a2b797 647a5a 9ccb72 e06c5f d9b656 72aec4 c194bd d19042',
+    Rosewire: '170f14 1e1319 291b23 130c10 32212b 36242e 523847 f0dfe8 bd9cab 7c6070 7fd2a0 ff5c8a e8b465 7ba6e0 e56ba8 e0955a',
+    Halide: '0c0c0c 111111 1a1a1a 080808 222222 262626 3d3d3d e8e8e8 a0a0a0 606060 a9c4a9 cf9a9a c9bd9a 9ab1c4 bda4b8 c4ad8f'
+  },
+  light: {
+    Porcelain: 'efece8 fbf9f6 ffffff f4f1ec e9e5df ddd8d0 c2bab0 33302b 6b655c a39c90 3d8b3d c53a3a a37414 3565c0 ad3d8d bb6a1e',
+    Paper: 'eceff1 fafbfc ffffff f0f2f4 e4e8ec d5dade b8c0c8 2a3138 5a656e 9aa4ac 188038 c5221f a86a00 1a63d0 b8207e c26401',
+    "Solarized Light": 'eee8d5 fdf6e3 ffffff f3edda e8e1cc ddd6c1 c0b99f 586e75 657b83 93a1a1 859900 dc322f b58900 268bd2 d33682 cb4b16',
+    Frost: 'e8edf3 f6f9fc ffffff eef2f7 dfe7ef d0dae4 aabccd 26313c 54687a 93a5b5 2e9440 d13b45 ad7a12 3a6ec4 b8459a c47222',
+    Dawn: 'f2eae8 fcf7f5 ffffff f5edeb ecdfdc e2d3cf c8b1ab 3a2d2a 75605b ab948e 2c8a44 cc3344 a86e10 3565c0 c03a7e bd6420',
+    Linen: 'efe9dd faf6ec fffdf6 f3eee1 e8e1d0 ded5c1 bfb298 38321f 6e6650 a49a80 4c7f22 bd3e2e 976a08 2e6a9e a5498a af6a12',
+    Sage: 'e9eee6 f6f9f3 ffffff eef3ea dfe7da d2ddcb adbfa3 2b352a 5c6c58 93a58c 347a34 c04040 9c7212 33689e 9c4a8a b06a1c',
+    Lavender: 'edeaf3 f9f7fc ffffff f2eff7 e4dfee d9d3e4 b5aacb 312b3d 655c78 a096b3 2f8a48 cc3550 a06d10 4a5ecc a63cae bb681e'
+  }
+};
+const ACCENTS = { cyan:['#66c7d6','#1a7f8e'], green:['#78d670','#2f8a3a'], magenta:['#ec6bb4','#b8328a'], blue:['#6f9ef1','#3565c0'], orange:['#e2953f','#b5651a'] };
+const FONTS = { mono:['JetBrains Mono','Fira Code','IBM Plex Mono','Source Code Pro','Space Mono','Inconsolata','Ubuntu Mono','Victor Mono','Red Hat Mono'], sans:['Inter','Geist','IBM Plex Sans','Hanken Grotesk','Figtree','Manrope'] };
+const TWO_WEIGHTS = ['Space Mono','Ubuntu Mono']; /* static families with only regular and bold */
+const SIZE = { small:.9, default:1, large:1.12, 'x-large':1.25 }, CORNER = { sharp:0, default:1, round:1.8 }, DENSITY = { compact:.72, default:1, relaxed:1.32 };
+const pal = s => Object.fromEntries(s.split(' ').map((h, i) => [ROLES[i], '#' + h]));
+const mix = (a, pct, b) => `color-mix(in srgb, ${a} ${pct}%, ${b || 'transparent'})`;
+
+/* ---- one pass over the page's own rules: px font sizes, radii and spacing get a multiplier that defaults to 1,
+        so nothing moves until size, corners or density is changed ---- */
+const FAMILY = [[/^font-size$/, 'fs'], [/^border-(top|bottom|start|end)-(left|right|start|end)-radius$/, 'r'], [/^(padding|margin)-(top|right|bottom|left|block-start|block-end|inline-start|inline-end)$|^(row|column)-gap$/, 'd']];
+const PX = /-?\d*\.?\d+px/g, tokens = P.scale || {};
+/* negative margins are left alone: they pull a box out to an edge whose gutter is fixed, so scaling them would overshoot */
+const scaled = (v, k) => v.replace(PX, m => parseFloat(m) > 0 ? `calc(${m}*var(--tw-${k},1))` : m);
+(function walk(rules){
+  for (const r of rules){
+    if (r instanceof CSSKeyframesRule) continue;
+    const st = r.style;
+    if (st) for (const prop of Array.from(st)){
+      const k = prop.startsWith('--') ? Object.keys(tokens).find(k => tokens[k].includes(prop)) : (FAMILY.find(f => f[0].test(prop)) || [])[1];
+      if (!k) continue;
+      const v = st.getPropertyValue(prop);
+      if (v && !v.includes('--tw-') && v.search(PX) >= 0) st.setProperty(prop, scaled(v, k), st.getPropertyPriority(prop));
+    }
+    if (r.cssRules && r.cssRules.length) walk(r.cssRules);
+  }
+})(Array.from(document.styleSheets).flatMap(s => { try { return s.ownerNode && s.ownerNode.id === 'tw-css' ? [] : Array.from(s.cssRules); } catch (e) { return []; } }));
+
+/* ---- state ---- */
+const themesFor = m => (P.modes.includes(m) ? ['page'] : []).concat(Object.keys(THEMES[m]));
+const cfg = { mode: P.getMode(), theme: null, surface: 'solid', font: 'default', size: 'default', corner: 'default', density: 'default', accent: 'page', open: null };
+/* one address parameter per control. Values are matched loosely (case, spaces and dashes ignored); "default" means the page's own */
+const QK = { mode: 'mode', theme: 'theme', surface: 'surface', font: 'font', size: 'size', corner: 'corners', density: 'density', accent: 'accent' };
+const norm = v => String(v).toLowerCase().replace(/[^a-z0-9]+/g, ''), among = (v, list) => list.find(o => norm(o) === norm(v));
+function fromURL(){
+  let q; try { q = new URLSearchParams(location.search); } catch (e) { return null; }
+  if (!Object.values(QK).some(name => q.has(name))) return null;
+  const g = k => q.get(QK[k]) || '', own = v => ['default', 'page', 'pagedefault'].includes(norm(v)), th = g('theme');
+  /* a link is a complete look: anything it leaves out is the default, not what this browser had saved */
+  const out = { mode: among(g('mode'), ['dark', 'light']) || (own(th) ? null : ['dark', 'light'].find(m => among(th, Object.keys(THEMES[m])))) || cfg.mode }; /* ?theme=Nord alone implies dark */
+  out.theme = own(th) ? 'page' : among(th, Object.keys(THEMES[out.mode])) || null;
+  out.surface = among(g('surface'), ['solid', 'glass']) || 'solid';
+  out.font = among(g('font'), FONTS.mono.concat(FONTS.sans)) || 'default';
+  out.size = among(g('size'), Object.keys(SIZE)) || 'default'; out.corner = among(g('corner'), Object.keys(CORNER)) || 'default'; out.density = among(g('density'), Object.keys(DENSITY)) || 'default';
+  out.accent = among(g('accent'), Object.keys(ACCENTS)) || 'page';
+  return out;
+}
+let inURL = false;
+function toURL(){
+  try {
+    const q = new URLSearchParams(location.search);
+    for (const k in QK) q.set(QK[k], cfg[k] === 'page' ? 'default' : cfg[k]);
+    history.replaceState(history.state, '', '?' + q + location.hash); inURL = true; /* the page's own #section stays */
+  } catch (e) {}
+}
+let stored = {}; try { stored = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+const linked = fromURL();
+Object.assign(cfg, linked ? { ...linked, open: stored.open == null ? null : stored.open } : stored);
+function settle(){
+  if (!THEMES[cfg.mode]) cfg.mode = P.getMode();
+  if (!themesFor(cfg.mode).includes(cfg.theme)) cfg.theme = themesFor(cfg.mode)[0];
+  if (cfg.surface !== 'glass') cfg.surface = 'solid';
+  if (cfg.font !== 'default' && !FONTS.mono.concat(FONTS.sans).includes(cfg.font)) cfg.font = 'default';
+  if (!(cfg.size in SIZE)) cfg.size = 'default'; if (!(cfg.corner in CORNER)) cfg.corner = 'default'; if (!(cfg.density in DENSITY)) cfg.density = 'default';
+  if (cfg.accent !== 'page' && !ACCENTS[cfg.accent]) cfg.accent = 'page';
+}
+settle();
+
+/* glass: the page names which boxes are panels (they blur what is behind them) and which wrappers must stop painting an opaque fill */
+if (P.glass || P.clear){
+  const st = document.createElement('style'); st.id = 'tw-dyn';
+  st.textContent = (P.glass ? `html[data-tw-surface="glass"] :is(${P.glass}){-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}` : '') +
+    (P.clear ? `html[data-tw-surface="glass"] :is(${P.clear}){background:transparent!important}` : '');
+  document.head.append(st);
+}
+const applied = new Set(), loaded = new Set(); let baseAccent;
+function loadFont(name){
+  if (loaded.has(name)) return; loaded.add(name);
+  const l = document.createElement('link'); l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' + name.replace(/ /g, '+') + ':wght@' + (TWO_WEIGHTS.includes(name) ? '400;700' : '400;500;600;700') + '&display=swap';
+  document.head.append(l);
+}
+function apply(){
+  const c = cfg, light = c.mode === 'light', own = c.theme === 'page', glass = c.surface === 'glass';
+  applied.forEach(k => root.style.removeProperty(k)); applied.clear();
+  const put = (k, v) => { if (k && v != null){ root.style.setProperty(k, String(v)); applied.add(k); } };
+  P.setMode(c.mode);
+  root.dataset.twMode = c.mode; if (glass) root.dataset.twSurface = 'glass'; else delete root.dataset.twSurface;
+  const accent = c.accent === 'page' ? null : ACCENTS[c.accent][light ? 1 : 0];
+  let chrome = P.chrome, warn = 'transparent', app = 'transparent';
+  baseAccent = P.accentOwn[c.mode] || P.accentOwn[P.modes[0]];
+  if (!own || glass){
+    const p = pal(own ? P.own[c.mode] : THEMES[c.mode][c.theme]);
+    p.solid = p.surf; p.mode = c.mode; p.glass = glass; app = p.app; warn = p.warn;
+    if (glass){ /* same recipe as the terminal kit: translucent surface, tinted raised/hover layers, hairlines from the text colour */
+      const t = p.text;
+      p.surf = mix(p.surf, light ? 64 : 72); p.raised = light ? 'rgba(255,255,255,.6)' : mix(t, 5); p.inset = light ? mix(t, 4) : 'rgba(0,0,0,.18)';
+      p.hover = mix(t, light ? 7 : 9); p.line = mix(t, light ? 10 : 9); p.line2 = mix(t, light ? 18 : 16);
+    }
+    Object.entries(P.map(p, mix)).forEach(([k, v]) => put(k, v));
+    put('color-scheme', c.mode);
+    chrome = { bg: glass ? mix(p.solid, 82) : p.raised, fg: p.text, dim: mix(p.text2, 62, p.dim), line: p.line2, hover: p.hover, accent: own ? P.accentOwn[c.mode] : p.blue, menu: p.solid };
+    if (!own) baseAccent = p.blue; /* a shared theme brings its own default accent */
+    if (!own && !accent) Object.entries(P.accent(p.blue, mix, c.mode)).forEach(([k, v]) => put(k, v));
+  }
+  if (accent) Object.entries(P.accent(accent, mix, c.mode)).forEach(([k, v]) => put(k, v));
+  put('--tw-bg', chrome.bg); put('--tw-fg', chrome.fg); put('--tw-dim', chrome.dim); put('--tw-line', chrome.line); put('--tw-hover', chrome.hover);
+  put('--tw-acc', accent || chrome.accent); put('--tw-menu', chrome.menu || chrome.bg); put('--tw-app', app); put('--tw-warn', warn);
+  if (P.mono) put('--tw-font', `var(${P.mono})`);
+  if (c.font !== 'default'){
+    const mono = FONTS.mono.includes(c.font), stack = `"${c.font}",` + (mono ? 'ui-monospace,SFMono-Regular,Menlo,monospace' : 'system-ui,-apple-system,"Segoe UI",sans-serif');
+    loadFont(c.font); put(P.sans, stack); if (mono) put(P.mono, stack);
+  }
+  if (SIZE[c.size] !== 1) put('--tw-fs', SIZE[c.size]);
+  if (CORNER[c.corner] !== 1) put('--tw-r', CORNER[c.corner]);
+  if (DENSITY[c.density] !== 1) put('--tw-d', DENSITY[c.density]);
+}
+apply();
+if (linked || cfg.theme !== 'page' || cfg.surface !== 'solid' || cfg.accent !== 'page' || ['font', 'size', 'corner', 'density'].some(k => cfg[k] !== 'default')) toURL();
+
+/* ---- dock ---- */
+let dock, chip, space;
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
+const seg = (k, opts) => `<span class="tw-seg">${opts.map(o => `<button type="button" data-k="${k}" data-v="${o}" aria-pressed="${cfg[k] === o}">${o}</button>`).join('')}</span>`;
+const NAME = { theme: 'theme', font: 'font', size: 'size', corner: 'corners', density: 'density' };
+const sw = (hexes, b) => ({ a: '#' + hexes.split(' ')[1], b: b || '#' + hexes.split(' ')[13] }); /* surface + accent of a palette */
+const choices = k => k === 'theme' ? themesFor(cfg.mode).map(t => t === 'page' ? { v: t, label: 'page default', sw: P.own && P.own[cfg.mode] ? sw(P.own[cfg.mode], P.accentOwn[cfg.mode]) : null } : { v: t, label: t, sw: sw(THEMES[cfg.mode][t]) })
+  : k === 'font' ? [{ v: 'default', label: 'default' }, { group: 'mono, whole page' }].concat(FONTS.mono.map(f => ({ v: f, label: f })), [{ group: 'sans' }], FONTS.sans.map(f => ({ v: f, label: f })))
+  : Object.keys({ size: SIZE, corner: CORNER, density: DENSITY }[k]).map(o => ({ v: o, label: o }));
+const pick = k => { const now = (choices(k).find(o => o.v === cfg[k]) || { label: cfg[k] }).label; return `<button type="button" class="tw-val" data-k="${k}" aria-haspopup="listbox" aria-expanded="false" aria-controls="tw-menu" aria-label="${NAME[k]}: ${esc(now)}">${esc(now)}</button>`; };
+
+/* the list of a chooser: a listbox the page draws, so it wears the active theme. Arrow keys, Home/End, typing a name, Enter, Escape */
+let menu, menuFor = null, opts = [], at = -1, typed = '', typedAt = 0;
+function setAt(i, quiet){
+  at = i; opts.forEach((o, n) => o.classList.toggle('act', n === i));
+  const o = opts[i]; if (!o) return; menu.setAttribute('aria-activedescendant', o.id);
+  if (quiet) return; /* the pointer is already on it */
+  if (o.offsetTop < menu.scrollTop + 4) menu.scrollTop = o.offsetTop - 4; else if (o.offsetTop + o.offsetHeight > menu.scrollTop + menu.clientHeight - 4) menu.scrollTop = o.offsetTop + o.offsetHeight - menu.clientHeight + 4;
+}
+function place(){ /* above the control when the dock sits at the bottom, kept inside the window */
+  const r = menuFor.getBoundingClientRect(), up = r.top > innerHeight - r.bottom;
+  menu.style.minWidth = Math.max(132, Math.round(r.width) + 18) + 'px';
+  menu.style.maxHeight = Math.max(120, Math.min(480, (up ? r.top : innerHeight - r.bottom) - 14)) + 'px';
+  menu.style.left = Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, r.left - 9)) + 'px';
+  menu.style.top = up ? 'auto' : r.bottom + 6 + 'px'; menu.style.bottom = up ? innerHeight - r.top + 6 + 'px' : 'auto';
+}
+function openMenu(btn){
+  closeMenu(); const k = btn.dataset.k;
+  menu.innerHTML = choices(k).map((o, i) => o.group ? `<div class="tw-grp" role="presentation">${esc(o.group)}</div>` :
+    `<div role="option" id="tw-o${i}" data-v="${esc(o.v)}" aria-selected="${cfg[k] === o.v}">${o.sw ? `<i class="tw-dot" style="--a:${o.sw.a};--b:${o.sw.b}"></i>` : ''}${esc(o.label)}</div>`).join('');
+  opts = Array.from(menu.querySelectorAll('[role="option"]')); menuFor = btn; typed = '';
+  btn.setAttribute('aria-expanded', 'true'); menu.setAttribute('aria-label', NAME[k]); menu.hidden = false; menu.scrollTop = 0;
+  place(); setAt(Math.max(0, opts.findIndex(o => o.getAttribute('aria-selected') === 'true'))); menu.focus({ preventScroll: true });
+}
+function closeMenu(refocus){
+  if (!menuFor) return; const b = menuFor; menuFor = null; menu.hidden = true;
+  if (b.isConnected){ b.setAttribute('aria-expanded', 'false'); if (refocus) b.focus({ preventScroll: true }); }
+}
+function choose(i){ const b = menuFor, o = opts[i]; closeMenu(true); if (b && o && cfg[b.dataset.k] !== o.dataset.v) set({ [b.dataset.k]: o.dataset.v }); }
+function menuKey(e){
+  const n = opts.length, k = e.key;
+  if (k === 'ArrowDown') setAt((at + 1) % n); else if (k === 'ArrowUp') setAt((at - 1 + n) % n);
+  else if (k === 'Home' || k === 'PageUp') setAt(0); else if (k === 'End' || k === 'PageDown') setAt(n - 1);
+  else if (k === 'Enter' || k === ' ') choose(at); else if (k === 'Escape') closeMenu(true);
+  else if (k === 'Tab'){ closeMenu(true); return; } /* focus is back on the control, so Tab moves on from there */
+  else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey){ /* type a name to jump to it */
+    const t = Date.now(); typed = (t - typedAt > 700 ? '' : typed) + k.toLowerCase(); typedAt = t;
+    for (let j = 0, from = typed.length > 1 ? at : at + 1; j < n; j++){ const i = (from + j) % n; if (opts[i].textContent.trim().toLowerCase().startsWith(typed)){ setAt(i); break; } }
+  } else return;
+  e.preventDefault(); e.stopPropagation();
+}
+
+function render(){
+  if (!dock) return;
+  closeMenu();
+  const light = cfg.mode === 'light', had = document.activeElement, keep = had && dock.contains(had) ? [had.dataset.k, had.dataset.v] : null;
+  dock.innerHTML =
+    `<div class="tw-ctl">mode ${seg('mode', ['dark', 'light'])}</div>` +
+    `<div class="tw-ctl">theme ${pick('theme')}</div>` +
+    `<div class="tw-ctl">surface ${seg('surface', ['solid', 'glass'])}</div>` +
+    `<div class="tw-ctl">font ${pick('font')}</div>` +
+    `<div class="tw-ctl">size ${pick('size')}</div>` +
+    `<div class="tw-ctl">corners ${pick('corner')}</div>` +
+    `<div class="tw-ctl">density ${pick('density')}</div>` +
+    `<div class="tw-ctl">accent <span class="tw-sws">${['page'].concat(Object.keys(ACCENTS)).map(a => `<button type="button" class="tw-sw" data-k="accent" data-v="${a}" title="${a === 'page' ? 'default' : a}" aria-label="${a === 'page' ? 'default' : a} accent" aria-pressed="${cfg.accent === a}" style="--c:${a === 'page' ? baseAccent : ACCENTS[a][light ? 1 : 0]}"></button>`).join('')}</span></div>` +
+    `<button type="button" class="tw-x" data-k="open" data-v="" aria-label="Hide tweaks" title="Hide tweaks">hide</button>`;
+  dock.hidden = !cfg.open; chip.hidden = !!cfg.open; if (space) space.hidden = !cfg.open;
+  if (keep){ const el = keep[1] != null ? dock.querySelector(`[data-k="${keep[0]}"][data-v="${keep[1]}"]`) : dock.querySelector(`.tw-val[data-k="${keep[0]}"]`); if (el) el.focus({ preventScroll: true }); }
+}
+function set(patch){
+  const before = { ...cfg };
+  Object.assign(cfg, patch);
+  if (patch.mode && patch.mode !== before.mode && !('theme' in patch)) cfg.theme = cfg.theme === 'page' && P.modes.includes(cfg.mode) ? 'page' : themesFor(cfg.mode)[0];
+  settle(); apply(); render();
+  try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {}
+  if (inURL || Object.keys(QK).some(k => cfg[k] !== before[k])) toURL();
+  document.dispatchEvent(new CustomEvent('tweakchange', { detail: { ...cfg } }));
+  /* text, spacing and font changes move boxes: let the page redraw anything it sized in script */
+  if (['font', 'size', 'density', 'corner'].some(k => cfg[k] !== before[k])){
+    const again = () => window.dispatchEvent(new Event('resize'));
+    requestAnimationFrame(() => requestAnimationFrame(again));
+    if (cfg.font !== before.font && document.fonts) document.fonts.ready.then(() => setTimeout(again, 60));
+  }
+}
+function mount(){
+  dock = document.createElement('div'); dock.className = 'tw'; dock.id = 'tweaks'; dock.setAttribute('role', 'group'); dock.setAttribute('aria-label', 'Theme tweaks');
+  chip = document.createElement('button'); chip.type = 'button'; chip.className = 'tw-chip'; chip.textContent = 'tweaks'; chip.setAttribute('aria-label', 'Show tweaks');
+  if (P.spacer !== false){ space = document.createElement('div'); space.className = 'tw-space'; space.setAttribute('aria-hidden', 'true'); document.body.append(space); }
+  menu = document.createElement('div'); menu.className = 'tw-menu'; menu.id = 'tw-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1; menu.hidden = true;
+  document.body.append(dock, chip, menu);
+  if (cfg.open == null) cfg.open = innerWidth > 720;
+  dock.addEventListener('click', e => {
+    const v = e.target.closest('.tw-val'); if (v){ if (menuFor === v) closeMenu(true); else openMenu(v); return; }
+    const b = e.target.closest('button[data-k]'); if (!b) return; set({ [b.dataset.k]: b.dataset.k === 'open' ? false : b.dataset.v }); if (b.dataset.k === 'open') chip.focus();
+  });
+  dock.addEventListener('keydown', e => { const v = e.target.closest('.tw-val'); if (v && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){ e.preventDefault(); openMenu(v); } });
+  menu.addEventListener('keydown', menuKey);
+  menu.addEventListener('click', e => { const o = e.target.closest('[role="option"]'); if (o) choose(opts.indexOf(o)); });
+  menu.addEventListener('pointermove', e => { const o = e.target.closest('[role="option"]'), i = opts.indexOf(o); if (o && i !== at) setAt(i, true); });
+  menu.addEventListener('focusout', e => { if (menuFor && e.relatedTarget !== menuFor && !menu.contains(e.relatedTarget)) closeMenu(); });
+  document.addEventListener('pointerdown', e => { if (menuFor && !menu.contains(e.target) && !menuFor.contains(e.target)) closeMenu(); }, true);
+  addEventListener('resize', () => closeMenu()); addEventListener('blur', () => closeMenu());
+  chip.addEventListener('click', () => { set({ open: true }); const f = dock.querySelector('button'); if (f) f.focus(); });
+  render();
+}
+if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
+window.Tweaks = { get: () => ({ ...cfg }), set, themes: THEMES, mix };
+})();
+</script>
+<!-- tweaks:end -->
+</head>
+<body>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.800"/><path d="m20 20-4-4"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6.200 16.500V11a5.800 5.800 0 1 1 11.600 0v5.500l1.400 2H4.800zM10 21h4"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.800"/><path d="M12 3.300l1.500 2.100 2.500-.6.900 2.400 2.400.9-.6 2.500 2.100 1.400-2.100 1.500.6 2.500-2.400.9-.9 2.400-2.500-.6-1.500 2.100-1.500-2.100-2.500.6-.9-2.400-2.400-.9.6-2.500L3.200 12l2.100-1.400-.6-2.500 2.400-.9.9-2.400 2.500.6z"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M5 7.500h14M5 12h14M5 16.500h14"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.500"/><path d="M12 11.200v4.800M12 8h.01"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><path d="M6 12h.01M12 12h.01M18 12h.01" stroke-width="2.600"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="m8.500 7.500-4.500 4.500 4.500 4.500M15.500 7.500l4.500 4.500-4.500 4.500"/></symbol>
+  <symbol id="i-table" viewBox="0 0 24 24"><rect x="3.500" y="5" width="17" height="14" rx="2.800"/><path d="M3.500 10h17M3.500 14.500h17M9.500 10v9"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5.500M6.500 11 12 5.500l5.500 5.500"/></symbol>
+  <symbol id="i-dn" viewBox="0 0 24 24"><path d="M12 5v13.500M6.500 13l5.500 5.500 5.500-5.500"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.500 6.500l11 11M17.500 6.500l-11 11"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.500" y="8.500" width="11" height="11" rx="2.500"/><path d="M15.500 8.500V7A2.500 2.500 0 0 0 13 4.500H7A2.500 2.500 0 0 0 4.500 7v6A2.500 2.500 0 0 0 7 15.500h1.500"/></symbol>
+</svg>
+
+<div class="panel">
+  <header class="top">
+    <a class="logo" href="#" aria-label="Home"><svg viewBox="0 0 23 25" aria-hidden="true"><path d="M11.300 3.200h1.200a7.300 7.300 0 0 1 7.300 7.300v2.200a7.300 7.300 0 0 1-7.300 7.300h-2.400a7.300 7.300 0 0 1-7.300-7.300v-2.200a7.300 7.300 0 0 1 4.200-6.600" fill="none" stroke-width="3.500" stroke-linecap="round"/><path d="M13.500 14.300 20 22.500" stroke-width="3.500" stroke-linecap="round"/></svg>uantix</a>
+    <nav class="nav" id="nav" aria-label="Sections">
+      <a href="#">Home</a><a href="#">Requests</a><a href="#">Sessions</a><a href="#">Properties</a><a href="#">Users</a><a href="#">Playground</a><a href="#" class="on" aria-current="page">Prompts</a>
+    </nav>
+    <div class="tools">
+      <button class="tbtn hide-s" aria-label="Search"><svg class="ic"><use href="#i-search"/></svg></button>
+      <button class="tbtn" aria-label="Notifications, 2 unread"><svg class="ic"><use href="#i-bell"/></svg><i class="dot"></i></button>
+      <button class="tbtn hide-s" aria-label="Settings"><svg class="ic"><use href="#i-gear"/></svg></button>
+      <div class="acct">
+        <button class="tbtn" aria-label="Menu"><svg class="ic"><use href="#i-menu"/></svg></button>
+        <button class="me" aria-label="Account: Adrian Vale"><svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" fill="#cfc6ba"/><path d="M3 40c.6-8.200 7.200-12.400 17-12.400S36.400 31.800 37 40z" fill="#3d4a44"/><path d="M16.500 23.500h7v5a3.500 3.500 0 0 1-7 0z" fill="#d9a784"/><path d="M16.500 24h7v2.200c-2.100 1.500-4.900 1.500-7 0z" fill="#000" opacity=".16"/><ellipse cx="20" cy="16.800" rx="7.600" ry="8.600" fill="#e2b392"/><path d="M12.100 17c-.9-6.900 2.600-11.400 7.900-11.400s8.800 4.500 7.900 11.400c-.5-3-1.700-4.900-3.400-5.800-2.800 1-6.200 1-9 0-1.700.9-2.900 2.800-3.400 5.800z" fill="#2b211c"/><path d="M12.600 18.800c.3 5.100 3.300 7.900 7.400 7.900s7.100-2.800 7.400-7.900c-1.400 2.100-4.100 3.200-7.400 3.200s-6-1.100-7.400-3.200z" fill="#2b211c"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+  <div class="fold">
+  <div class="title">
+    <h1>Prompts</h1>
+    <div class="seg" id="range" role="group" aria-label="Date range">
+      <button data-r="7" aria-pressed="false">7 days</button><button data-r="30" aria-pressed="true">30 days</button><button data-r="90" aria-pressed="false">90 days</button>
+    </div>
+    <button class="btn sq" id="tblBtn" aria-pressed="false" aria-label="Show charts as tables" title="Show charts as tables"><svg class="ic"><use href="#i-table"/></svg></button>
+    <label class="field"><span class="sr">Request ID</span><input type="search" placeholder="Enter in a Request ID" spellcheck="false" autocomplete="off" enterkeyhint="search"></label>
+    <button class="btn src" id="srcBtn"><svg class="ic"><use href="#i-code"/></svg>View Source</button>
+  </div>
+
+  <section class="cards" aria-label="Prompts">
+    <article class="card rise" style="--d:1">
+      <div class="meta">Last used: 12/02/2025<svg class="ic" aria-hidden="true"><use href="#i-info"/></svg><b title="Latest version">v8</b></div>
+      <div class="ch"><h2>Select Flight</h2><button class="more" aria-label="More actions for Select Flight"><svg class="ic"><use href="#i-dots"/></svg></button></div>
+      <div class="chart" id="c-flight"></div>
+      <div class="legend"><span><i class="key" style="--c:var(--or)"></i>This period</span><span><i class="key d" style="--c:var(--prev)"></i>Previous</span></div>
+      <div class="foot"><span>Requests in the last <span data-range></span></span><b id="n-flight"></b></div>
+      <div class="chips"><span class="chip">2 major versions</span><span class="chip">6 minor versions</span></div>
+    </article>
+
+    <article class="card rise" style="--d:2">
+      <div class="meta">Last used: 12/02/2025<svg class="ic" aria-hidden="true"><use href="#i-info"/></svg><b title="Latest version">v23</b></div>
+      <div class="ch"><h2>Generate-packing-list</h2><button class="more" aria-label="More actions for Generate-packing-list"><svg class="ic"><use href="#i-dots"/></svg></button></div>
+      <div class="vers" role="table" aria-label="Versions of Generate-packing-list">
+        <div class="vh" role="row"><span role="columnheader">Version</span><span role="columnheader">Success</span><span role="columnheader">vs previous</span></div>
+        <div id="vers" role="rowgroup"></div>
+      </div>
+    </article>
+
+    <article class="card rise" style="--d:3">
+      <div class="meta">Last used: 12/02/2025<svg class="ic" aria-hidden="true"><use href="#i-info"/></svg><b title="Latest version">v56</b></div>
+      <div class="ch"><h2>Generate-travel-tips</h2><button class="more" aria-label="More actions for Generate-travel-tips"><svg class="ic"><use href="#i-dots"/></svg></button></div>
+      <div class="chart" id="c-tips"></div>
+      <div class="foot"><span>Requests in the last <span data-range></span></span><b id="n-tips"></b></div>
+    </article>
+
+    <article class="card rise" style="--d:4">
+      <div class="meta">Last used: 12/02/2025<svg class="ic" aria-hidden="true"><use href="#i-info"/></svg><b title="Latest version">v8</b></div>
+      <div class="ch"><h2>Select hotel</h2><button class="more" aria-label="More actions for Select hotel"><svg class="ic"><use href="#i-dots"/></svg></button></div>
+      <div class="chart" id="c-hotel"></div>
+      <div class="legend"><span><i class="key" style="--c:var(--or)"></i>This period</span><span><i class="key d" style="--c:var(--prev)"></i>Previous</span></div>
+      <div class="foot"><span>Requests in the last <span data-range></span></span><b id="n-hotel"></b></div>
+      <div class="chips"><span class="chip">1 major version</span><span class="chip">7 minor versions</span></div>
+    </article>
+  </section>
+
+  <section class="lower" aria-label="Traffic and performance">
+    <article class="card rise" style="--d:5">
+      <div class="meta hd"><h2>Requests</h2><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg><button class="more" aria-label="More actions for Requests"><svg class="ic"><use href="#i-dots"/></svg></button></div>
+      <div class="rows" id="geo"></div>
+    </article>
+
+    <div class="metric rise" style="--d:6">
+      <h2 class="lab">Latency</h2>
+      <div class="hero"><span id="h-lat"></span> <small>s / req</small></div>
+      <div class="chart" id="c-lat"></div>
+      <div class="meter">
+        <div class="cap2"><span>Mean against the 1.2 s budget</span><b id="m-lat"></b></div>
+        <div class="track heat" id="t-lat" role="img"></div>
+      </div>
+    </div>
+
+    <div class="metric rise" style="--d:7">
+      <h2 class="lab">Tokens / Minute</h2>
+      <div class="hero">Max: <span id="h-tok"></span> <small>tokens</small></div>
+      <div class="chart" id="c-tok"></div>
+      <div class="legend"><span><i class="key" style="--c:var(--peri)"></i>Prompt/min</span><span><i class="key" style="--c:var(--or)"></i>Completion/min</span></div>
+      <div class="meter">
+        <div class="cap2"><span>Token split</span><b id="m-tok"></b></div>
+        <div class="track split" id="t-tok" role="img"><i style="--c:var(--peri)"></i><i style="--c:var(--or)"></i></div>
+      </div>
+    </div>
+
+    <div class="metric rise" style="--d:8">
+      <h2 class="lab">Quantiles</h2>
+      <div class="hero">Max: <span id="h-q"></span> <small>s</small></div>
+      <div class="qs" id="qs"></div>
+      <div class="meter">
+        <div class="cap2"><span>P95 against the 2.5 s target</span><b id="m-q"></b></div>
+        <div class="track fill" id="t-q" role="img"><i></i></div>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <section class="lower deep" aria-label="Sources, outcomes and cost">
+    <article class="card">
+      <div class="meta hd"><h2>Sources</h2><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg><button class="more" aria-label="More actions for Sources"><svg class="ic"><use href="#i-dots"/></svg></button></div>
+      <div class="chart" id="c-src"></div>
+      <div class="sls" id="srcs"></div>
+      <div class="foot"><span>Requests in the last <span data-range></span></span><b id="n-all"></b></div>
+    </article>
+
+    <div class="metric">
+      <h2 class="lab">Funnel</h2>
+      <div class="hero"><span id="h-fun"></span>% <small>accepted</small></div>
+      <div class="chart" id="c-fun"></div>
+      <div class="meter">
+        <div class="cap2"><span>Accepted against the 75% goal</span><b id="m-fun"></b></div>
+        <div class="track fill" id="t-fun" role="img"><i></i></div>
+      </div>
+    </div>
+
+    <div class="metric">
+      <h2 class="lab">Requests / Hour</h2>
+      <div class="hero">Peak: <span id="h-heat"></span> <small>req / hour</small></div>
+      <div class="chart" id="c-heat"></div>
+      <div class="legend"><span>Less<span class="ramp" aria-hidden="true"><i style="--c:var(--q0)"></i><i style="--c:var(--q1)"></i><i style="--c:var(--q2)"></i><i style="--c:var(--q3)"></i><i style="--c:var(--q4)"></i></span>More</span><span>Hours in UTC</span></div>
+      <div class="meter">
+        <div class="cap2"><span>Weekdays, 08:00 to 18:00</span><b id="m-heat"></b></div>
+        <div class="track fill" id="t-heat" role="img"><i></i></div>
+      </div>
+    </div>
+
+    <div class="metric">
+      <h2 class="lab">Cost vs Latency</h2>
+      <div class="hero">$<span id="h-cost"></span> <small>/ 1K req</small></div>
+      <div class="chart" id="c-dots"></div>
+      <div class="legend"><span><i class="key o" style="--c:var(--or)"></i>Prompt, sized by requests</span><span><i class="key d" style="--c:var(--prev)"></i>1.2 s budget</span></div>
+      <div class="meter">
+        <div class="cap2"><span>$<span id="s-cost"></span> of the $<span id="b-cost"></span> budget</span><b id="m-cost"></b></div>
+        <div class="track heat" id="t-cost" role="img"></div>
+      </div>
+    </div>
+  </section>
+  </main>
+</div>
+
+<div id="tip" role="status" aria-live="off"></div>
+
+<dialog class="dlg" id="src" aria-labelledby="srcT">
+  <header><div><small>Prompt template</small><h3 id="srcT">generate-packing-list · v23</h3></div><span class="sp"></span><button class="more" id="srcX" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button></header>
+  <pre id="srcCode"><i># system</i>
+You are a travel assistant for <em>{{airline_name}}</em>.
+
+<i># user</i>
+Build a packing list for a <em>{{trip_length}}</em>-day trip to <em>{{destination}}</em>.
+Group items by category and flag anything restricted in carry-on luggage.
+
+Return JSON: { "category": string, "items": string[] }[]</pre>
+  <footer><span>3 variables · 68 tokens</span><span class="sp"></span><button class="btn" id="srcCopy"><svg class="ic"><use href="#i-copy"/></svg><span>Copy</span></button></footer>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const C={or:'var(--or)',peri:'var(--peri)',prev:'var(--prev)',surf:'var(--surf)'}; /* token references: marks follow the theme without a redraw */
+
+const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])),pct=v=>(v*100).toFixed(1)+'%';
+/* label widths are measured, not assumed: the tweak dock can swap the font and scale the type */
+const meas=(()=>{const ns='http://www.w3.org/2000/svg',s=document.createElementNS(ns,'svg'),t=document.createElementNS(ns,'text');s.setAttribute('class','sr');s.setAttribute('aria-hidden','true');s.append(t);document.body.append(s);
+  return(str,cls='tick')=>{t.setAttribute('class',cls);t.textContent=str;return t.getComputedTextLength();};})();
+
+/* ---------- data: seeded so every load and every range is reproducible ---------- */
+const END=new Date(2025,11,2),DAY=864e5;
+const dOf=k=>new Date(END-k*DAY),fD=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+const rng=seed=>{let s=seed>>>0;return()=>(s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296;};
+function wave(seed,n,{base,amp,trend=0,rough=.3}){const r=rng(seed),a=r()*6.28,b=r()*6.28;
+  return Array.from({length:n},(_,i)=>{const t=n>1?i/(n-1):0;return Math.max(0,base+trend*t+amp*Math.sin(t*5.4+a)+amp*.42*Math.sin(t*12+b)+(r()-.5)*amp*rough);});}
+const int=a=>a.map(Math.round),sum=a=>a.reduce((x,y)=>x+y,0),nf=n=>Math.round(n).toLocaleString('en-US');
+const scaleTo=(a,target,of)=>{const k=target/of(a);return a.map(v=>v*k);};
+let R=30;
+function model(){
+  const n=R,dates=Array.from({length:n},(_,i)=>fD(dOf(n-1-i))),k=R/30;
+  /* travel tips: 6-hour buckets for a week, days for a month, weeks for a quarter */
+  let tips;
+  if(R===7){const v=int(wave(31,28,{base:150,amp:70,trend:30,rough:.9})),h=['00:00–06:00','06:00–12:00','12:00–18:00','18:00–24:00'];
+    tips={values:v,names:v.map((_,i)=>dOf(6-(i>>2)).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' · '+h[i&3]),
+      ticks:Array.from({length:7},(_,d)=>({at:d*4+2,label:dOf(6-d).toLocaleDateString('en-US',{weekday:'short'})})),seps:[4,8,12,16,20,24],unit:'6-hour window'};}
+  else if(R===30){const v=int(wave(37,30,{base:640,amp:250,trend:60,rough:.9}));
+    tips={values:v,names:dates,ticks:[1,8,15,22,29].map(i=>({at:i+.5,label:dates[i]})),seps:[],unit:'Day'};}
+  else{const v=int(wave(33,13,{base:4300,amp:1500,trend:900,rough:.7}));
+    tips={values:v,names:v.map((_,i)=>'Week of '+fD(dOf(90-i*7))),ticks:[0,4,8,12].map(i=>({at:i+.5,label:fD(dOf(90-i*7))})),seps:[],unit:'Week'};}
+  const pr=wave(51,n,{base:4300,amp:520,trend:300,rough:.1}),cp=wave(52,n,{base:2500,amp:420,trend:240,rough:.1});
+  const peak={7:7120,30:7610,90:8040}[R],kk=peak/Math.max(...pr.map((v,i)=>v+cp[i]));
+  const flight={cur:int(wave(11,n,{base:540,amp:170,trend:-90,rough:.06})),prev:int(wave(12,n,{base:350,amp:120,trend:330,rough:.06}))};
+  const hotel={cur:int(wave(41,n,{base:230,amp:70,trend:760,rough:.06})),prev:int(wave(42,n,{base:400,amp:105,trend:280,rough:.06}))},mean={7:.588,30:.606,90:.631}[R];
+  return {dates,tips,flight,hotel,
+    all:usage({flight:sum(flight.cur),hotel:sum(hotel.cur),tips:sum(tips.values)},k,mean),
+    vers:[['v23',342,89.2,82.54],['v22',184,73.1,-22.44],['v21',58,68.2,53.84],['v20',34,47.9,-12.34]].map(([v,s,ok,d])=>[v,Math.max(1,Math.round(s*k)),ok,d]),
+    geo:[['us','United States','US',5459],['au','Australia','AU',4863],['ph','Philippines','PH',4592],['gb','United Kingdom','UK',3952],['nl','Netherlands','NL',963]].map(([c,nm,cc,v])=>[c,nm,cc,Math.round(v*k)]),
+    lat:scaleTo(wave(61,n,{base:.6,amp:.09,trend:-.05,rough:.12}),mean,a=>sum(a)/a.length),
+    tok:{pr:pr.map(v=>v*kk),cp:cp.map(v=>v*kk)},
+    q:{7:[.402,.911,1.52,2.87],30:[.412,.957,1.61,3.193],90:[.431,1.02,1.74,3.41]}[R]};
+}
+
+/* every prompt in the workspace: the four cards above and four smaller ones. name, relative latency, $ per 1K requests, requests (a card's count, or a 30-day figure) */
+const PROMPTS=[['Select Flight',.62,1.05,'flight'],['Generate-packing-list',1.02,2.05,6798],['Generate-travel-tips',.36,.52,'tips'],['Select hotel',.8,1.42,'hotel'],
+  ['Plan-itinerary',1.52,3.45,3912],['Classify-intent',.22,.16,2640],['Summarize-reviews',1.12,2.62,1985],['Translate-reply',1.66,1.72,1204]];
+function usage(card,k,mean){
+  const pts=PROMPTS.map(([name,lat,cost,r])=>({name,lat,cost,req:card[r]??Math.round(r*k)})),tot=sum(pts.map(p=>p.req));
+  const s=mean/(sum(pts.map(p=>p.lat*p.req))/tot);pts.forEach(p=>p.lat*=s); /* the request-weighted mean is the Latency figure */
+  const sh={7:[.835,.105],30:[.82,.12],90:[.81,.125]}[R],a=Math.round(tot*sh[0]),b=Math.round(tot*sh[1]);
+  const fr={7:[.981,.902,.731],30:[.976,.889,.714],90:[.972,.874,.692]}[R];
+  /* hour grid: average requests per hour for each weekday and hour, two daytime humps and quiet weekends; a week of it adds up to a week of requests */
+  const r=rng(700+R),wk=[.97,1.06,1.1,1.02,.9,.4,.34],day=h=>.16+Math.exp(-((h-10)**2)/14)+.92*Math.exp(-((h-15.5)**2)/9)+.22*Math.exp(-((h-21)**2)/8);
+  let heat=wk.map(w=>Array.from({length:24},(_,h)=>w*day(h)*(.88+r()*.24)));const week=tot*7/R,hs=sum(heat.flat());heat=heat.map(row=>row.map(v=>v*week/hs));
+  const top=f=>pts.indexOf(pts.reduce((x,y)=>f(y)>f(x)?y:x));
+  return {pts,tot,named:[...new Set([top(p=>p.req),top(p=>p.cost)])],spend:sum(pts.map(p=>p.req*p.cost))/1000,budget:Math.round(120*k),
+    src:[{name:'API',value:a,color:C.or},{name:'Evals',value:b,color:C.peri},{name:'Playground',value:tot-a-b,color:C.prev}],
+    fun:['Sent','Answered','Valid','Accepted'].map((name,i)=>({name,value:i?Math.round(tot*fr[i-1]):tot})),
+    heat,office:sum(heat.slice(0,5).flatMap(row=>row.slice(8,18)))/week};
+}
+
+/* ---------- chart primitives ---------- */
+const nice=v=>{const p=10**Math.floor(Math.log10(v)),f=v/p;return [1,1.2,1.5,2,2.5,3,4,5,6,8,10].find(s=>f<=s)*p;};
+function smooth(p){ /* monotone cubic: never overshoots the data */
+  const n=p.length;if(n<3)return 'M'+p.map(q=>q[0].toFixed(1)+' '+q[1].toFixed(1)).join('L');
+  const dx=[],m=[],t=[];for(let i=0;i<n-1;i++){dx[i]=p[i+1][0]-p[i][0];m[i]=(p[i+1][1]-p[i][1])/dx[i];}
+  t[0]=m[0];t[n-1]=m[n-2];for(let i=1;i<n-1;i++)t[i]=m[i-1]*m[i]<=0?0:(m[i-1]+m[i])/2;
+  for(let i=0;i<n-1;i++){if(!m[i]){t[i]=t[i+1]=0;continue;}const a=t[i]/m[i],b=t[i+1]/m[i],s=a*a+b*b;if(s>9){const k=3/Math.sqrt(s);t[i]=k*a*m[i];t[i+1]=k*b*m[i];}}
+  let d='M'+p[0][0].toFixed(1)+' '+p[0][1].toFixed(1);
+  for(let i=0;i<n-1;i++){const h=dx[i]/3;d+='C'+(p[i][0]+h).toFixed(1)+' '+(p[i][1]+t[i]*h).toFixed(1)+' '+(p[i+1][0]-h).toFixed(1)+' '+(p[i+1][1]-t[i+1]*h).toFixed(1)+' '+p[i+1][0].toFixed(1)+' '+p[i+1][1].toFixed(1);}
+  return d;}
+const gut=(pl,max,fmt)=>Math.max(pl,1+Math.max(...[0,.5,1].map(f=>meas(fmt(max*f,true))))); /* left gutter: never narrower than the widest tick label */
+const gridSvg=(max,Y,pl,W,fmt)=>[0,.5,1].map(f=>{const y=Y(max*f).toFixed(1);return `<line class="grid" x1="${pl}" x2="${W}" y1="${y}" y2="${y}"/><text class="tick" x="0" y="${(+y+3.5).toFixed(1)}">${fmt(max*f,true)}</text>`;}).join('');
+
+function paintLine(c,anim){
+  const {series,labels,fmt,endLabel=true}=c.cfg,W=c.plot.clientWidth,H=c.plot.clientHeight;if(!W||!H)return;
+  const pt=16,pb=6,n=labels.length,max=nice(Math.max(...series.flatMap(s=>s.values))),last=fmt(series[0].values[n-1]),pl=gut(c.cfg.pl??30,max,fmt),pr=endLabel?13+Math.max(last.length*6.9,meas(last,'val')):10;
+  const X=i=>pl+(W-pl-pr)*(n>1?i/(n-1):.5),Y=v=>pt+(H-pt-pb)*(1-v/max);
+  let g=gridSvg(max,Y,pl,W,fmt);
+  [...series].reverse().forEach(s=>{const d=smooth(s.values.map((v,i)=>[X(i),Y(v)]));
+    if(s.area)g+=`<path d="${d}L${X(n-1).toFixed(1)} ${Y(0)}L${X(0).toFixed(1)} ${Y(0)}Z" fill="${s.color}" opacity=".1"/>`;
+    g+=`<path class="${anim&&!s.dash?'draw':''}" d="${d}" fill="none" stroke="${s.color}" stroke-width="${s.dash?1.5:2}"${s.dash?' stroke-dasharray="4 4"':''} stroke-linecap="round" stroke-linejoin="round"/>`;});
+  const lead=series[0],lx=X(n-1),ly=Y(lead.values[n-1]);
+  g+=`<g class="hover" style="display:none"><line class="xh" y1="${pt-6}" y2="${Y(0)}"/>${series.map(s=>`<circle r="4" fill="${s.color}" stroke="${C.surf}" stroke-width="2"/>`).join('')}</g>`;
+  g+=`<circle class="end" cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4" fill="${lead.color}" stroke="${C.surf}" stroke-width="2"/>`;
+  if(endLabel)g+=`<text class="val end" x="${(lx+9).toFixed(1)}" y="${(ly+4.2).toFixed(1)}">${last}</text>`;
+  c.plot.innerHTML=`<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${g}</svg>`;
+  c.plot.querySelectorAll('.draw').forEach(p=>p.style.setProperty('--len',Math.ceil(p.getTotalLength())));
+  c.geo={n,X,Y,W,pl,pr};
+}
+function paintBars(c,anim){
+  const {values,ticks,seps,fmt}=c.cfg,W=c.plot.clientWidth,H=c.plot.clientHeight;if(!W||!H)return;
+  const pr=2,pt=14,pb=24,n=values.length,max=nice(Math.max(...values)),pl=gut(30,max,fmt),band=(W-pl-pr)/n,bw=Math.max(2,Math.min(24,band-2));
+  const Y=v=>pt+(H-pt-pb)*(1-v/max),y0=Y(0),id='g'+c.host.id;
+  let g=`<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="${pt}" x2="0" y2="${y0}"><stop offset="0" stop-color="var(--b1)"/><stop offset=".42" stop-color="var(--b2)"/><stop offset="1" stop-color="var(--b3)"/></linearGradient></defs>`+gridSvg(max,Y,pl,W,fmt);
+  seps.forEach(i=>{const x=(pl+band*i).toFixed(1);g+=`<line class="grid" x1="${x}" x2="${x}" y1="${pt}" y2="${y0}"/>`;});
+  values.forEach((v,i)=>{const x=pl+band*i+(band-bw)/2,t=Y(v),r=Math.max(0,Math.min(4,bw/2,y0-t));
+    g+=`<path class="bar${anim?' grow':''}"${anim?` style="animation-delay:${i*14}ms"`:''} fill="url(#${id})" d="M${x.toFixed(1)} ${y0}V${(t+r).toFixed(1)}Q${x.toFixed(1)} ${t.toFixed(1)} ${(x+r).toFixed(1)} ${t.toFixed(1)}H${(x+bw-r).toFixed(1)}Q${(x+bw).toFixed(1)} ${t.toFixed(1)} ${(x+bw).toFixed(1)} ${(t+r).toFixed(1)}V${y0}Z"/>`;});
+  ticks.forEach(t=>{g+=`<text class="tick" x="${(pl+band*t.at).toFixed(1)}" y="${H-5}" text-anchor="middle">${t.label}</text>`;});
+  c.plot.innerHTML=`<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${g}</svg>`;
+  c.geo={n,band,pl,Y,W,bars:c.plot.querySelectorAll('.bar'),svg:c.plot.firstChild};
+}
+
+/* ---------- four more forms: ring, funnel, hour grid, bubbles. Same registry, tooltip, table twin and keys as the charts above ---------- */
+const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],DAYL=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],hh=h=>String(h%24).padStart(2,'0')+':00';
+const lit=(g,i)=>{g.svg.classList.add('dim');g.bars.forEach((b,k)=>b.classList.toggle('on',k===i));};
+function paintRing(c){
+  const {parts,tot,lead}=c.cfg,W=c.plot.clientWidth,H=c.plot.clientHeight;if(!W||!H)return;
+  const D=Math.min(W,H,188),t=Math.max(14,Math.round(D*.13)),r=(D-t)/2,cx=W/2,cy=H/2,gap=2/r,arcs=[],at=k=>(cx+r*Math.cos(k)).toFixed(2)+' '+(cy+r*Math.sin(k)).toFixed(2); /* gap: 2px of surface between segments */
+  let a=-Math.PI/2,g='';
+  parts.forEach(p=>{const b=a+p.value/tot*Math.PI*2,a0=a+gap/2,a1=Math.max(b-gap/2,a0+.001);arcs.push([a,b]);a=b;
+    g+=`<path class="bar" d="M${at(a0)}A${r} ${r} 0 ${a1-a0>Math.PI?1:0} 1 ${at(a1)}" fill="none" stroke="${p.color}" stroke-width="${t}"/>`;});
+  c.plot.innerHTML=`<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${g}</svg><div class="hole"><b>${esc(lead.value)}</b><span>${esc(lead.name)}</span></div>`;
+  c.geo={n:parts.length,start:0,cx,cy,r,t,arcs,bars:c.plot.querySelectorAll('.bar'),svg:c.plot.firstChild};
+}
+function paintFunnel(c){
+  const {stages}=c.cfg,H=c.plot.clientHeight,n=stages.length,w=s=>(s.value/stages[0].value*100).toFixed(1)+'%';if(!c.plot.clientWidth||!H)return;
+  const gap=Math.max(8,Math.min(30,(H-12-n*22)/(n-1))); /* the stages spread to the height they are given, bars stay thin */
+  c.plot.innerHTML=`<div class="fun" style="--g:${gap.toFixed(1)}px">`+stages.map((s,i)=>`<div class="fr" style="--w:${w(s)};--n:${w(stages[i+1]||s)};--c:var(--q${i+1})"><span>${esc(s.name)}</span><span class="fb bar"><i></i></span><b class="num">${nf(s.value)}</b></div>`).join('')+'</div>';
+  c.geo={n,start:n-1,rows:c.plot.querySelectorAll('.fr'),bars:c.plot.querySelectorAll('.fb'),svg:c.plot.firstChild};
+}
+function paintHeat(c){
+  const {grid}=c.cfg,W=c.plot.clientWidth,H=c.plot.clientHeight;if(!W||!H)return;
+  /* hourly columns where each gets 15px, two-hour blocks where it does not, so cells stay close to square and the grid fills its column; 2px of surface between cells */
+  const lw=Math.ceil(Math.max(...DAYS.map(d=>meas(d))))+7,step=(W-lw)/24>=15?1:2,cols=24/step,px=(W-lw)/cols,py=Math.min((H-18)/7,px*1.25,30);
+  const val=grid.map(r=>Array.from({length:cols},(_,k)=>sum(r.slice(k*step,k*step+step))/step)),max=Math.max(...val.flat()),lv=v=>[.12,.32,.55,.78].filter(t=>v/max>=t).length;
+  let g='',peak=0;
+  val.forEach((r,d)=>{g+=`<text class="tick" x="0" y="${(d*py+py/2+2.5).toFixed(1)}">${DAYS[d]}</text>`;
+    r.forEach((v,k)=>{if(v===max)peak=d*cols+k;g+=`<rect class="cell lv${lv(v)}" x="${(lw+k*px).toFixed(1)}" y="${(d*py).toFixed(1)}" width="${(px-2).toFixed(1)}" height="${(py-2).toFixed(1)}" rx="3"/>`;});});
+  for(let h=0;h<24;h+=6)g+=`<text class="tick" x="${(lw+h/step*px).toFixed(1)}" y="${(7*py+12).toFixed(1)}">${hh(h)}</text>`;
+  c.plot.innerHTML=`<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${g}</svg>`;
+  c.geo={n:7*cols,start:peak,cols,step,lw,px,py,val,lv,on:null,bars:[],cells:c.plot.querySelectorAll('.cell'),svg:c.plot.firstChild};
+}
+function paintDots(c){
+  const {pts,budget,named,fx,fy}=c.cfg,W=c.plot.clientWidth,H=c.plot.clientHeight;if(!W||!H)return;
+  const xm=Math.ceil(Math.max(budget,...pts.map(p=>p.lat))/.4-1e-9)*.4,ym=nice(Math.max(...pts.map(p=>p.cost))),pl=gut(30,ym,fy),pr=14,pt=14,pb=22,rm=Math.max(...pts.map(p=>p.req));
+  const X=v=>pl+(W-pl-pr)*v/xm,Y=v=>pt+(H-pt-pb)*(1-v/ym),y0=Y(0),xb=X(budget),pos=pts.map(p=>({x:X(p.lat),y:Y(p.cost),r:4.5+9.5*Math.sqrt(p.req/rm)})),idx=pos.map((p,i)=>i);
+  let g=gridSvg(ym,Y,pl,W,fy);
+  for(let v=.4;v<=xm+1e-9;v+=.4)g+=`<text class="tick" x="${X(v).toFixed(1)}" y="${H-5}" text-anchor="middle">${fx(v,true)}</text>`;
+  for(let y=pt-8;y<y0;y+=8)g+=`<rect class="ref" x="${(xb-.75).toFixed(2)}" y="${y}" width="1.5" height="${Math.min(4,y0-y).toFixed(1)}"/>`; /* dashes as rects: a dashed stroke here is one slow path too many for the rasteriser, which then multisamples the whole page */
+  [...idx].sort((a,b)=>pos[b].r-pos[a].r).forEach(i=>{const p=pos[i];g+=`<circle class="bar" data-i="${i}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${p.r.toFixed(1)}" fill="${C.or}" stroke="${C.surf}" stroke-width="2"/>`;}); /* small on top of large */
+  /* direct labels only for the two that carry the story (the busiest prompt and the dearest one), wherever they clear every bubble; the rest read on hover and in the table */
+  const taken=[],clash=b=>b.x0<pl+2||b.x1>W-1||b.y0<0||b.y1>y0-1||(b.x0<xb+3&&b.x1>xb-3)||pos.some((p,j)=>j!==b.i&&p.x+p.r+2>b.x0&&p.x-p.r-2<b.x1&&p.y+p.r+2>b.y0&&p.y-p.r-2<b.y1)||taken.some(o=>o.x1>b.x0&&o.x0<b.x1&&o.y1>b.y0&&o.y0<b.y1);
+  named.forEach(i=>{const p=pos[i],w=meas(pts[i].name),lo=p.x>xb?xb+4:pl+2,hi=(p.x>xb?W-1:xb-4)-w,mid=Math.max(lo,Math.min(hi,p.x-w/2)); /* above or below, the label slides sideways but stays on its bubble's side of the budget line */
+    for(const [x,y] of [[p.x+p.r+5,p.y+3.5],[p.x-p.r-5-w,p.y+3.5],[mid,p.y-p.r-6],[mid,p.y+p.r+13]]){
+      const b={i,x0:x,x1:x+w,y0:y-9,y1:y+3};if(clash(b))continue;
+      taken.push(b);g+=`<text class="tick nm" x="${x.toFixed(1)}" y="${y.toFixed(1)}">${esc(pts[i].name)}</text>`;break;}});
+  c.plot.innerHTML=`<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${g}</svg>`;
+  const els=[],order=[...idx].sort((a,b)=>pos[a].x-pos[b].x);c.plot.querySelectorAll('.bar').forEach(e=>{els[+e.dataset.i]=e;});
+  c.geo={n:pts.length,start:order.indexOf(named[0]),order,pos,bars:els,svg:c.plot.firstChild};
+}
+/* per form: which mark is under the pointer (null for none), what the tooltip says, and the table twin */
+const MORE={
+  ring:{paint:paintRing,
+    at(c,x,y){const g=c.geo;if(Math.abs(Math.hypot(x-g.cx,y-g.cy)-g.r)>g.t/2+8)return null;let a=Math.atan2(y-g.cy,x-g.cx);if(a<-Math.PI/2)a+=Math.PI*2;const i=g.arcs.findIndex(s=>a>=s[0]&&a<s[1]);return i<0?null:i;},
+    point(c,i){const g=c.geo,p=c.cfg.parts[i],m=(g.arcs[i][0]+g.arcs[i][1])/2;lit(g,i);
+      showTip(c,g.cx+g.r*Math.cos(m),g.cy+g.r*Math.sin(m)-g.t/2,p.name,[{color:p.color,kind:'b',value:nf(p.value),name:'requests'},{color:'transparent',value:pct(p.value/c.cfg.tot),name:'of all requests'}]);},
+    table:cfg=>[['Source','Requests','Share'],cfg.parts.map(p=>[p.name,nf(p.value),pct(p.value/cfg.tot)])]},
+  funnel:{paint:paintFunnel,
+    at(c,x,y){const b=[...c.geo.rows],i=b.findIndex(e=>y<e.offsetTop+e.offsetHeight+5);return i<0||y<b[0].offsetTop-5?null:i;},
+    point(c,i){const g=c.geo,s=c.cfg.stages,v=s[i].value,m=g.bars[i].querySelector('i').getBoundingClientRect(),o=c.plot.getBoundingClientRect();lit(g,i);
+      showTip(c,m.right-o.left,m.top-o.top,s[i].name,[{color:`var(--q${i+1})`,kind:'b',value:nf(v),name:'requests'},{color:'transparent',value:pct(v/s[0].value),name:'of sent'}].concat(i?[{color:'transparent',value:pct(1-v/s[i-1].value),name:'lost after '+s[i-1].name.toLowerCase()}]:[]));},
+    table:cfg=>[['Stage','Requests','Of sent'],cfg.stages.map(s=>[s.name,nf(s.value),pct(s.value/cfg.stages[0].value)])]},
+  heat:{paint:paintHeat,keys:'. Use the arrow keys to read values.',
+    at(c,x,y){const g=c.geo,k=Math.floor((x-g.lw)/g.px),d=Math.floor(y/g.py);return k<0||k>=g.cols||d<0||d>6?null:d*g.cols+k;},
+    point(c,i){const g=c.geo,d=Math.floor(i/g.cols),k=i%g.cols,v=g.val[d][k];if(g.on)g.on.classList.remove('on');(g.on=g.cells[i]).classList.add('on');
+      showTip(c,g.lw+(k+.5)*g.px-1,d*g.py,`${DAYL[d]}, ${hh(k*g.step)} to ${hh((k+1)*g.step)} UTC`,[{color:`var(--q${g.lv(v)})`,kind:'b',value:nf(v),name:'requests / hour'}]
+        .concat(g.step>1?[{color:'transparent',value:nf(Math.max(...c.cfg.grid[d].slice(k*g.step,(k+1)*g.step))),name:'in its busier hour'}]:[]));}, /* a two-hour block also names its busier hour, so the darkest block agrees with the peak above the grid */
+    table:cfg=>[['Hour (UTC)',...DAYS],Array.from({length:24},(_,h)=>[hh(h),...cfg.grid.map(r=>nf(r[h]))])]},
+  dots:{paint:paintDots,
+    at(c,x,y){const g=c.geo;let best=-1,bd=1e9;g.pos.forEach((p,j)=>{const d=Math.hypot(x-p.x,y-p.y)-p.r,s=d<=0?p.r-1e3:d;if(s<bd){bd=s;best=j;}});return bd>16?null:g.order.indexOf(best);}, /* nearest bubble within 16px; inside two, the smaller (it is on top) */
+    point(c,i){const g=c.geo,j=g.order[i],p=c.cfg.pts[j],q=g.pos[j];lit(g,j);
+      showTip(c,q.x,q.y-q.r,p.name,[{color:C.or,kind:'o',value:c.cfg.fx(p.lat),name:'mean latency'},{color:'transparent',value:c.cfg.fy(p.cost),name:'per 1K requests'},{color:'transparent',value:nf(p.req),name:'requests'}]);},
+    table:cfg=>[['Prompt','Mean latency','Cost / 1K requests','Requests'],cfg.pts.map(p=>[p.name,cfg.fx(p.lat),cfg.fy(p.cost),nf(p.req)])]}
+};
+
+/* ---------- hover layer: one tooltip, built with textContent, same readout on keyboard focus ---------- */
+const tip=$('#tip');
+function showTip(c,px,py,title,rows){
+  tip.replaceChildren();const t=document.createElement('div');t.className='t';t.textContent=title;tip.append(t);
+  rows.forEach(r=>{const d=document.createElement('div');d.className='r';const k=document.createElement('i');k.className='key'+(r.kind?' '+r.kind:'');k.style.setProperty('--c',r.color);
+    const b=document.createElement('b');b.textContent=r.value;const s=document.createElement('span');s.textContent=r.name;d.append(k,b,s);tip.append(d);});
+  const hr=c.plot.getBoundingClientRect(),tw=tip.offsetWidth,th=tip.offsetHeight;let x=hr.left+px+14,y=hr.top+py-th-12;
+  if(x+tw>innerWidth-8)x=hr.left+px-tw-14;if(x<8)x=8;if(y<8)y=hr.top+py+16;
+  tip.style.transform=`translate(${Math.round(x)}px,${Math.round(y)}px)`;tip.style.opacity=1;
+}
+function point(c,i){
+  const g=c.geo,cfg=c.cfg;if(!g)return;c.i=i=Math.max(0,Math.min(g.n-1,i));
+  if(c.kind==='line'){const hv=c.plot.querySelector('.hover'),x=g.X(i);hv.style.display='';c.plot.querySelectorAll('.end').forEach(e=>e.style.opacity=i===g.n-1?1:.25);
+    hv.firstChild.setAttribute('x1',x);hv.firstChild.setAttribute('x2',x);
+    hv.querySelectorAll('circle').forEach((d,k)=>{d.setAttribute('cx',x);d.setAttribute('cy',g.Y(cfg.series[k].values[i]));});
+    showTip(c,x,Math.min(...cfg.series.map(s=>g.Y(s.values[i]))),cfg.labels[i],cfg.series.map(s=>({color:s.color,kind:s.dash?'d':'',value:cfg.fmt(s.values[i]),name:s.name})));}
+  else if(c.kind==='bar'){lit(g,i);
+    showTip(c,g.pl+g.band*(i+.5),g.Y(cfg.values[i]),cfg.names[i],[{color:'var(--b3)',kind:'b',value:cfg.fmt(cfg.values[i]),name:cfg.series}]);}
+  else MORE[c.kind].point(c,i);
+}
+function leave(c){tip.style.opacity=0;c.i=null;if(!c.geo)return;
+  if(c.kind==='line'){const hv=c.plot.querySelector('.hover');if(hv)hv.style.display='none';c.plot.querySelectorAll('.end').forEach(e=>e.style.opacity=1);}
+  else{const g=c.geo;if(g.on){g.on.classList.remove('on');g.on=null;}g.svg.classList.remove('dim');g.bars.forEach(b=>b.classList.remove('on'));}}
+const indexAt=(c,e)=>{const g=c.geo,r=c.plot.getBoundingClientRect(),x=e.clientX-r.left;if(MORE[c.kind])return MORE[c.kind].at(c,x,e.clientY-r.top);return c.kind==='line'?Math.round((x-g.pl)/((g.W-g.pl-g.pr)/Math.max(1,g.n-1))):Math.floor((x-g.pl)/g.band);};
+
+/* ---------- registry ---------- */
+const CH=[];
+function reg(id,kind,label,cfgFn){
+  const host=$('#'+id);host.innerHTML='<div class="plot" tabindex="0" role="img"></div><div class="tv"></div>';
+  const c={host,plot:host.firstChild,tv:host.lastChild,kind,label,cfgFn,cfg:null,geo:null,w:0,h:0,i:null};CH.push(c);
+  c.plot.addEventListener('pointermove',e=>{if(!c.geo)return;const i=indexAt(c,e);i==null?leave(c):point(c,i);});
+  c.plot.addEventListener('pointerleave',()=>leave(c));
+  c.plot.addEventListener('focus',()=>{if(c.plot.matches(':focus-visible')&&c.geo)point(c,c.geo.start??c.geo.n-1);});
+  c.plot.addEventListener('blur',()=>leave(c));
+  c.plot.addEventListener('keydown',e=>{if(!c.geo)return;const up=c.geo.cols||0,d={ArrowLeft:-1,ArrowRight:1,ArrowUp:-up,ArrowDown:up}[e.key];if(!d)return;e.preventDefault();point(c,(c.i??c.geo.start??c.geo.n-1)+d);}); /* the hour grid also moves by rows */
+  new ResizeObserver(()=>{const w=c.plot.clientWidth,h=c.plot.clientHeight;if(c.cfg&&w&&h&&(w!==c.w||h!==c.h))paint(c,false);}).observe(c.plot);
+}
+function paint(c,anim){c.w=c.plot.clientWidth;c.h=c.plot.clientHeight;(MORE[c.kind]?MORE[c.kind].paint:c.kind==='line'?paintLine:paintBars)(c,anim);}
+function table(c){
+  const cfg=c.cfg,k=MORE[c.kind];
+  const [head,rows]=k?k.table(cfg):c.kind==='line'?[['Date',...cfg.series.map(s=>s.name)],cfg.labels.map((l,i)=>[l,...cfg.series.map(s=>cfg.fmt(s.values[i]))])]:[[cfg.unit,cfg.series],cfg.names.map((l,i)=>[l,cfg.fmt(cfg.values[i])])];
+  const t=document.createElement('table'),cap=t.createCaption();cap.className='sr';cap.textContent=c.label;
+  const hr=t.createTHead().insertRow();head.forEach(h=>{const th=document.createElement('th');th.scope='col';th.textContent=h;hr.append(th);});
+  const tb=t.createTBody();rows.forEach(r=>{const tr=tb.insertRow();r.forEach(v=>{tr.insertCell().textContent=v;});});
+  c.tv.replaceChildren(t);c.plot.setAttribute('aria-label',c.label+(k&&k.keys||'. Use the left and right arrow keys to read values.'));
+}
+
+/* ---------- wiring ---------- */
+let M;
+const cnt=(v,tick)=>tick&&v>=10000?(v/1000)+'K':nf(v);
+const twoLine=k=>()=>({labels:M.dates,pl:34,fmt:cnt,series:[{name:'This period',color:C.or,values:M[k].cur},{name:'Previous',color:C.prev,dash:true,values:M[k].prev}]});
+reg('c-flight','line','Select Flight requests per day, this period against the previous one',twoLine('flight'));
+reg('c-hotel','line','Select hotel requests per day, this period against the previous one',twoLine('hotel'));
+reg('c-tips','bar','Generate-travel-tips requests',()=>({...M.tips,fmt:cnt,series:'Requests'}));
+reg('c-lat','line','Mean latency per request',()=>({labels:M.dates,pl:34,endLabel:false,fmt:(v,t)=>t?(v?v.toFixed(1)+' s':'0'):v.toFixed(3)+' s',series:[{name:'Mean latency',color:C.or,area:true,values:M.lat}]}));
+reg('c-tok','line','Prompt and completion tokens per minute',()=>({labels:M.dates,pl:26,endLabel:false,fmt:(v,t)=>t?(v?(v/1000)+'k':'0'):(v/1000).toFixed(2)+'k',series:[{name:'Prompt/min',color:C.peri,values:M.tok.pr},{name:'Completion/min',color:C.or,values:M.tok.cp}]}));
+reg('c-src','ring','Requests by source',()=>{const U=M.all;return {parts:U.src,tot:U.tot,lead:{value:Math.round(U.src[0].value/U.tot*100)+'%',name:'via '+U.src[0].name}};});
+reg('c-fun','funnel','Requests sent, answered, valid and accepted',()=>({stages:M.all.fun}));
+reg('c-heat','heat','Average requests per hour for each weekday and hour of the day, in UTC',()=>({grid:M.all.heat}));
+reg('c-dots','dots','Cost per 1,000 requests against mean latency for each prompt',()=>({pts:M.all.pts,named:M.all.named,budget:1.2,fx:(v,t)=>t?v.toFixed(1)+' s':v.toFixed(3)+' s',fy:(v,t)=>t?(v?'$'+v:'0'):'$'+v.toFixed(2)}));
+
+const FLAG={
+  us:'<rect width="19" height="14" fill="#fff"/><path d="M0 1h19M0 3.200h19M0 5.400h19M0 7.600h19M0 9.800h19M0 12h19" stroke="#b22234" stroke-width="1.100"/><rect width="8.500" height="7.600" fill="#3c3b6e"/>',
+  au:'<rect width="19" height="14" fill="#012169"/><path d="M0 0l8 6M8 0 0 6" stroke="#fff" stroke-width="1.200"/><path d="M4 0v6M0 3h8" stroke="#fff" stroke-width="2"/><path d="M4 0v6M0 3h8" stroke="#c8102e" stroke-width=".9"/><g fill="#fff"><circle cx="4" cy="10.500" r="1.300"/><circle cx="13.500" cy="3" r=".8"/><circle cx="16" cy="6.500" r=".8"/><circle cx="13.500" cy="11" r=".8"/><circle cx="11.500" cy="6.800" r=".7"/></g>',
+  ph:'<rect width="19" height="7" fill="#0038a8"/><rect y="7" width="19" height="7" fill="#ce1126"/><path d="M0 0l8.500 7L0 14z" fill="#fff"/><circle cx="3" cy="7" r="1.400" fill="#fcd116"/>',
+  gb:'<rect width="19" height="14" fill="#012169"/><path d="M0 0l19 14M19 0 0 14" stroke="#fff" stroke-width="2.600"/><path d="M0 0l19 14M19 0 0 14" stroke="#c8102e" stroke-width="1"/><path d="M9.500 0v14M0 7h19" stroke="#fff" stroke-width="4.200"/><path d="M9.500 0v14M0 7h19" stroke="#c8102e" stroke-width="2.200"/>',
+  nl:'<rect width="19" height="4.700" fill="#ae1c28"/><rect y="4.700" width="19" height="4.600" fill="#fff"/><rect y="9.300" width="19" height="4.700" fill="#21468b"/>'
+};
+function refresh(anim=true){
+  M=model();const lbl=R+' days';$$('[data-range]').forEach(e=>e.textContent=lbl);
+  CH.forEach(c=>{c.cfg=c.cfgFn();table(c);paint(c,anim);});
+  $('#n-flight').textContent=nf(sum(M.flight.cur));$('#n-hotel').textContent=nf(sum(M.hotel.cur));$('#n-tips').textContent=nf(sum(M.tips.values));
+  $('#vers').innerHTML=M.vers.map(([v,s,ok,d])=>`<div class="vr" role="row"><span role="cell"><b>Packing list ${v}</b><small class="num">${nf(s)} sessions</small></span><span class="num" role="cell">${ok.toFixed(1)}%</span><span role="cell"><span class="delta num ${d>0?'up':'dn'}"><svg class="ic" aria-hidden="true"><use href="#i-${d>0?'up':'dn'}"/></svg><span class="sr">${d>0?'up':'down'} </span>${Math.abs(d).toFixed(2)}%</span></span></div>`).join('');
+  const gm=Math.max(...M.geo.map(g=>g[3])),gf=v=>gm>=10000?(v/1000).toFixed(1)+'K':nf(v); /* one style per list: compact once any row passes 10,000 */
+  $('#geo').innerHTML=M.geo.map(([c,nm,cc,v])=>`<div class="geo"><i style="--w:${(v/gm*80).toFixed(1)}%"></i><svg viewBox="0 0 19 14" aria-hidden="true">${FLAG[c]}</svg><span>${nm} <small>(${cc})</small></span><b class="num" title="${nf(v)} requests">${gf(v)}</b></div>`).join('');
+  const mean=sum(M.lat)/M.lat.length;$('#h-lat').textContent=mean.toFixed(3);$('#m-lat').textContent=Math.round(mean/1.2*100)+'% used';
+  $('#t-lat').style.setProperty('--p',(mean/1.2*100).toFixed(1)+'%');$('#t-lat').setAttribute('aria-label',`Mean latency ${mean.toFixed(3)} seconds, ${Math.round(mean/1.2*100)} percent of the 1.2 second budget`);
+  const tp=sum(M.tok.pr),tc=sum(M.tok.cp),ps=Math.round(tp/(tp+tc)*100);
+  $('#h-tok').textContent=(Math.max(...M.tok.pr.map((v,i)=>v+M.tok.cp[i]))/1000).toFixed(2)+'k';$('#m-tok').textContent=`${ps}% prompt · ${100-ps}% completion`;
+  const seg=$('#t-tok').children;seg[0].style.setProperty('--w',ps+'%');seg[1].style.setProperty('--w',(100-ps)+'%');$('#t-tok').setAttribute('aria-label',`Prompt ${ps} percent, completion ${100-ps} percent of total tokens`);
+  const q=M.q;$('#h-q').textContent=q[3].toFixed(3);
+  $('#qs').innerHTML=['P75','P90','P95','P99'].map((n,i)=>`<div class="q"><span>${n}</span><span><i style="--w:${(q[i]/q[3]*100).toFixed(1)}%;--c:var(--q${i+1})"></i></span><b class="num">${q[i].toFixed(3)} s</b></div>`).join('');
+  const qp=Math.round(q[2]/2.5*100);$('#m-q').textContent=`${q[2].toFixed(2)} s · ${qp}%`;$('#t-q').firstChild.style.setProperty('--w',qp+'%');$('#t-q').setAttribute('aria-label',`P95 is ${q[2].toFixed(2)} seconds, ${qp} percent of the 2.5 second target`);
+  const U=M.all;$('#n-all').textContent=nf(U.tot);
+  $('#srcs').innerHTML=U.src.map(p=>`<div class="sl"><i class="key b" style="--c:${p.color}"></i><span>${esc(p.name)}</span><small class="num">${nf(p.value)}</small><b class="num">${pct(p.value/U.tot)}</b></div>`).join('');
+  const acc=U.fun[3].value/U.tot*100,ga=Math.min(100,Math.round(acc/.75));$('#h-fun').textContent=acc.toFixed(1);$('#m-fun').textContent=ga+'% met';
+  $('#t-fun').firstChild.style.setProperty('--w',ga+'%');$('#t-fun').setAttribute('aria-label',`${acc.toFixed(1)} percent of requests accepted, ${ga} percent of the 75 percent goal`);
+  const of=Math.round(U.office*100);$('#h-heat').textContent=nf(Math.max(...U.heat.flat()));$('#m-heat').textContent=of+'% of all';
+  $('#t-heat').firstChild.style.setProperty('--w',of+'%');$('#t-heat').setAttribute('aria-label',`${of} percent of requests arrive on weekdays between 08:00 and 18:00 UTC`);
+  const sp=Math.round(U.spend/U.budget*100);$('#h-cost').textContent=(U.spend/U.tot*1000).toFixed(2);$('#s-cost').textContent=U.spend.toFixed(2);$('#b-cost').textContent=U.budget;$('#m-cost').textContent=sp+'% used';
+  $('#t-cost').style.setProperty('--p',Math.min(100,sp)+'%');$('#t-cost').setAttribute('aria-label',`Spend is ${U.spend.toFixed(2)} dollars, ${sp} percent of the ${U.budget} dollar budget`);
+}
+refresh();
+if(document.fonts)document.fonts.ready.then(()=>CH.forEach(c=>paint(c,false)));
+
+$('#range').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||+b.dataset.r===R)return;R=+b.dataset.r;$$('#range button').forEach(x=>x.setAttribute('aria-pressed',x===b));refresh();});
+$('#tblBtn').addEventListener('click',e=>{const on=document.body.classList.toggle('tables'),b=e.currentTarget,l=on?'Show tables as charts':'Show charts as tables';b.setAttribute('aria-pressed',on);b.setAttribute('aria-label',l);b.title=l;CH.forEach(c=>{on?c.tv.tabIndex=0:c.tv.removeAttribute('tabindex');if(!on)paint(c,false);});});
+$('#nav').addEventListener('click',e=>{const a=e.target.closest('a');if(!a)return;e.preventDefault();$$('#nav a').forEach(x=>{x.classList.toggle('on',x===a);x===a?x.setAttribute('aria-current','page'):x.removeAttribute('aria-current');});});
+$('.logo').addEventListener('click',e=>e.preventDefault());
+const navTo=()=>{const n=$('#nav'),a=n.querySelector('.on');n.scrollLeft=a.offsetLeft-n.clientWidth+a.offsetWidth+6;};navTo(); /* keep the current section in view when the nav scrolls */
+const dlg=$('#src');
+$('#srcBtn').onclick=()=>dlg.showModal();$('#srcX').onclick=()=>dlg.close();
+dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close();});
+$('#srcCopy').onclick=async e=>{const s=e.currentTarget.lastElementChild;try{await navigator.clipboard.writeText($('#srcCode').textContent);s.textContent='Copied';}catch(_){s.textContent='Select the text to copy';}setTimeout(()=>s.textContent='Copy',1600);};
+addEventListener('scroll',()=>{tip.style.opacity=0;},{passive:true});
+/* the tweak dock changes fonts, sizes and colours: redraw what was measured in script, and keep the browser chrome on the page colour */
+let again=0;const redraw=()=>{cancelAnimationFrame(again);again=requestAnimationFrame(()=>CH.forEach(c=>{if(c.cfg)paint(c,false);}));};
+const chrome=()=>{const m=$('meta[name="theme-color"]'),v=css('--bg1');if(m&&v)m.content=v;};
+/* the wash keeps the proportions it had when the panel ended with the first screen */
+const deep=$('.lower.deep'),tail=()=>{const m=getComputedStyle(deep),h=deep.getBoundingClientRect().height;$('.panel').style.setProperty('--tail',(h?h+parseFloat(m.marginTop)+parseFloat(m.marginBottom):0)+'px');};
+new ResizeObserver(tail).observe(deep);
+addEventListener('resize',()=>{redraw();tail();});
+document.addEventListener('tweakchange',()=>{redraw();chrome();requestAnimationFrame(navTo);});
+chrome();
+</script>
+</body>
+</html>

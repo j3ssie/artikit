@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Artikit</title>
+<meta name="description" content="Artikit: a chooser for standalone single-file HTML sample pages: landing pages, dashboards, data pages and a terminal design system.">
+<link rel="alternate" type="text/plain" href="llms.txt" title="llms.txt">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#16120d" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#efece8" media="(prefers-color-scheme: light)">
+<script>(function(){try{var t=localStorage.getItem('tc-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<style>
+:root{
+  --text-1: light-dark(#33302b, #ead9c0);
+  --bg-app: light-dark(#efece8, color-mix(in oklab, #14100b 97.5%, var(--text-1)));
+  --bg-terminal: light-dark(#fbf9f6, color-mix(in oklab, #1a150e 96%, var(--text-1)));
+  --bg-raised: light-dark(#ffffff, color-mix(in oklab, #241d14 95.5%, var(--text-1)));
+  --bg-hover: light-dark(#e9e5df, color-mix(in oklab, #2c2418 95%, var(--text-1)));
+  --border-1: light-dark(#ddd8d0, color-mix(in oklab, #332917 91%, var(--text-1)));
+  --border-2: light-dark(#c2bab0, color-mix(in oklab, #54432a 92.5%, var(--text-1)));
+  --text-2: color-mix(in oklab, light-dark(#6b655c, #b59c7a) 78%, var(--text-1));
+  --text-dim: color-mix(in oklab, light-dark(#8a8377, #8d7a5d) 70%, var(--text-1));
+  --orange: light-dark(#bb6a1e, #cf8236);
+  --accent:#78d670;
+  --accent-fg: light-dark(color-mix(in oklab, var(--accent) 43%, var(--text-1)), var(--accent));
+  --accent-soft: light-dark(color-mix(in oklab, var(--accent) 16%, var(--bg-terminal)), color-mix(in oklab, var(--accent) 22%, var(--bg-terminal)));
+  --sh-ring: light-dark(#33302b14, #ead9c014);
+  --sh-a: light-dark(#33302b0a, #00000040);
+  --sh-b: light-dark(#33302b0d, #00000047);
+  --sh-hi: light-dark(#ffffff00, #ead9c00a);
+  --shadow-surface: 0 0 0 1px var(--sh-ring), inset 0 1px 0 var(--sh-hi), 0 1px 1px var(--sh-a), 0 2px 2px -1px var(--sh-a), 0 4px 6px -3px var(--sh-b);
+  --shadow-lift: 0 0 0 1px color-mix(in oklab, var(--accent) 22%, var(--sh-ring)), 0 2px 2px -1px var(--sh-a), 0 8px 10px -4px var(--sh-b), 0 22px 32px -14px var(--sh-b);
+  --sans: "Suisse Intl", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --r-panel:12px; --r-pill:999px;
+  --measure:920px;
+  --ease: cubic-bezier(.22,.68,.24,1);
+  color-scheme: light dark;
+}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scrollbar-color:var(--border-2) transparent}
+body{margin:0;background:var(--bg-app);color:var(--text-1);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::selection{background:color-mix(in oklab, var(--accent) 38%, transparent)}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent-fg);outline-offset:2px;border-radius:6px}
+h1,h2{font-weight:400;margin:0}
+p{margin:0}
+.main,.nav-inner{margin-inline:auto;padding-inline:clamp(16px,2.5vw,40px)}
+
+header.nav{position:sticky;top:0;z-index:40;background:color-mix(in oklab, var(--bg-app) 86%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid transparent;transition:border-color .2s}
+header.nav.stuck{border-bottom-color:var(--border-1)}
+.nav-inner{display:flex;align-items:center;gap:14px;height:60px}
+.mark{display:inline-flex;align-items:center;gap:10px;flex:none;font-size:15px;letter-spacing:-.01em}
+.mark svg{width:26px;height:26px;border-radius:7px;background:var(--bg-terminal);box-shadow:var(--shadow-surface);padding:6px}
+.mark rect{fill:var(--text-dim)}
+.mark rect.a{fill:var(--accent-fg)}
+.ver{flex:none;padding:2px 9px;border-radius:var(--r-pill);background:var(--accent-soft);box-shadow:inset 0 0 0 1px color-mix(in oklab, var(--accent) 30%, transparent);color:var(--accent-fg);font-family:var(--mono);font-size:11.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.filters{display:flex;align-items:center;gap:2px;margin-left:10px;min-width:0;overflow-x:auto;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.filters button{flex:none;padding:5px 10px;border:0;border-radius:var(--r-pill);background:none;color:var(--text-2);font-size:14px;white-space:nowrap;cursor:pointer;transition:color .16s,background .16s}
+.filters button:hover{color:var(--text-1);background:var(--bg-hover)}
+.filters button.on{color:var(--text-1);background:var(--bg-hover)}
+.themebtn{display:inline-flex;align-items:center;justify-content:center;flex:none;width:32px;height:32px;margin-left:auto;padding:0;border:0;border-radius:var(--r-pill);background:var(--bg-terminal);box-shadow:var(--shadow-surface);color:var(--text-2);cursor:pointer;transition:color .16s}
+.themebtn:hover{color:var(--text-1)}
+.views{display:flex;flex:none;gap:2px;margin-left:auto;padding:2px;border-radius:var(--r-pill);background:var(--bg-terminal);box-shadow:var(--shadow-surface)}
+.views button{display:inline-flex;align-items:center;justify-content:center;width:30px;height:28px;padding:0;border:0;border-radius:var(--r-pill);background:none;color:var(--text-dim);cursor:pointer;transition:color .16s,background .16s}
+.views button:hover{color:var(--text-1)}
+.views button.on{background:var(--bg-hover);color:var(--text-1)}
+.views svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.views + .themebtn{margin-left:0}
+.themebtn:active,.btn:active{transform:scale(.97)}
+.themebtn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.themebtn .moon{display:none}
+:root[data-theme="light"] .themebtn .sun{display:none}
+:root[data-theme="light"] .themebtn .moon{display:block}
+@media (prefers-color-scheme: light){:root:not([data-theme]) .themebtn .sun{display:none}:root:not([data-theme]) .themebtn .moon{display:block}}
+
+.hero{padding:48px 0 32px}
+.hero h1{font-size:clamp(26px,3.2vw,34px);line-height:1.15;letter-spacing:-.025em;max-width:24ch;margin-bottom:16px;text-wrap:balance}
+.hero h1 .hl{color:var(--accent-fg)}
+.hero p{max-width:58ch;color:var(--text-2);text-wrap:pretty}
+
+.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:24px;padding-bottom:48px}
+.row{display:flex;flex-direction:column;min-width:0;border-radius:var(--r-panel);background:var(--bg-terminal);box-shadow:var(--shadow-surface);overflow:hidden;animation:rise .62s var(--ease) both;animation-delay:calc(var(--i) * 50ms);transition:box-shadow .3s var(--ease),transform .3s var(--ease)}
+.row:hover{transform:translateY(-2px);box-shadow:var(--shadow-lift)}
+.row.hide{display:none}
+.list.settled .row{animation:none}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+.txt{display:flex;flex-direction:column;flex:1;padding:18px 20px 20px}
+.eyebrow{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:13.5px;color:var(--text-dim)}
+.eyebrow .n{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums}
+.sw{display:flex;gap:4px}
+.eyebrow .sw{margin-left:auto}
+.sw i{width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 1px var(--border-2)}
+.row h2{font-size:19px;line-height:1.3;letter-spacing:-.02em;margin-bottom:6px}
+.row h2 a{transition:color .16s}
+.row h2 a:hover{color:var(--accent-fg)}
+.desc{color:var(--text-2);font-size:14.5px;text-wrap:pretty}
+.tags{margin-top:10px;font-family:var(--mono);font-size:12px;color:var(--text-dim)}
+.act{display:flex;align-items:center;gap:14px;margin-top:auto;padding-top:18px}
+.btn{flex:none;position:relative;isolation:isolate;overflow:hidden;display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 15px;border-radius:var(--r-pill);background:var(--bg-raised);box-shadow:var(--shadow-surface);font-size:14px;white-space:nowrap;transition:background .2s,box-shadow .25s var(--ease)}
+.btn:hover{background:var(--bg-hover);box-shadow:var(--shadow-surface),0 0 0 1px color-mix(in oklab, var(--accent) 12%, transparent)}
+.btn svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;opacity:.6;transition:opacity .16s,transform .16s var(--ease)}
+.btn:hover svg{opacity:1;transform:translateX(1px)}
+.file{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:12px;color:var(--text-dim);text-decoration:underline;text-decoration-color:var(--border-2);text-underline-offset:3px;transition:color .16s,text-decoration-color .16s}
+.file:hover{color:var(--text-2);text-decoration-color:currentColor}
+.shot{position:relative;display:block;order:-1;aspect-ratio:16/10;background:var(--bg-app);border-bottom:1px solid var(--border-1);overflow:hidden}
+.shot img{position:relative;display:block;width:100%;height:100%;object-fit:cover;object-position:top}
+.shot .ph{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--mono);font-size:12px;color:var(--text-dim)}
+.empty{grid-column:1/-1;padding:56px 0;border-top:1px solid var(--border-1);font-family:var(--mono);font-size:13px;color:var(--text-dim)}
+
+.tablewrap{margin-bottom:48px;border-radius:var(--r-panel);background:var(--bg-terminal);box-shadow:var(--shadow-surface);overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{padding:11px 14px 9px;color:var(--text-dim);font-size:12.5px;font-weight:400;text-align:left;white-space:nowrap}
+.tbl td{padding:12px 14px;border-top:1px solid var(--border-1);vertical-align:middle}
+.tbl tbody tr{transition:background .16s}
+.tbl tbody tr:hover{background:color-mix(in oklab, var(--bg-hover) 45%, transparent)}
+.tbl tr.hide{display:none}
+.tbl .c-n{width:1%;padding-left:20px;padding-right:2px;font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;color:var(--text-dim)}
+.tbl .c-shot{width:1%;padding-right:4px}
+.tshot{display:block;width:84px;aspect-ratio:16/10;border-radius:6px;background:var(--bg-app);box-shadow:0 0 0 1px var(--border-1);overflow:hidden;transition:box-shadow .16s}
+.tshot:hover{box-shadow:0 0 0 1px var(--border-2)}
+.tshot img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
+.tbl .c-page{white-space:nowrap}
+.tbl .nm{display:block;width:fit-content;font-size:15px;letter-spacing:-.01em;transition:color .16s}
+.tbl .nm:hover{color:var(--accent-fg)}
+.tbl .c-page .file{display:block;width:fit-content;max-width:100%;margin-top:1px}
+.tbl .c-kind{white-space:nowrap;color:var(--text-2)}
+.tbl .c-desc{min-width:240px;color:var(--text-2);font-size:13.5px;line-height:1.5;text-wrap:pretty}
+.tbl .c-tags{min-width:170px;max-width:270px;font-family:var(--mono);font-size:12px;line-height:1.55;color:var(--text-dim)}
+.tbl .c-tags span{white-space:nowrap}
+.tbl .c-sw{width:1%;padding-right:20px}
+.tbl .none td{padding:40px 20px;font-family:var(--mono);font-size:13px;color:var(--text-dim)}
+
+.foot{display:flex;gap:8px 20px;flex-wrap:wrap;justify-content:space-between;padding:22px 0 40px;border-top:1px solid var(--border-1);font-size:13px;color:var(--text-dim)}
+.foot code{font-family:var(--mono);font-size:12px}
+.foot a{color:var(--text-2);text-decoration:underline;text-decoration-color:var(--border-2);text-underline-offset:3px;transition:color .16s,text-decoration-color .16s}
+.foot a:hover{color:var(--text-1);text-decoration-color:currentColor}
+
+@media (max-width:760px){
+  .ver{display:none}.filters{margin-left:0;padding-right:18px;-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 22px),transparent)}
+  .hero{padding-top:36px}
+  .list{grid-template-columns:1fr;gap:16px}
+  .tablewrap{margin-bottom:32px}
+}
+@media (max-width:1240px){.tbl .c-tags{display:none}}
+@media (max-width:920px){.tbl .c-desc{display:none}}
+@media (max-width:600px){
+  .tbl .c-n,.tbl .c-sw,.tbl .c-kind{display:none}
+  .tbl td,.tbl th{padding-inline:12px}
+  .tbl .c-shot{padding-right:0}
+  .tshot{width:64px}
+  .tbl .c-page{white-space:normal}
+  .tbl .c-page .file{white-space:normal;overflow-wrap:anywhere}
+}
+@media (max-width:460px){.mark span{display:none}}
+@media (pointer:coarse){.filters button{padding-block:9px}.file{padding-block:11px;margin-block:-11px}.tbl .c-page .file{margin-top:-9px}}
+@media (prefers-reduced-motion:reduce){.row{animation:none;transition:none}.tbl tbody tr,.views button{transition:none}.btn,.btn svg{transition:none}.row:hover,.btn:active,.themebtn:active{transform:none}}
+</style>
+</head>
+<body>
+<header class="nav" id="nav"><div class="nav-inner">
+  <a class="mark" href="./" aria-label="Artikit"><svg viewBox="0 0 14 14" aria-hidden="true"><rect class="a" x="0" y="0" width="6" height="6" rx="1.5"/><rect x="8" y="0" width="6" height="6" rx="1.5"/><rect x="0" y="8" width="6" height="6" rx="1.5"/><rect x="8" y="8" width="6" height="6" rx="1.5"/></svg><span>Artikit</span></a>
+  <span class="ver" id="count" aria-live="polite"></span>
+  <nav class="filters" id="filters" aria-label="Filter by kind">
+    <button class="on" data-f="all" aria-pressed="true">All</button>
+    <button data-f="landing" aria-pressed="false">Landing</button>
+    <button data-f="dashboard" aria-pressed="false">Dashboard</button>
+    <button data-f="data" aria-pressed="false">Data</button>
+    <button data-f="terminal" aria-pressed="false">Terminal</button>
+  </nav>
+  <div class="views" id="views" role="group" aria-label="View">
+    <button class="on" type="button" data-v="grid" aria-pressed="true" aria-label="Grid view" title="Grid view"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg></button>
+    <button type="button" data-v="list" aria-pressed="false" aria-label="List view" title="List view"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg></button>
+  </div>
+  <button class="themebtn" id="themebtn" type="button" aria-label="Toggle color scheme">
+    <svg class="sun" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.2"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.05 3.05l1.13 1.13M11.82 11.82l1.13 1.13M12.95 3.05l-1.13 1.13M4.18 11.82l-1.13 1.13"/></svg>
+    <svg class="moon" viewBox="0 0 16 16"><path d="M13.5 9.6A5.8 5.8 0 0 1 6.4 2.5a5.8 5.8 0 1 0 7.1 7.1z"/></svg>
+  </button>
+</div></header>
+<main class="main">
+  <section class="hero">
+    <h1>Standalone pages, one file each. <span class="hl">Pick one and open it full size.</span></h1>
+    <p>Every entry is a single self-contained HTML page with sample data. Nothing to build and nothing to install.</p>
+  </section>
+  <section class="list" id="list"></section>
+  <section class="tablewrap" id="tablewrap" hidden>
+    <table class="tbl">
+      <thead><tr><th class="c-n">#</th><th class="c-shot">Preview</th><th class="c-page">Page</th><th class="c-kind">Kind</th><th class="c-desc">Description</th><th class="c-tags">Details</th><th class="c-sw">Palette</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </section>
+  <noscript><p>This catalogue is built with JavaScript. The same list is in <a href="llms.txt">llms.txt</a>.</p></noscript>
+  <footer class="foot"><span>Artikit is crafted with &lt;3 by <a href="https://github.com/j3ssie" target="_blank" rel="noopener">@j3ssie</a></span><span>Previews are captured at <code>1440×900</code> and may lag the page. <a href="llms.txt">llms.txt</a></span></footer>
+</main>
+<script>
+const THEMES=[
+ {file:'landing-page-gimorra-copperplate.html',name:'Gimorra · Copperplate',kind:'landing',desc:'Copperplate and porcelain marketing page: one 920px column, panel figures, an install line and a live terminal replay.',tags:['sans + mono','dark + light','animated SVG'],sw:['#1a150e','#fbf9f6','#78d670']},
+ {file:'landing-page-gimorra-verdicts.html',name:'Gimorra · Verdicts',kind:'landing',desc:'White product page framed by hairline rails: paper-textured hero with a live verdict flow, a draggable threshold, benchmarks, quickstart tabs and a human or machine view.',tags:['Instrument Sans + DM Mono','light only','animated widgets'],sw:['#ffffff','#ebe9e3','#fb631b']},
+ {file:'landing-page-gimorra-stage.html',name:'Gimorra · Stage',kind:'landing',desc:'Near-black product page built around a playable run: a centred hero, a target switch, a staged demo with a five-step scrubber and a stop key, illustration cards, a command grid and install blocks.',tags:['system sans + mono','dark only','scripted demo'],sw:['#0a0a0b','#f4f4f5','#4a8fc4']},
+ {file:'landing-page-coding-agents.html',name:'Coding agents',kind:'landing',desc:'Dark landing page over a landscape painting redrawn live in ASCII glyphs: a centred prompt box with an autonomy switch, a permission matrix, a scripted session replay and an install block.',tags:['Geist + Geist Mono','dark only','canvas ASCII + replay'],sw:['#070706','#f26a21','#ffab73']},
+ {file:'dashboard-gimorra-console.html',name:'Gimorra · Console',kind:'dashboard',desc:'All-monospace operations console: top-bar tabs, stat tiles, runs and issues tables, and a run detail with transcript.',tags:['JetBrains Mono','dark + light','hash routes'],sw:['#14100b','#efece8','#78d670']},
+ {file:'dashboard-vigolium-workbench.html',name:'Vigolium · Workbench',kind:'dashboard',desc:'Terminal-style workbench: text-only header, pipe-separated nav, zero-radius panels and 50/50 master-detail views.',tags:['monospace','dark + light','ASCII charts'],sw:['#1c1b19','#f6edda','#7fd962']},
+ {file:'dashboard-vigolium-triage.html',name:'Vigolium · Triage',kind:'dashboard',desc:'Full-screen Scan & Triage Performance dashboard: stacked finding volume, open findings by severity, median triage time, a fix-time scatter and an SLA strip plot, with a project filter.',tags:['Inter','dark only','SVG charts + tooltips'],sw:['#0f1011','#1d1f22','#13a3b6']},
+ {file:'dashboard-delivery-analytics.html',name:'Delivery analytics',kind:'dashboard',desc:'Charcoal delivery-analytics dashboard: range and project filters, KPI tiles with sparklines, created-vs-completed lines, stacked columns by project, a cycle-time histogram and hatched meters.',tags:['Inter','dark only','filters + chart tooltips'],sw:['#161618','#222225','#4c6bf0']},
+ {file:'data-observability.html',name:'Observability',kind:'data',desc:'Dark observability sample with traces, logs, infrastructure and incident views and a validated series palette.',tags:['Inter + Geist Mono','dark first','SVG charts','tweak dock'],sw:['#09090b','#3b82f6']},
+ {file:'data-model-usage.html',name:'Model Data',kind:'data',desc:'Light-first data page with stat tiles, tables, range switches and categorical series. Flips to dark.',tags:['Geist','light + dark','tables','tweak dock'],sw:['#f6f6f4','#101010','#2f6fe4']},
+ {file:'data-prompt-analytics.html',name:'Prompt analytics',kind:'data',desc:'Full-screen prompt analytics on a warm cream surface: prompt cards with line and bar charts, request geography, and latency, token and quantile meters, with a range switch and a table view.',tags:['Figtree','light first','SVG charts + tooltips','tweak dock'],sw:['#f6f2ed','#1b1a18','#e85a12']},
+ {file:'data-evals.html',name:'Evals',kind:'data',desc:'Full-screen eval dashboard on oat with cream figure cards: hatched and solid paired columns, running-mean lines with leader labels, reference lines and error bars, all scoped by a suite switch.',tags:['Hanken Grotesk','light + dark','SVG charts + tooltips','tweak dock'],sw:['#e8e6dc','#faf9f5','#d9623c']},
+ {file:'data-analysis-workbench.html',name:'Analysis workbench',kind:'data',desc:'Dense light analysis workbench: contents tree, a canvas of filter, table, time-series, bar and heat-grid cards, a card inspector with search settings, and a dependency graph view.',tags:['Inter + Geist Mono','light first','linked cards + graph view','tweak dock'],sw:['#f4f5f7','#1c2127','#2d72d2']},
+ {file:'terminal-design-system.html',name:'Terminal Design System',kind:'terminal',desc:'Bundled design system in a warm terminal register, with a live control bar for theme, accent, font and density.',tags:['bundled app','warm dark','live controls'],sw:['#14100b','#78d670']},
+ {file:'terminal-design-system-fieldnotes.html',name:'Terminal Design System · Field Notes',kind:'terminal',desc:'The same design system as a light-first kraft-paper notebook: dot-grid backdrop, ink-strip panel headers, sharp corners.',tags:['IBM Plex Mono','light first','compact'],sw:['#e7dcc2','#14140d','#1f4e8c']}
+];
+const KIND={landing:'Landing',dashboard:'Dashboard',data:'Data',terminal:'Terminal'};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const list=document.getElementById('list'),count=document.getElementById('count');
+list.innerHTML=THEMES.map((t,i)=>`<article class="row" data-kind="${t.kind}" style="--i:${i}">
+  <div class="txt">
+    <div class="eyebrow"><span class="n">${String(i+1).padStart(2,'0')}</span><span>${KIND[t.kind]}</span><span class="sw" aria-hidden="true">${t.sw.map(c=>`<i style="background:${c}"></i>`).join('')}</span></div>
+    <h2><a href="${t.file}">${esc(t.name)}</a></h2>
+    <p class="desc">${esc(t.desc)}</p>
+    <p class="tags">${t.tags.map(esc).join(' · ')}</p>
+    <div class="act"><a class="btn" href="${t.file}">Open preview <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a><a class="file" href="${t.file}" target="_blank" rel="noopener" title="Open in a new tab">${esc(t.file)}</a></div>
+  </div>
+  <a class="shot" href="${t.file}" tabindex="-1" aria-hidden="true"><span class="ph">${esc(t.file)}</span><img src="thumbs/${t.file.replace(/\.html$/,'.png')}" alt="" loading="lazy" decoding="async" onerror="this.remove()"></a>
+</article>`).join('')+'<div class="empty" id="empty" hidden>No pages of that kind.</div>';
+const tbody=document.getElementById('tbody');
+tbody.innerHTML=THEMES.map((t,i)=>`<tr data-kind="${t.kind}">
+  <td class="c-n">${String(i+1).padStart(2,'0')}</td>
+  <td class="c-shot"><a class="tshot" href="${t.file}" tabindex="-1" aria-hidden="true"><img src="thumbs/${t.file.replace(/\.html$/,'.png')}" alt="" loading="lazy" decoding="async" onerror="this.remove()"></a></td>
+  <td class="c-page"><a class="nm" href="${t.file}">${esc(t.name)}</a><a class="file" href="${t.file}" target="_blank" rel="noopener" title="Open in a new tab">${esc(t.file)}</a></td>
+  <td class="c-kind">${KIND[t.kind]}</td>
+  <td class="c-desc">${esc(t.desc)}</td>
+  <td class="c-tags">${t.tags.map(x=>`<span>${esc(x)}</span>`).join(' · ')}</td>
+  <td class="c-sw"><span class="sw" aria-hidden="true">${t.sw.map(c=>`<i style="background:${c}"></i>`).join('')}</span></td>
+</tr>`).join('')+'<tr class="none" id="tempty" hidden><td colspan="7">No pages of that kind.</td></tr>';
+function apply(f){
+  let n=0;
+  list.querySelectorAll('.row').forEach(r=>{const ok=f==='all'||r.dataset.kind===f;r.classList.toggle('hide',!ok);if(ok)n++;});
+  tbody.querySelectorAll('tr[data-kind]').forEach(r=>r.classList.toggle('hide',!(f==='all'||r.dataset.kind===f)));
+  document.getElementById('empty').hidden=n>0;document.getElementById('tempty').hidden=n>0;
+  count.textContent=n===THEMES.length?n+' pages':n+' of '+THEMES.length;
+}
+document.getElementById('filters').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;document.querySelectorAll('#filters button').forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-pressed',x===b);});list.classList.add('settled');apply(b.dataset.f);});
+apply('all');
+const views=document.getElementById('views'),tablewrap=document.getElementById('tablewrap');
+function setView(v,save){
+  const isList=v==='list';list.hidden=isList;tablewrap.hidden=!isList;
+  views.querySelectorAll('button').forEach(b=>{const on=b.dataset.v===v;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);});
+  if(save){list.classList.add('settled');try{localStorage.setItem('ak-view',v);}catch(e){}try{history.replaceState(null,'',isList?'#list':location.pathname+location.search);}catch(e){}}
+}
+views.addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v,true);});
+addEventListener('hashchange',()=>{if(location.hash==='#list')setView('list');else if(location.hash==='#grid')setView('grid');});
+(function(){let v='grid';try{v=localStorage.getItem('ak-view')||v;}catch(e){}if(location.hash==='#list')v='list';else if(location.hash==='#grid')v='grid';setView(v==='list'?'list':'grid');})();
+const root=document.documentElement,nav=document.getElementById('nav');
+document.getElementById('themebtn').addEventListener('click',()=>{const cur=root.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');const n=cur==='dark'?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem('tc-theme',n);}catch(e){}});
+const stick=()=>nav.classList.toggle('stuck',scrollY>4);addEventListener('scroll',stick,{passive:true});stick();
+</script>
+</body>
+</html>

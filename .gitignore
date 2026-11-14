@@ -1,0 +1,14 @@
+# Cloudflare / wrangler local state (contains account id)
+.wrangler/
+.dev.vars*
+.env*
+!.env.example
+
+# Vendored third-party agent skills — restore from skills-lock.json
+.agents/
+.claude/
+
+# OS / editor / deps
+.DS_Store
+node_modules/
+*.log

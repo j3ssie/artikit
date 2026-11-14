@@ -1,0 +1,1391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gimorra · Verdicts (sample)</title>
+<meta name="description" content="Sample product page in a paper-and-rail register: live verdict widgets, threshold triage, benchmarks and a quickstart.">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="assets/gimorra-logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#181818; --mut:#6e6d6b; --faint:#727170; --bar:#adadac; --line:#e5e5e5; --rail:#d6d6d6;
+  --panel:#ebe9e3; --chip:#f3f2ef; --tile:#f6f6f6; --track:#eeeeee;
+  --orange:#fb631b; --orange-ink:#cc4908; --flag:#ff590a; --red:#bd3319; --green:#06781b; --blue:#0d6ea5; --steel:#8fb6cc; --dark:#434343;
+  --sans:"Instrument Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"DM Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --pad:48px; --gap:160px;
+  --ease:cubic-bezier(.2,.7,.2,1);
+  color-scheme:light;
+}
+*,*::before,*::after{box-sizing:border-box}
+*{margin:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:88px}
+body{font:400 16px/1.5 var(--sans);color:var(--ink);background:#fff;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button,input{font:inherit;color:inherit}
+input{caret-color:var(--orange)}
+button{background:none;border:0;padding:0;cursor:pointer}
+ul,ol{list-style:none;padding:0}
+img,svg{display:block}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:3px}
+::selection{background:#fcddcf}
+.skip{position:absolute;left:-999px;top:8px;z-index:100;background:var(--ink);color:#fff;padding:8px 12px;border-radius:4px;font:400 13px var(--mono)}
+.skip:focus{left:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+/* ---------- layout primitives ---------- */
+.wrap{max-width:1504px;margin:0 auto;padding:0 var(--pad)}
+.rails{border-inline:1px solid var(--rail);padding-inline:23px}
+.sec{margin-top:var(--gap)}
+.m{font:400 13px/16px var(--mono);letter-spacing:.16px}
+.caps{font:500 12px/16px var(--mono);letter-spacing:-.24px;text-transform:uppercase;color:var(--mut)}
+.eyebrow{font:400 13px/16px var(--mono);letter-spacing:.16px;color:var(--mut)}
+h1,h2,h3,h4{font-weight:500;text-wrap:balance}
+h1{font-size:36px;line-height:40px;letter-spacing:-.01em}
+.h2{font-size:32px;line-height:36px;letter-spacing:-.01em}
+.h3{font-size:26px;line-height:32px;letter-spacing:-.005em}
+.p{font-weight:500;color:var(--mut);letter-spacing:.01em;text-wrap:pretty}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ---------- buttons, chips ---------- */
+.btn{display:inline-flex;align-items:center;gap:8px;height:34px;padding:1px 16px 0;border:1px solid transparent;border-radius:4px;font:400 13px/16px var(--mono);letter-spacing:.16px;text-transform:uppercase;white-space:nowrap;cursor:pointer;transition:background-color .15s,border-color .15s,transform .12s}
+.btn:active{transform:scale(.98)}
+.btn.dark{background:var(--dark);color:#fff}.btn.dark:hover{background:var(--ink)}
+.btn.org{background:var(--orange);color:var(--ink)}.btn.org:hover{background:#ea520b}
+.btn.line{background:#fff;border-color:var(--rail)}.btn.line:hover{border-color:var(--ink)}
+.kbd{display:inline-grid;place-items:center;min-width:16px;height:16px;margin-top:-1px;padding:1px 2px 0;border-radius:4px;font:400 11px/1 var(--mono);letter-spacing:0;background:rgba(34,34,34,.8);color:#fff}
+.btn.line .kbd{background:#e9e8e6;color:#5c5b5a}
+.yn{display:inline-flex;align-items:center;justify-content:center;height:22px;min-width:38px;padding:0 8px;border-radius:4px;font:500 12px/1 var(--mono);letter-spacing:-.24px}
+.yn.yes{background:rgba(0,170,31,.1);color:var(--green)}
+.yn.no{background:rgba(212,60,31,.1);color:color-mix(in srgb,var(--red) 94%,#000)}
+.yn.val{background:var(--chip);color:var(--ink)}
+.tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:4px;font:400 11px/1 var(--mono);text-transform:uppercase;white-space:nowrap}
+.tag.auto{background:var(--chip);color:var(--ink)}
+.tag.clear{background:var(--chip);color:color-mix(in srgb,var(--mut) 80%,#000)}
+.tag.review,.tag.flag{background:var(--flag);color:var(--ink)}
+.type{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:3px;background:var(--chip);color:var(--mut);font:400 11px/1 var(--mono)}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 2px 8px rgba(35,33,29,.05)}
+.panel{background:var(--panel);border-radius:4px;display:grid;place-items:center;padding:56px clamp(20px,10%,72px);min-height:470px}
+.panel>.card{width:100%;max-width:560px}
+
+/* ---------- announcement + nav ---------- */
+.announce{padding-top:16px}
+.announce .bar{position:relative;display:flex;align-items:center;justify-content:center;min-height:28px;padding:5px 40px;border-radius:4px;background:#e9f0f5;color:var(--blue);font-size:13px;line-height:18px;letter-spacing:.01em;text-align:center}
+.announce a{text-decoration:underline;text-underline-offset:2px}
+.announce a:hover{text-decoration:none}
+.announce button{position:absolute;right:6px;top:50%;translate:0 -50%;width:28px;height:28px;display:grid;place-items:center;border-radius:4px;color:var(--blue)}
+.announce button:hover{background:rgba(13,110,165,.1)}
+.top{position:sticky;top:0;z-index:50;background:#fff;padding:20px 0 14px}
+.nav{display:flex;align-items:center;gap:24px;height:34px}
+.brand{display:inline-flex;align-items:center;gap:9px;padding-block:5px;font-weight:600;font-size:21px;letter-spacing:-.035em;line-height:1}
+.brand img{border-radius:6px}
+.nav nav{margin-left:auto;display:flex;gap:26px}
+.nav nav a{font:400 13px/16px var(--mono);letter-spacing:.16px;color:var(--mut);padding:8px 0;transition:color .15s}
+.nav nav a:hover{color:var(--ink)}
+.nav .cta{display:flex;gap:8px}
+.menu-btn{display:none}
+
+/* ---------- hero ---------- */
+.hero{padding-top:clamp(56px,min(12vw,15vh),176px)}
+.half{width:50%;height:16px;display:flex;align-items:center}
+.half .eyebrow{display:inline-flex;align-items:center;gap:7px}
+.head{margin-top:48px;padding-bottom:0}
+.typed{color:var(--orange)}
+.caret{display:inline-block;width:2px;height:.86em;margin:0 1px 0 2px;background:var(--orange);vertical-align:-.06em;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.lede{margin-top:16px;max-width:1040px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.stagewrap{margin-top:48px}
+.stage{position:relative;border-radius:2px;padding:96px 72px;
+  background-color:#f1efed;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .32 0 0 0 0 .29 .5 0 0 0 -.205'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1300' height='570' preserveAspectRatio='none'%3E%3Cfilter id='c' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.0045 .011' numOctaves='5' seed='11'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 2.4 0 0 0 -.98'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E");
+  background-size:320px 320px,100% 100%;
+  box-shadow:0 3px 6px rgba(0,0,0,.15),0 11px 11px rgba(0,0,0,.13),0 24px 14px rgba(0,0,0,.08),0 43px 17px rgba(0,0,0,.02)}
+.flow{display:grid;grid-template-columns:minmax(0,380px) minmax(24px,1fr) 250px minmax(24px,1fr) minmax(0,380px);align-items:center;transition:opacity .45s}
+.flow.out{opacity:0}
+.fcard{background:#fff;border-radius:6px;padding:16px;box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 7px 14px rgba(0,0,0,.1),0 26px 26px rgba(0,0,0,.09),0 59px 35px rgba(0,0,0,.05),0 105px 42px rgba(0,0,0,.01)}
+.at{display:inline-flex;align-items:center;gap:5px;height:22px;padding:1px 6px 0;border:1px solid var(--rail);border-radius:3px;font:400 12px/1 var(--mono);letter-spacing:.02em;text-transform:uppercase}
+.at i{font-style:normal;color:var(--mut)}
+.qs{margin-top:12px;display:grid;gap:8px}
+.qs li{display:flex;align-items:flex-start;gap:8px;min-height:22px;font-size:14px;line-height:21px;opacity:.38;transition:opacity .25s}
+.qs li.on{opacity:1}
+.qs .qt{position:relative;flex:1;min-width:0}
+.qs .qt::before{content:attr(data-q);visibility:hidden}
+.qs .qt i{position:absolute;inset:0;font-style:normal}
+.qs .type{background:#fff;border:1px solid var(--rail);height:22px;padding:0 7px;font-size:12px;color:var(--ink)}
+.wire{position:relative;height:1px;background:repeating-linear-gradient(90deg,#bdb8b0 0 4px,transparent 4px 8px);margin:0 10px;opacity:.9}
+.wire::after{content:"";position:absolute;top:-2.5px;left:0;width:6px;height:6px;border-radius:50%;background:var(--orange);opacity:0}
+.flow[data-step="1"] .w1::after,.flow[data-step="3"] .w2::after{animation:travel 1.1s var(--ease) infinite}
+@keyframes travel{0%{left:0;opacity:0}15%{opacity:1}85%{opacity:1}100%{left:calc(100% - 6px);opacity:0}}
+.mid{display:grid;gap:10px;justify-items:start;min-height:206px;align-content:center}
+.st{display:flex;align-items:center;gap:8px;font:500 12px/16px var(--mono);letter-spacing:-.24px;text-transform:uppercase;color:var(--mut);opacity:0;transform:translateY(4px);transition:opacity .3s,transform .3s var(--ease)}
+.st i{position:relative;width:12px;height:12px;flex:none;border-radius:50%;border:1.5px solid #c9c5bd;border-top-color:var(--orange);animation:spin .7s linear infinite}
+.st.done i{animation:none;border-color:var(--ink);background:var(--ink)}
+.st.done i::after{content:"";position:absolute;left:2.4px;top:.6px;width:3px;height:5.5px;border:solid #fff;border-width:0 1.4px 1.4px 0;rotate:42deg}
+@keyframes spin{to{rotate:360deg}}
+.flow:not([data-step="0"]) .s1,.flow[data-step="2"] .s2,.flow[data-step="3"] .s2,.flow[data-step="4"] .s2{opacity:1;transform:none}
+.reqs{display:grid;gap:6px;width:100%}
+.reqs li{display:flex;align-items:center;gap:7px;height:24px;padding:0 8px;border-radius:3px;background:rgba(255,255,255,.86);box-shadow:0 0 0 1px #e0ddd6;font:400 12px/1 var(--mono);color:var(--mut);white-space:nowrap;opacity:0;transform:translateY(4px);transition:opacity .3s,transform .3s var(--ease),color .3s}
+.reqs li::before{content:"";width:5px;height:5px;border-radius:50%;background:#cfcbc3;flex:none;transition:background-color .3s}
+.reqs li b{font-weight:500;color:var(--ink)}
+.reqs li em{font-style:normal;margin-left:auto}
+.reqs li.in{opacity:1;transform:none}
+.reqs li.ev{color:var(--ink)}.reqs li.ev::before{background:var(--orange)}
+.reqs li.dim{opacity:.5}
+.fcard.a{opacity:0;transform:translateY(8px);transition:opacity .4s,transform .4s var(--ease);container-type:inline-size}
+.flow[data-step="3"] .fcard.a,.flow[data-step="4"] .fcard.a{opacity:1;transform:none}
+.as{margin-top:10px}
+.as li{display:grid;grid-template-columns:1fr auto 52px;align-items:center;gap:10px;height:36px;border-top:1px solid var(--line);opacity:0;transition:opacity .3s}
+.as li:first-child{border-top:0}
+.as li.in{opacity:1}
+.as code{font:400 13px/1 var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.as .pf{font:400 12px/1 var(--mono);color:var(--faint);text-align:right}
+.proofs{display:flex;align-items:center;gap:7px;margin-top:6px;padding-top:11px;border-top:1px solid var(--line);font:400 12px/16px var(--mono);color:var(--mut);opacity:0;transition:opacity .3s}
+.proofs i{width:6px;height:6px;border-radius:50%;background:#2a90db}
+.proofs span{margin-left:auto;color:var(--faint)}
+.flow[data-step="4"] .proofs{opacity:1}
+@container (max-width:279px){.proofs span{display:none}}
+@container (max-width:259px){.as li{grid-template-columns:1fr auto}.as .pf{display:none}}
+
+/* ---------- stat strip ---------- */
+.stats{margin-top:104px}
+.stats ul{display:grid;grid-template-columns:1.06fr 1fr 1.06fr;border-right:1px solid var(--rail)}
+.stats li{display:flex;align-items:center;gap:40px;min-height:80px;padding:8px 24px 8px 23px;border-left:1px solid var(--rail)}
+.stats b{font-size:36px;line-height:40px;font-weight:500;letter-spacing:-.02em;min-width:92px}
+.stats span{font-weight:500;color:var(--mut);letter-spacing:.01em;max-width:230px;text-wrap:balance}
+
+/* ---------- feature rows ---------- */
+.sec.first{margin-top:208px}
+.feat{display:grid;grid-template-columns:296px minmax(0,1fr) 296px}
+.feat+.feat{margin-top:var(--gap)}
+.feat .txt{align-self:start}
+.feat .txt.l{border-left:1px solid var(--rail);padding:0 24px 0 23px}
+.feat .txt.r{border-right:1px solid var(--rail);padding:0 23px 0 24px}
+.feat .txt .p{margin-top:12px}
+.feat .mid2{border-inline:1px solid var(--rail);padding-inline:23px}
+.qcard{padding:20px}
+.quote{margin-top:12px;font-size:18px;line-height:26px;letter-spacing:-.012em;text-wrap:balance}
+.src{display:flex;justify-content:space-between;gap:16px;margin-top:20px;padding-top:20px;border-top:1px solid var(--line);min-height:100px}
+.src .t{font-size:15px;line-height:20px}
+.src .caps{margin-top:4px}
+.src.live .t{color:var(--orange-ink)}
+.src .note{margin-top:14px;font:400 12px/16px var(--mono);color:var(--faint)}
+.cite{display:inline-flex;align-items:center;gap:7px;margin-top:12px;height:24px;padding:0 8px;border:1px solid var(--rail);border-radius:3px;font:400 12px/1 var(--mono);color:var(--blue);white-space:nowrap}
+.cite i{width:5px;height:5px;border-radius:50%;background:#2a90db}
+.res{display:flex;align-items:center;gap:12px;height:26px;flex:none}
+.res .pv{font:400 13px/1 var(--mono);color:var(--mut);white-space:nowrap}
+
+.bcard{padding:8px 20px 0}
+.bhead{display:flex;align-items:center;gap:8px;height:50px}
+.bhead .dom{display:inline-flex;align-items:center;height:26px;padding:0 8px;border-radius:3px;background:var(--chip);font:400 13px/1 var(--mono)}
+.bhead .caps:last-child{margin-left:auto}
+.brow{display:grid;grid-template-columns:minmax(0,1fr) 52px 96px;align-items:center;gap:12px;height:47px;border-top:1px solid var(--line)}
+.brow code{font:400 13px/1 var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brow .type{justify-self:end}
+.brow .out{justify-self:end;display:grid;justify-items:end}
+.brow .out>*{grid-area:1/1;transition:opacity .25s}
+.brow .out .yn{opacity:0}
+.brow.done .out .yn{opacity:1}.brow.done .dots{opacity:0}
+.dots{display:inline-flex;gap:3px;align-items:center;height:22px}
+.dots i{width:4px;height:4px;border-radius:50%;background:var(--flag);animation:dot 1s infinite}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes dot{0%,100%{opacity:.25}40%{opacity:1}}
+.kstats{display:grid;grid-template-columns:repeat(4,1fr);margin:0 -20px;border-top:1px solid var(--line)}
+.kstats.three{grid-template-columns:repeat(3,1fr);margin:0}
+.kstats div{padding:14px 20px 16px;border-left:1px solid var(--line)}
+.kstats div:first-child{border-left:0}
+.kstats b{display:block;margin-top:6px;font:400 16px/24px var(--mono);letter-spacing:-.26px;font-variant-numeric:tabular-nums}
+.kstats .cost b{color:var(--orange-ink)}
+
+.thr{--thr:.8;--c1:150px;--g:16px;--c3:40px;--c4:64px;padding:20px 20px 16px}
+.thr header{display:flex;justify-content:space-between;gap:12px}
+.thr header output{color:var(--ink)}
+.trows{position:relative;margin-top:14px}
+.trk{display:grid;grid-template-columns:var(--c1) minmax(0,1fr) var(--c3) var(--c4);align-items:center;column-gap:var(--g);height:38px}
+.trk code{font:400 13px/1 var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trk .bar{position:relative;height:8px;border-radius:4px;background:var(--chip)}
+.trk .bar i{position:absolute;inset:0 auto 0 0;width:calc(var(--p)*100%);border-radius:4px;background:var(--steel);transform-origin:left;transition:transform .9s var(--ease),background-color .25s}
+.thr:not(.seen) .trk .bar i{transform:scaleX(0)}
+.trk.rev .bar i{background:var(--flag)}
+.trk .bar::after{content:"";position:absolute;top:-11px;bottom:-11px;left:calc(var(--thr)*100%);border-left:1px dashed var(--ink)}
+.trk .pv{font:400 13px/1 var(--mono);color:var(--mut);font-variant-numeric:tabular-nums}
+.trk .tag{justify-self:end}
+.trows input{position:absolute;top:0;bottom:0;left:calc(var(--c1) + var(--g));right:calc(var(--c3) + var(--c4) + var(--g)*2);width:auto;margin:0;opacity:0;cursor:ew-resize;-webkit-appearance:none;appearance:none;background:none;touch-action:pan-y}
+.trows input::-webkit-slider-thumb{-webkit-appearance:none;width:2px;height:100%}
+.trows input::-moz-range-thumb{width:2px;height:100%;border:0}
+.trows:has(input:focus-visible) .bar::after{border-left:2px solid var(--blue)}
+.trows:has(input:hover) .bar::after,.trows:has(input:active) .bar::after{border-left-color:var(--flag)}
+.thr footer{display:flex;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font:400 11px/16px var(--mono);text-transform:uppercase;color:var(--faint)}
+.thr footer span:first-child{color:var(--mut)}
+
+/* ---------- split rows (benchmarks, quickstart, demo) ---------- */
+.split{display:grid;grid-template-columns:560px minmax(0,1fr)}
+.split>.l{border-left:1px solid var(--rail);padding:0 40px 0 23px}
+.split>.r{border-inline:1px solid var(--rail);padding-inline:23px}
+.split .h3,.split .h2{margin-top:30px}
+.split .l .p{margin-top:12px;max-width:520px}
+.split .l .actions{margin-top:24px}
+.bgroup+.bgroup{margin-top:28px}
+.bgroup header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding-bottom:10px;border-bottom:1px solid var(--rail)}
+.bgroup h3{font-size:18px;line-height:24px;letter-spacing:-.01em}
+.bgroup header span{color:var(--mut)}
+.bars{margin-top:6px}
+.bars li{display:grid;grid-template-columns:196px minmax(0,1fr) 80px;align-items:center;height:28px;font-size:13px;color:var(--mut)}
+.bars .track{height:12px;background:var(--track)}
+.bars .track i{display:block;height:100%;width:calc(var(--v)*1%);background:var(--bar);border-radius:0 3px 3px 0;transform-origin:left;transition:transform 1s var(--ease)}
+.bench:not(.seen) .bars .track i{transform:scaleX(0)}
+.bars .v{font:400 13px/1 var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.bars li.hi{color:var(--ink)}
+.bars li.hi .track i{background:var(--orange)}
+.bars li.hi .v{font-weight:500}
+.bnote{margin-top:22px;line-height:19px;color:var(--mut)}
+
+/* ---------- use cases ---------- */
+.uhead .h2{margin-top:30px;padding-bottom:2px}
+.use{display:grid;grid-template-columns:336px minmax(0,1fr);margin-top:160px}
+.use.flip{grid-template-columns:minmax(0,1fr) 336px}
+.use .txt{align-self:start;border-left:1px solid var(--rail);padding:0 24px 0 23px}
+.use.flip .txt{border-left:0;border-right:1px solid var(--rail);padding:0 23px 0 24px}
+.use .txt .h3{margin-top:30px}
+.use .txt .p{margin-top:12px}
+.use .txt .btn{margin-top:24px}
+.use .pn{border-inline:1px solid var(--rail);padding-inline:23px}
+.use .panel{min-height:540px;padding:56px clamp(16px,10.4%,100px)}
+.use .panel>.card{max-width:760px}
+.chead{display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;padding:0 20px;border-bottom:1px solid var(--line)}
+.chead h4{font-size:16px;line-height:24px;font-weight:400;letter-spacing:-.01em}
+.rt{width:100%;border-collapse:collapse;table-layout:fixed}
+.rt th{height:34px;padding:0 20px;text-align:left;font:500 12px/16px var(--mono);letter-spacing:-.24px;text-transform:uppercase;color:var(--mut);white-space:nowrap}
+.rt td{height:45px;padding:0 20px;border-top:1px solid var(--line);font-size:14px;transition:background-color .3s}
+.rt th:nth-child(2){width:26%}.rt th:nth-child(3){width:20%}.rt th:nth-child(4){width:128px;text-align:right}
+.rt td:nth-child(4){text-align:right}
+.rt td:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rt td>*{opacity:0;transition:opacity .25s}
+.rt tr.done td>*{opacity:1}
+.rt tr.done.fl td{background:#fff5f1}
+.rt .sm{display:none}
+#retest{container-type:inline-size}
+@container (max-width:620px){
+  .rt .lg{display:none}.rt .sm{display:inline}
+  .rt th:nth-child(2),.rt th:nth-child(3){width:16%}
+}
+
+.route{display:grid;grid-template-columns:42% 1fr}
+.route .inb{padding:12px 20px;display:grid;gap:6px;align-content:start;border-right:1px solid var(--line);container-type:inline-size}
+@container (max-width:189px){.route .inb li::after{display:none}}
+.route .inb li{display:flex;align-items:center;height:30px;padding:0 8px;border-radius:3px;background:var(--chip);font:400 13px/1 var(--mono);transition:color .35s,background-color .35s;white-space:nowrap;overflow:hidden}
+.route .inb li{justify-content:space-between;gap:8px}
+.route .inb li::after{content:attr(data-to);font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);opacity:0;transition:opacity .3s}
+.route .inb li.sent{color:var(--mut);background:#f8f7f5}
+.route .inb li.sent::after{opacity:1}
+.bucket{padding:12px 20px 14px;border-top:1px solid var(--line);min-height:96px}
+.bucket:first-child{border-top:0}
+.bucket header{display:flex;justify-content:space-between}
+.bucket header b{font:400 12px/16px var(--mono);color:var(--mut)}
+.bucket ul{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.bucket li{display:inline-flex;align-items:center;height:24px;padding:0 8px;border:1px solid var(--rail);border-radius:3px;font:400 12px/1 var(--mono);white-space:nowrap;opacity:0;transform:translateY(4px);transition:opacity .3s,transform .3s var(--ease)}
+.bucket li.in{opacity:1;transform:none}
+
+/* ---------- demo ---------- */
+.demo .l{align-self:center}
+.demo .l h2{font-size:26px;line-height:32px;max-width:400px}
+.demo .l a{color:var(--orange);text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1.5px;transition:color .15s}
+.demo .l a:hover{color:#ea520b}
+.dcard{padding:18px 20px 22px;min-height:358px;display:flex;flex-direction:column}
+.dform{display:flex}
+.dform input{flex:1;min-width:0;height:40px;padding:0 12px;border:1px solid var(--ink);border-right:0;border-radius:2px 0 0 2px;font-size:14px;outline:0;background:#fff}
+.dform input::placeholder{color:var(--faint)}
+.dform input:focus-visible{box-shadow:inset 0 0 0 1px var(--ink)}
+.dform button{height:40px;padding:0 14px;background:var(--ink);color:#fff;border-radius:0 2px 2px 0;font:500 12px/1 var(--mono);text-transform:uppercase;display:inline-flex;align-items:center;gap:8px;transition:background-color .15s}
+.dform button:hover{background:#000}
+.dbody{flex:1;display:flex;flex-direction:column;justify-content:center;padding-top:20px}
+.dintro .caps{color:var(--orange-ink)}
+.dbody h3{margin-top:14px;font-size:24px;line-height:29px;font-weight:400;letter-spacing:-.02em}
+.dbody h3 em{font-style:normal;color:var(--orange)}
+.dres{display:none}
+.dcard.ran .dintro{display:none}.dcard.ran .dres{display:block}
+.dres .hd{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.dres .hd .dom{font:400 13px/1 var(--mono);background:var(--chip);padding:6px 8px;border-radius:3px;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dres .brow{grid-template-columns:minmax(0,1fr) 56px 48px}
+.dres .brow .pv{font:400 12px/1 var(--mono);color:var(--mut);text-align:right;opacity:0;transition:opacity .25s}
+.dres .brow.done .pv{opacity:1}
+.dres .rows{margin-top:12px;border-bottom:1px solid var(--line)}
+.dres .foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font:400 11px/16px var(--mono);text-transform:uppercase;color:var(--faint)}
+.dres .foot button{color:var(--mut);text-decoration:underline;text-underline-offset:3px;text-transform:uppercase;font:inherit}
+.dres .foot button:hover{color:var(--ink)}
+
+/* ---------- quickstart ---------- */
+.defs{margin-top:28px;display:grid;gap:14px;max-width:520px}
+.defs dt{font:400 13px/16px var(--mono);letter-spacing:.16px}
+.defs dd{margin-top:4px;font-weight:500;color:var(--mut);letter-spacing:.01em}
+.code{background:#0c0c0d;border-radius:6px;color:#f1f1f1;box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 7px 14px rgba(0,0,0,.1),0 26px 26px rgba(0,0,0,.09),0 59px 35px rgba(0,0,0,.05),0 105px 42px rgba(0,0,0,.01)}
+.code .tabs{display:flex;align-items:center;gap:24px;height:39px;padding:0 24px;border-bottom:1px solid rgba(255,255,255,.12)}
+.code .tabs button{position:relative;height:39px;font-size:14px;font-weight:500;color:#bdbdbd;transition:color .15s}
+.code .tabs button:hover{color:#fff}
+.code .tabs button[aria-selected="true"]{color:#fff}
+.code .tabs button[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--orange)}
+.code .tl{display:contents}
+.code .copy{margin-left:auto;font:400 12px/1 var(--mono)!important;letter-spacing:.06em;text-transform:uppercase;color:#d6d6d6!important}
+.code .copy:hover{color:#fff!important}
+.code pre{margin:0;padding:18px 24px 26px;min-height:462px;font:400 12.5px/19.4px var(--mono);overflow-x:auto;scrollbar-width:thin;scrollbar-color:#4d4d4d transparent;tab-size:2;color:#f1f1f1}
+.code pre .s{color:#ce9178}
+.code pre .c{color:#7d7d7d}
+.code :focus-visible{outline-color:#fff}
+
+/* ---------- pricing / faq / start / footer ---------- */
+.price .rails .h3{margin-top:30px}
+.price .rails .p{margin-top:12px;max-width:760px}
+.tiles{margin-top:48px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.tiles li{padding:16px 16px 14px;background:var(--tile);border:1px solid var(--rail);border-radius:4px}
+.tiles b{display:block;margin-top:10px;font-size:26px;line-height:32px;font-weight:500;letter-spacing:-.01em}
+.tiles span{color:var(--mut)}
+.faq{display:grid;grid-template-columns:336px minmax(0,1fr)}
+.faq>h2{align-self:start;border-left:1px solid var(--rail);padding:0 24px 0 23px;font-size:20px;line-height:28px;color:var(--mut)}
+.faq ul{display:grid;gap:32px}
+.faq li{border-left:1px solid var(--rail);padding:0 24px 0 23px}
+.faq h3{font-size:16px;line-height:24px}
+.faq button{display:block;width:100%;text-align:left;font-weight:500;line-height:24px;letter-spacing:.005em}
+.faq button:hover{color:var(--orange-ink)}
+.faq .ans{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s var(--ease)}
+.faq .ans>div{overflow:hidden;visibility:hidden;transition:visibility .35s}
+.faq .ans p{max-width:930px;padding-top:4px}
+.faq li.open .ans{grid-template-rows:1fr}
+.faq li.open .ans>div{visibility:visible}
+.start .txt .h3{margin-top:14px}
+.art{position:relative;min-height:560px;border-radius:4px;overflow:hidden;display:grid;place-items:center;padding:40px 20px;background:#7c7c7c;color:#565656;transition:background-color .7s,color .7s}
+.art:hover{background:#86a9bd;color:#4d7fa6}
+.art>svg{position:absolute;inset:0;width:100%;height:100%}
+.art::after{content:"";position:absolute;inset:0;mix-blend-mode:soft-light;opacity:.9;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='3' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.prompt{position:relative;z-index:1;width:100%;max-width:606px;padding:22px 22px 20px;border-radius:5px;background:#131313;color:#fff;box-shadow:0 16px 16px rgba(0,0,0,.4)}
+.prompt .caps{color:#b5b5b5}
+.prompt p{margin-top:16px;padding-right:44px;font:400 14px/21px var(--mono)}
+.prompt p b{font-weight:400;color:var(--orange)}
+.prompt .cp{position:absolute;right:16px;top:50px;width:30px;height:30px;display:grid;place-items:center;border-radius:4px;color:#8c8c8c;transition:color .15s,background-color .15s}
+.prompt .cp:hover{color:#fff;background:rgba(255,255,255,.08)}
+.prompt .cp:focus-visible{outline-color:#fff}
+.prompt ul{display:flex;flex-wrap:wrap;gap:6px;margin-top:18px}
+.prompt li{height:22px;padding:0 7px;border-radius:3px;border:1px solid rgba(255,255,255,.14);font:400 11px/20px var(--mono);color:#b5b5b5}
+footer.site{margin-top:var(--gap);padding-bottom:104px}
+.fgrid{display:grid;grid-template-columns:minmax(0,1fr) 259px 259px 283px;border-inline:1px solid var(--rail)}
+.fgrid>div{padding:0 24px 0 23px}
+.fgrid>div+div{border-left:1px solid var(--rail)}
+.fgrid h3{font:400 13px/16px var(--mono);letter-spacing:.04em;text-transform:uppercase}
+.fgrid .col h3{margin-bottom:10px}
+.fgrid .col h3:not(:first-child){margin-top:40px}
+.fgrid .col a{display:block;padding:4px 0;font:400 13px/16px var(--mono);letter-spacing:.04em;color:var(--mut);transition:color .15s}
+.fgrid .col a:hover{color:var(--ink)}
+.fgrid .me h3{margin-top:40px}
+.fgrid .me>a{display:inline-block;margin:4px 0 -4px;padding:4px 0;font:400 13px/16px var(--mono);letter-spacing:.04em;color:var(--mut)}
+.fgrid .me>a:hover{color:var(--ink)}
+.upd{position:relative;margin-top:8px;max-width:384px}
+.upd input{width:100%;height:40px;padding:0 44px 0 12px;border:1px solid transparent;border-radius:4px;background:var(--tile);font-size:15px;outline:0;transition:border-color .15s}
+.upd input::placeholder{color:var(--faint)}
+.upd input:focus-visible{border-color:var(--ink)}
+.upd button{position:absolute;right:4px;top:4px;width:32px;height:32px;display:grid;place-items:center;border-radius:3px;color:var(--mut)}
+.upd button:hover{color:var(--ink);background:#ebebeb}
+.upd+p{margin-top:8px;min-height:16px;font:400 12px/16px var(--mono);color:var(--green)}
+.fbase{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;margin-top:72px;border-inline:1px solid var(--rail);padding:4px 23px;font:400 13px/16px var(--mono);letter-spacing:.04em;color:var(--mut)}
+.fbase span:first-child{display:inline-flex;align-items:center;gap:8px}
+.fbase i{width:7px;height:7px;border-radius:50%;background:#4bb96a}
+
+/* ---------- human / machine ---------- */
+.hm{position:fixed;left:50%;bottom:24px;translate:-50% 0;z-index:60;display:flex;gap:14px;height:28px;padding:0 9px;align-items:center;border-radius:4px;background:var(--dark);color:#fff;box-shadow:0 5px 1px rgba(0,0,0,.08),0 3px 1px rgba(0,0,0,.1),0 1.5px 1.5px rgba(0,0,0,.12)}
+.hm button{display:inline-flex;align-items:center;gap:7px;height:28px;font:400 13px/1 var(--mono);letter-spacing:.16px;text-transform:uppercase;color:#fff}
+.hm button i{position:relative;width:11px;height:11px;border-radius:50%;border:1.2px solid #fff;flex:none}
+.hm button[aria-checked="true"] i::after{content:"";position:absolute;inset:1.6px;border-radius:50%;background:#fff}
+.hm button[aria-checked="false"]{color:#d9d9d9}
+.hm button:hover{color:#fff}
+.hm :focus-visible{outline-color:#fff}
+/* larger hit areas, same visual size */
+.faq button,.hm button,.dres .foot button{position:relative}
+.faq button::before,.hm button::before,.dres .foot button::before{content:"";position:absolute;inset:-9px -6px}
+.code [role=tab]::before{content:"";position:absolute;inset:0 -8px}
+.mdoc{display:none;max-width:688px;margin:56px auto 140px;padding:0 24px}
+.mdoc .bar{display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--rail)}
+.mdoc pre{margin-top:20px;font:400 13px/20px var(--mono);white-space:pre-wrap;word-break:break-word}
+body.machine main,body.machine footer.site,body.machine .announce{display:none}
+body.machine .mdoc{display:block}
+
+/* ---------- responsive ---------- */
+@media (max-width:1240px){
+  :root{--gap:120px}
+  .sec.first{margin-top:150px}
+  .feat{grid-template-columns:260px minmax(0,1fr)}
+  .feat.flip{grid-template-columns:minmax(0,1fr) 260px}
+  .feat .ghost{display:none}
+  .split{grid-template-columns:44% minmax(0,1fr)}
+  .use{grid-template-columns:280px minmax(0,1fr)}.use.flip{grid-template-columns:minmax(0,1fr) 280px}
+  .flow{grid-template-columns:minmax(0,340px) minmax(16px,1fr) 230px minmax(16px,1fr) minmax(0,340px)}
+  .stage{padding:72px 40px}
+  .nav nav{gap:18px}
+  .fgrid{grid-template-columns:minmax(0,1fr) 200px 200px 220px}
+  .rt td:first-child{white-space:normal;line-height:18px}
+}
+@media (max-width:1020px){
+  :root{--pad:24px;--gap:96px}
+  .sec.first{margin-top:var(--gap)}
+  .nav nav{display:none;position:absolute;left:0;right:0;top:100%;flex-direction:column;gap:0;margin:0;padding:6px 24px 14px;background:#fff;border-bottom:1px solid var(--rail)}
+  .nav nav a{padding:11px 0;border-top:1px solid var(--line)}
+  .top.open .nav nav{display:flex}
+  .nav .cta{margin-left:auto}
+  .menu-btn{display:inline-flex}
+  .feat,.feat.flip,.split,.use,.use.flip,.faq{grid-template-columns:minmax(0,1fr);row-gap:32px}
+  .feat .txt.l,.feat .txt.r,.use .txt,.use.flip .txt,.split>.l,.faq>h2{border:0;border-left:1px solid var(--rail);padding:0 24px 0 23px;order:-1}
+  .feat .mid2,.use .pn,.split>.r{border:0;padding:0}
+  .split.bench>.r{border-left:1px solid var(--rail);padding:0 24px 0 23px}
+  .split .l .p,.defs{max-width:640px}
+  .use{margin-top:96px}
+  .demo .l h2{max-width:none}
+  .flow{grid-template-columns:minmax(0,1fr);justify-items:center;row-gap:0}
+  .fcard{width:100%;max-width:420px}
+  .wire{width:1px;height:26px;margin:8px 0;background:repeating-linear-gradient(180deg,#bdb8b0 0 4px,transparent 4px 8px)}
+  .wire::after{display:none}
+  .mid{width:100%;max-width:300px;min-height:0;padding:4px 0}
+  .stage{padding:40px 24px}
+  .stats ul{grid-template-columns:1fr;border-right:0}
+  .stats li{border-right:1px solid var(--rail);min-height:72px}
+  .stats li+li{margin-top:16px}
+  .hero .half{width:100%}
+  .fgrid{grid-template-columns:1fr 1fr;row-gap:48px}
+  .fgrid .me{grid-column:1/-1}
+  .fgrid>div:nth-child(2){border-left:0}
+  .tiles{grid-template-columns:1fr}
+  .use .panel,.panel{min-height:0}
+}
+@media (max-width:640px){
+  :root{--pad:16px;--gap:80px}
+  html{scroll-padding-top:76px}
+  h1{font-size:30px;line-height:34px}
+  .h2{font-size:27px;line-height:31px}.h3{font-size:23px;line-height:28px}
+  .rails{padding-inline:15px}
+  .feat .txt.l,.feat .txt.r,.use .txt,.use.flip .txt,.split>.l,.faq>h2,.faq li,.stats li{padding-inline:15px 16px}
+  .typed-line{display:block;min-height:34px}
+  .top{padding:12px 0 10px}
+  .brand{font-size:19px}.brand img{width:22px;height:22px}
+  .nav{gap:10px}
+  .nav .cta .btn.dark{display:none}
+  .btn{padding-inline:12px}
+  .announce .bar{padding:6px 34px 6px 12px;text-align:left;justify-content:flex-start}
+  .head{margin-top:36px}
+  .stagewrap{margin-top:36px}
+  .stage{padding:28px 14px}
+  .stats{margin-top:72px}
+  .stats li{gap:20px}.stats b{min-width:78px;font-size:32px}
+  .panel,.use .panel{padding:20px 12px}
+  .qcard,.thr{padding-inline:16px}
+  .src{flex-direction:column;gap:10px;min-height:0}
+  .trk{grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"c p t" "b b b";column-gap:10px;row-gap:8px;height:auto;padding:9px 0}
+  .trk code{grid-area:c}.trk .bar{grid-area:b}.trk .pv{grid-area:p}.trk .tag{grid-area:t}
+  .trk .bar::after{top:-5px;bottom:-5px}
+  .trows input{left:0;right:0}
+  .thr footer span{white-space:nowrap}
+  .trk code,.brow code{font-size:12px}
+  .brow{grid-template-columns:minmax(0,1fr) 44px 82px;gap:8px}
+  .dres .brow{grid-template-columns:minmax(0,1fr) 50px 40px}
+  .bcard{padding-inline:16px}
+  .kstats{grid-template-columns:repeat(2,1fr);margin:0 -16px}
+  .kstats div:nth-child(3){border-left:0}
+  .kstats div:nth-child(n+3){border-top:1px solid var(--line)}
+  .kstats.three{grid-template-columns:repeat(3,1fr);margin:0}
+  .kstats.three div{padding:12px 12px 14px;border-top:0!important}
+  .kstats.three div:nth-child(3){border-left:1px solid var(--line)}
+  .kstats div{padding-inline:16px}
+  .kstats b{font-size:15px}
+  .split.bench>.r{padding-inline:15px 16px}
+  .bars li{grid-template-columns:118px minmax(0,1fr) 56px;font-size:12px}
+  .bgroup header{flex-direction:column;gap:2px}
+  .chead{padding:0 14px}.chead .caps{display:none}
+  .rt th,.rt td{padding:0 6px}
+  .rt th:first-child,.rt td:first-child{padding-left:14px}
+  .rt th:last-child,.rt td:last-child{padding-right:14px}
+  .rt th:nth-child(2),.rt th:nth-child(3){width:50px}.rt th:nth-child(4){width:82px}
+  .rt td{font-size:13px;line-height:17px;height:46px}
+  .rt td:first-child{line-height:17px}
+  .rt .lg{display:none}.rt .sm{display:inline}
+  .route{grid-template-columns:1fr}
+  .route .inb{border-right:0;border-bottom:1px solid var(--line);grid-template-columns:1fr 1fr;padding:12px 14px}
+  .route .inb li{font-size:12px;padding:0 6px}
+  .route .inb li::after{display:none}
+  .bucket{padding:12px 14px;min-height:0}
+  .dcard{padding:14px 14px 18px;min-height:320px}
+  .dbody h3{font-size:21px;line-height:26px}
+  .dbody h3 em{color:var(--orange-ink)}
+  .dform input,.upd input{font-size:16px}
+  .code .tabs{gap:16px;padding:0 14px}
+  .code .tabs button{font-size:13px}
+  .code pre{padding:14px 14px 20px;font-size:12px;min-height:0}
+  .art{min-height:380px}
+  .prompt p{font-size:13px}
+  .fgrid{grid-template-columns:1fr 1fr}
+  .fgrid>div{padding-inline:15px 12px}
+  .fgrid .col:last-child{grid-column:1/-1;border-left:0}
+  .fbase{margin-top:48px;padding-inline:15px}
+  footer.site{padding-bottom:96px}
+}
+@media (max-width:380px){
+  .panel,.use .panel{padding:16px 8px}
+  .bcard{padding-inline:12px}
+  .bcard .kstats{margin:0 -12px}
+  .bcard .kstats div{padding-inline:12px}
+  .as li{grid-template-columns:1fr auto}
+  .as .pf,.proofs span,.thr footer span:last-child{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  .caret{display:none}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="wrap announce" id="announce">
+  <div class="rails">
+    <div class="bar">
+      <p>Introducing Gimorra Verdicts: every finding re-proven on the live target before it reaches a report. <a href="#features">Learn more.</a></p>
+      <button type="button" aria-label="Dismiss announcement"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<header class="top" id="top">
+  <div class="wrap">
+    <div class="rails nav">
+      <a class="brand" href="#top" aria-label="Gimorra home"><img src="assets/gimorra-logo.png" width="24" height="24" alt="">gimorra</a>
+      <nav id="navlinks" aria-label="Primary">
+        <a href="#features">Product</a>
+        <a href="#benchmarks">Benchmarks</a>
+        <a href="#use-cases">Use cases</a>
+        <a href="#quickstart">Docs</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <div class="cta">
+        <a class="btn dark" href="#contact" data-key="c">Contact <span class="kbd" aria-hidden="true">C</span></a>
+        <a class="btn org" href="dashboard-gimorra-console.html" data-key="p">Console <span class="kbd" aria-hidden="true">P</span></a>
+        <button class="btn line menu-btn" type="button" aria-expanded="false" aria-controls="navlinks">Menu</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <!-- ================= hero ================= -->
+  <section class="wrap hero">
+    <div class="rails half"><span class="eyebrow"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v11M4.5 13.5h7M3 5h10M3 5l-1.6 3.6a1.9 1.9 0 003.4 0L3 5zm10 0l-1.7 3.6a1.9 1.9 0 003.4 0L13 5z"/></svg>Verdicts API</span></div>
+    <div class="rails head">
+      <h1 aria-label="Findings proven on the live target"><span class="typed-line" aria-hidden="true"><span class="typed" id="typed">SQL injection</span><span class="caret"></span></span> <span aria-hidden="true">proven on the live target</span></h1>
+      <p class="p lede">Deterministic validators replay every suspected finding against the running app. Ask about one endpoint or a whole surface, and every verdict comes back with its evidence.</p>
+      <div class="actions">
+        <a class="btn dark" href="#start" data-key="g">Get started <span class="kbd" aria-hidden="true">G</span></a>
+        <a class="btn line" href="#quickstart" data-key="d">View docs <span class="kbd" aria-hidden="true">D</span></a>
+      </div>
+    </div>
+    <div class="rails stagewrap">
+      <div class="stage" id="stage" role="img" aria-label="Three questions about app.acme.dev are replayed against the live target and come back as typed verdicts with proofs attached.">
+        <div class="flow" id="flow" data-step="0" aria-hidden="true">
+          <div class="fcard q">
+            <span class="at"><i>@</i>app.acme.dev</span>
+            <ul class="qs">
+              <li><span class="type">bool</span><span class="qt" data-q="Is a password reset token reusable?"><i></i></span></li>
+              <li><span class="type">bool</span><span class="qt" data-q="Can tenant A read tenant B’s orders?"><i></i></span></li>
+              <li><span class="type">bool</span><span class="qt" data-q="Is an unsigned JWT accepted?"><i></i></span></li>
+            </ul>
+          </div>
+          <div class="wire w1"></div>
+          <div class="mid">
+            <p class="st s1"><i></i>Replaying on target</p>
+            <ul class="reqs">
+              <li data-ev><b>POST</b>/auth/reset<em>200</em></li>
+              <li><b>GET</b>/api/me<em>200</em></li>
+              <li data-ev><b>GET</b>/api/orders/7731<em>200</em></li>
+              <li><b>GET</b>/api/orders<em>200</em></li>
+              <li data-ev><b>GET</b>/api/admin<em>401</em></li>
+            </ul>
+            <p class="st s2"><i></i>Selecting evidence</p>
+          </div>
+          <div class="wire w2"></div>
+          <div class="fcard a">
+            <span class="caps">Typed verdicts</span>
+            <ul class="as">
+              <li><code>reset_token_reuse</code><span class="yn yes">yes</span><span class="pf">proven</span></li>
+              <li><code>cross_tenant_orders</code><span class="yn yes">yes</span><span class="pf">proven</span></li>
+              <li><code>unsigned_jwt</code><span class="yn no">no</span><span class="pf">proven</span></li>
+            </ul>
+            <p class="proofs"><i></i>3 proofs attached<span>3 questions · 1 run</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= stats ================= -->
+  <section class="wrap stats" aria-label="Key numbers">
+    <ul>
+      <li><b>100</b><span>questions per run, sharing one session</span></li>
+      <li><b>&lt;60s</b><span>median time to a verdict</span></li>
+      <li><b>$1</b><span>per 1,000 verdicts</span></li>
+    </ul>
+  </section>
+
+  <!-- ================= features ================= -->
+  <section class="wrap sec first" id="features">
+    <div class="feat">
+      <div class="txt l">
+        <h2 class="h3">Verdicts grounded in the live target</h2>
+        <p class="p">Gimorra replays the request against the running app to settle what a scanner signature alone can’t.</p>
+      </div>
+      <div class="mid2">
+        <div class="panel">
+          <div class="card qcard">
+            <span class="caps">Question</span>
+            <p class="quote">“Can tenant A read an invoice that belongs to tenant B?”</p>
+            <div class="src">
+              <div>
+                <p class="t">Scanner signature</p>
+                <p class="caps">Pattern match · no session</p>
+                <p class="note">None. Based on response shape only.</p>
+              </div>
+              <div class="res"><span class="yn no">no</span><span class="pv">p 0.71</span></div>
+            </div>
+            <div class="src live">
+              <div>
+                <p class="t">Live target</p>
+                <p class="caps">Verdicts API · 4.2 s</p>
+                <span class="cite"><i></i>GET /api/invoices/8841 → 200</span>
+              </div>
+              <div class="res"><span class="yn yes">yes</span><span class="pv">p 0.97</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ghost"></div>
+    </div>
+
+    <div class="feat flip">
+      <div class="ghost"></div>
+      <div class="mid2">
+        <div class="panel">
+          <div class="card bcard" id="batch">
+            <div class="bhead"><span class="caps">State</span><span class="dom">app.acme.dev</span><span class="caps">One session</span></div>
+            <div class="brow"><code>auth_scheme</code><span class="type">choice</span><span class="out"><span class="dots"><i></i><i></i><i></i></span><span class="yn val">jwt_rs256</span></span></div>
+            <div class="brow"><code>reset_token_reuse</code><span class="type">bool</span><span class="out"><span class="dots"><i></i><i></i><i></i></span><span class="yn yes">yes</span></span></div>
+            <div class="brow"><code>cross_tenant_orders</code><span class="type">bool</span><span class="out"><span class="dots"><i></i><i></i><i></i></span><span class="yn yes">yes</span></span></div>
+            <div class="brow"><code>admin_route_exposed</code><span class="type">bool</span><span class="out"><span class="dots"><i></i><i></i><i></i></span><span class="yn no">no</span></span></div>
+            <div class="kstats">
+              <div><span class="caps">Questions</span><b data-n="4">4</b></div>
+              <div><span class="caps">Requests</span><b data-n="37">37</b></div>
+              <div><span class="caps">Latency</span><b data-n="6.8" data-fx="1" data-suf=" s">6.8 s</b></div>
+              <div><span class="caps">Cost</span><b>$0.004</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="txt r">
+        <h2 class="h3">Ask 100 questions in one run</h2>
+        <p class="p">Put a whole checklist in one request. Every question reuses the same authenticated session and the same crawl, so the tenth check costs no more setup than the first.</p>
+      </div>
+    </div>
+
+    <div class="feat">
+      <div class="txt l">
+        <h2 class="h3">Auto-file what clears your threshold</h2>
+        <p class="p">Each verdict comes with a probability and the proofs behind it. Pick a threshold: anything above it is filed for you, anything below goes to a reviewer with the evidence attached.</p>
+      </div>
+      <div class="mid2">
+        <div class="panel">
+          <div class="card thr" id="thr">
+            <header><span class="caps">Answers</span><label class="caps" for="thrRange">Threshold <output id="thrVal" for="thrRange">0.80</output></label></header>
+            <div class="trows">
+              <div class="trk" data-p=".99" style="--p:.99"><code>sqli_login</code><span class="bar"><i></i></span><span class="pv">0.99</span><span class="tag auto">Auto</span></div>
+              <div class="trk" data-p=".94" style="--p:.94"><code>idor_invoices</code><span class="bar"><i></i></span><span class="pv">0.94</span><span class="tag auto">Auto</span></div>
+              <div class="trk" data-p=".88" style="--p:.88"><code>ssrf_webhook</code><span class="bar"><i></i></span><span class="pv">0.88</span><span class="tag auto">Auto</span></div>
+              <div class="trk rev" data-p=".55" style="--p:.55"><code>cache_poisoning</code><span class="bar"><i></i></span><span class="pv">0.55</span><span class="tag review">Review</span></div>
+              <input id="thrRange" type="range" min="0" max="100" step="1" value="80" aria-label="Auto-file threshold, percent">
+            </div>
+            <footer><span id="thrSum">3 automated · 1 to review</span><span>↔ Drag the line</span></footer>
+          </div>
+        </div>
+      </div>
+      <div class="ghost"></div>
+    </div>
+  </section>
+
+  <!-- ================= benchmarks ================= -->
+  <section class="wrap sec split bench" id="benchmarks">
+    <div class="l">
+      <p class="eyebrow">Benchmarks</p>
+      <h2 class="h3">The most accurate verdicts on stateful bugs</h2>
+      <p class="p">Proof-Bench is 300 seeded vulnerabilities that only show up with session state, tenant boundaries or multi-step flows. Each one was confirmed by a manual exploit, and systems are scored by exact match. On Static-Bench, where a single response gives the bug away, the three systems land within two points of each other.</p>
+      <div class="actions">
+        <a class="btn dark" href="#quickstart">Learn more</a>
+        <a class="btn line" href="#quickstart">Dataset</a>
+        <a class="btn line" href="#quickstart">Code</a>
+      </div>
+    </div>
+    <div class="r">
+      <div class="bgroup">
+        <header><h3>Proof-Bench</h3><span class="m">300 seeded bugs, live targets</span></header>
+        <ul class="bars">
+          <li class="hi"><span>Gimorra Verdicts</span><span class="track"><i style="--v:91.3"></i></span><span class="v">91.3%</span></li>
+          <li><span>Signature scanner</span><span class="track"><i style="--v:48.0"></i></span><span class="v">48.0%</span></li>
+          <li><span>LLM triage only</span><span class="track"><i style="--v:39.7"></i></span><span class="v">39.7%</span></li>
+        </ul>
+      </div>
+      <div class="bgroup">
+        <header><h3>Static-Bench</h3><span class="m">231 bugs, answer in one response</span></header>
+        <ul class="bars">
+          <li class="hi"><span>Gimorra Verdicts</span><span class="track"><i style="--v:89.6"></i></span><span class="v">89.6%</span></li>
+          <li><span>Signature scanner</span><span class="track"><i style="--v:90.0"></i></span><span class="v">90.0%</span></li>
+          <li><span>LLM triage only</span><span class="track"><i style="--v:88.3"></i></span><span class="v">88.3%</span></li>
+        </ul>
+      </div>
+      <p class="m bnote">Exact-match accuracy. Illustrative sample data for this theme.</p>
+    </div>
+  </section>
+
+  <!-- ================= use cases ================= -->
+  <section class="wrap sec" id="use-cases">
+    <div class="rails uhead">
+      <p class="eyebrow">Use cases</p>
+      <h2 class="h2">Hand routine triage to a workflow</h2>
+    </div>
+
+    <div class="use">
+      <div class="txt">
+        <p class="eyebrow">AppSec</p>
+        <h3 class="h3">Perpetual retest</h3>
+        <p class="p">A platform team re-ran 312 open findings after a release, looking for regressions and new variants. It took under four minutes and cost $0.62, and 96% of the flags survived manual review.</p>
+        <a class="btn line" href="#demo" data-key="t">Try it free <span class="kbd" aria-hidden="true">T</span></a>
+      </div>
+      <div class="pn">
+        <div class="panel">
+          <div class="card" id="retest">
+            <div class="chead"><h4>Perpetual retest</h4><span class="caps">Rechecking every finding</span></div>
+            <table class="rt">
+              <thead><tr><th scope="col">Finding</th><th scope="col"><span class="lg">Still exploitable</span><span class="sm">Live</span></th><th scope="col"><span class="lg">New variant</span><span class="sm">Var.</span></th><th scope="col">Status</th></tr></thead>
+              <tbody>
+                <tr><td><span>IDOR on /api/invoices</span></td><td><span class="yn no">no</span></td><td><span class="yn no">no</span></td><td><span class="tag clear">Clear</span></td></tr>
+                <tr class="fl"><td><span>SQL injection in login</span></td><td><span class="yn no">no</span></td><td><span class="yn yes">yes</span></td><td><span class="tag flag">Flagged</span></td></tr>
+                <tr><td><span>SSRF via webhook URL</span></td><td><span class="yn no">no</span></td><td><span class="yn no">no</span></td><td><span class="tag clear">Clear</span></td></tr>
+                <tr class="fl"><td><span>Reset token reuse</span></td><td><span class="yn yes">yes</span></td><td><span class="yn no">no</span></td><td><span class="tag flag">Flagged</span></td></tr>
+                <tr><td><span>Stored XSS in profile bio</span></td><td><span class="yn no">no</span></td><td><span class="yn no">no</span></td><td><span class="tag clear">Clear</span></td></tr>
+                <tr><td><span>Open redirect on /login</span></td><td><span class="yn no">no</span></td><td><span class="yn no">no</span></td><td><span class="tag clear">Clear</span></td></tr>
+              </tbody>
+            </table>
+            <div class="kstats three">
+              <div><span class="caps">Findings</span><b id="rtN">0</b></div>
+              <div><span class="caps">Time</span><b id="rtT">—</b></div>
+              <div class="cost"><span class="caps">Cost</span><b id="rtC">$0.00</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="use flip">
+      <div class="pn">
+        <div class="panel">
+          <div class="card" id="routing">
+            <div class="chead"><h4>Inbound reports</h4><span class="caps">Severity: choice</span></div>
+            <div class="route">
+              <ul class="inb">
+                <li data-b="0" data-to="→ critical">sqli-login</li>
+                <li data-b="2" data-to="→ low">open-redirect</li>
+                <li data-b="1" data-to="→ high">idor-invoices</li>
+                <li data-b="2" data-to="→ low">verbose-errors</li>
+                <li data-b="0" data-to="→ critical">ssrf-webhook</li>
+                <li data-b="1" data-to="→ high">xss-profile-bio</li>
+                <li data-b="2" data-to="→ low">csrf-settings</li>
+                <li data-b="0" data-to="→ critical">jwt-none-alg</li>
+              </ul>
+              <div>
+                <div class="bucket"><header><span class="caps">Critical</span><b>0</b></header><ul></ul></div>
+                <div class="bucket"><header><span class="caps">High</span><b>0</b></header><ul></ul></div>
+                <div class="bucket"><header><span class="caps">Low</span><b>0</b></header><ul></ul></div>
+              </div>
+            </div>
+            <div class="kstats three">
+              <div><span class="caps">Reports</span><b id="roN">0</b></div>
+              <div><span class="caps">Time</span><b id="roT">—</b></div>
+              <div class="cost"><span class="caps">Cost</span><b id="roC">$0.00</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="txt">
+        <p class="eyebrow">Bug bounty</p>
+        <h3 class="h3">Report routing</h3>
+        <p class="p">A program reproduced 740 inbound reports and sorted them by severity in under two minutes for about $0.74. 95% of the auto-routed reports reached the right queue.</p>
+        <a class="btn line" href="#demo">Try it free <span class="kbd" aria-hidden="true">T</span></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= demo ================= -->
+  <section class="wrap sec split demo" id="demo">
+    <div class="l">
+      <h2>Want to see it on your own target? <a href="#demoInput">Try the demo</a></h2>
+    </div>
+    <div class="r">
+      <div class="panel">
+        <div class="card dcard" id="dcard">
+          <form class="dform" id="dform" autocomplete="off">
+            <label class="sr" for="demoInput">Target URL or name</label>
+            <input id="demoInput" type="text" placeholder="Target URL or name" maxlength="80" spellcheck="false" autocapitalize="none">
+            <button type="submit">Run <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6h8M6.5 2.5L10 6l-3.5 3.5"/></svg></button>
+          </form>
+          <div class="dbody" aria-live="polite">
+            <div class="dintro">
+              <p class="caps">Gimorra Verdicts API</p>
+              <h3>See how your team could use <em>live-proven findings</em></h3>
+            </div>
+            <div class="dres">
+              <div class="hd"><span class="dom" id="dDom">app.acme.dev</span><span class="caps">3 questions · 1 run</span></div>
+              <div class="rows">
+                <div class="brow"><code>exposed_admin_route</code><span class="out"><span class="dots"><i></i><i></i><i></i></span><span class="yn no">no</span></span><span class="pv">0.96</span></div>
+                <div class="brow"><code>reset_token_reuse</code><span class="out"><span class="dots"><i></i><i></i><i></i></span><span class="yn yes">yes</span></span><span class="pv">0.91</span></div>
+                <div class="brow"><code>cross_tenant_read</code><span class="out"><span class="dots"><i></i><i></i><i></i></span><span class="yn yes">yes</span></span><span class="pv">0.87</span></div>
+              </div>
+              <p class="foot"><span>Sample output · no requests sent</span><button type="button" id="dReset">Reset</button></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= quickstart ================= -->
+  <section class="wrap sec split" id="quickstart">
+    <div class="l">
+      <p class="eyebrow">Quickstart</p>
+      <h2 class="h3">Try one run</h2>
+      <p class="p">Send state and named questions with your API key in the x-api-key header. Each answer comes back typed, with a probability, and the response lists the proofs behind it.</p>
+      <dl class="defs">
+        <div><dt>state</dt><dd>Shared context for every question, such as a target and a session</dd></div>
+        <div><dt>questions</dt><dd>Up to 100 named questions that share one crawl</dd></div>
+        <div><dt>type</dt><dd>bool for yes or no, choice for a fixed set of options, score for an ordered rubric</dd></div>
+        <div><dt>instructions</dt><dd>The question itself, in plain language</dd></div>
+      </dl>
+    </div>
+    <div class="r">
+      <div class="code" id="code">
+        <div class="tabs">
+          <div class="tl" role="tablist" aria-label="Language">
+            <button type="button" role="tab" id="tab-curl" aria-controls="codePre" aria-selected="true" data-lang="curl">cURL</button>
+            <button type="button" role="tab" id="tab-py" aria-controls="codePre" aria-selected="false" tabindex="-1" data-lang="py">Python</button>
+            <button type="button" role="tab" id="tab-ts" aria-controls="codePre" aria-selected="false" tabindex="-1" data-lang="ts">TypeScript</button>
+            <button type="button" role="tab" id="tab-cli" aria-controls="codePre" aria-selected="false" tabindex="-1" data-lang="cli">CLI</button>
+          </div>
+          <button type="button" class="copy" id="copyCode">Copy</button>
+        </div>
+        <pre id="codePre" role="tabpanel" aria-labelledby="tab-curl" tabindex="0"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= pricing ================= -->
+  <section class="wrap sec price" id="pricing">
+    <div class="rails">
+      <p class="eyebrow">Pricing</p>
+      <h2 class="h3">$1 per 1,000 verdicts</h2>
+      <p class="p">A run can carry up to 100 questions, and they all share one session, so a finding costs the same whether you ask one question about it or ten. Start with 5,000 free verdicts in the console.</p>
+    </div>
+    <div class="rails">
+      <ul class="tiles">
+        <li><span class="m">Per verdict</span><b>$0.001</b></li>
+        <li><span class="m">Questions per run</span><b>Up to 100</b></li>
+        <li><span class="m">Free to start</span><b>5,000 verdicts</b></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= faq ================= -->
+  <section class="wrap sec faq" id="faq">
+    <h2>FAQs</h2>
+    <ul id="faqList">
+      <li class="open"><h3><button type="button" aria-expanded="true">What counts as a verdict?</button></h3><div class="ans"><div><p class="p">One verdict is one typed answer to one named question. A run can carry up to 100 questions against the same state, and each answered question is billed at $1 per 1,000.</p></div></div></li>
+      <li><h3><button type="button" aria-expanded="false">What question types are there?</button></h3><div class="ans"><div><p class="p">bool for yes or no, choice for a fixed set of options such as a severity, and score for an ordered rubric. Every type returns a probability alongside the value.</p></div></div></li>
+      <li><h3><button type="button" aria-expanded="false">How do proofs work?</button></h3><div class="ans"><div><p class="p">Each answer links to the exact request and response pairs that settled it. Proofs are replayable, so a reviewer can re-run them against the target and get the same result.</p></div></div></li>
+      <li><h3><button type="button" aria-expanded="false">What happens when the target can’t settle a question?</button></h3><div class="ans"><div><p class="p">The answer comes back with a low probability and no proof attached. Anything under your threshold is routed to review instead of being filed automatically.</p></div></div></li>
+      <li><h3><button type="button" aria-expanded="false">Can I use it from an agent?</button></h3><div class="ans"><div><p class="p">Yes. The same endpoint is exposed over MCP and the CLI, and the response is plain JSON, so an agent can ask follow-up questions against the same session.</p></div></div></li>
+      <li><h3><button type="button" aria-expanded="false">When should I run a full scan instead?</button></h3><div class="ans"><div><p class="p">Use a scan to discover what is there. Use Verdicts when you already have a suspicion and need a yes or no you can act on.</p></div></div></li>
+    </ul>
+  </section>
+
+  <!-- ================= start ================= -->
+  <section class="wrap sec use start" id="start" style="margin-top:var(--gap)">
+    <div class="txt">
+      <h2 class="h3">Start building</h2>
+      <p class="p">Get 5,000 free verdicts in the console or dive into the documentation.</p>
+      <div class="actions"><a class="btn org" href="dashboard-gimorra-console.html">Open console</a><a class="btn line" href="#quickstart">Docs</a></div>
+    </div>
+    <div class="pn">
+      <div class="art">
+        <svg id="dither" viewBox="0 0 960 560" preserveAspectRatio="xMidYMid slice" fill="currentColor" aria-hidden="true"></svg>
+        <div class="prompt">
+          <span class="caps">Agent onboarding prompt</span>
+          <p id="promptText">Use curl to read <b>gimorra.dev/agents.md</b> and perform the setup to install Gimorra</p>
+          <button class="cp" type="button" id="copyPrompt" aria-label="Copy prompt"><svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M10 5V3.5A1.5 1.5 0 008.5 2h-5A1.5 1.5 0 002 3.5v5A1.5 1.5 0 003.5 10H5"/></svg></button>
+          <ul aria-label="Works with"><li>Claude Code</li><li>Codex</li><li>Cursor</li><li>opencode</li><li>MCP</li></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site wrap" id="contact">
+  <div class="fgrid">
+    <div class="me">
+      <img src="assets/gimorra-logo.png" width="28" height="28" alt="" style="border-radius:7px">
+      <h3>Contact</h3>
+      <a href="mailto:hello@gimorra.dev">hello@gimorra.dev</a>
+      <h3><label for="updEmail">Get updates</label></h3>
+      <form class="upd" id="upd" novalidate>
+        <input id="updEmail" type="email" placeholder="you@company.com" autocomplete="email" aria-describedby="updMsg">
+        <button type="submit" aria-label="Subscribe"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h10M7.5 2.5L12 7l-4.5 4.5"/></svg></button>
+      </form>
+      <p id="updMsg" role="status"></p>
+    </div>
+    <div class="col">
+      <h3>Products</h3>
+      <a href="#">Scan</a><a href="#features">Verdicts API</a><a href="#">Proof plans</a><a href="#">Retest</a><a href="#">Monitor</a><a href="#">Reports</a><a href="#">Gimorra MCP</a>
+      <h3>Solutions</h3>
+      <a href="#use-cases">AppSec teams</a><a href="#use-cases">Bug bounty</a><a href="#">Pentest firms</a><a href="#">Compliance</a>
+    </div>
+    <div class="col">
+      <h3>Developers</h3>
+      <a href="#quickstart">Docs</a><a href="#start">Onboard your agent</a><a href="#">Gimorra CLI</a><a href="#">API reference</a><a href="#">Python SDK</a><a href="#">TypeScript SDK</a><a href="#">Changelog</a><a href="#">Status</a>
+      <h3>Company</h3>
+      <a href="#">About</a><a href="#">Careers</a><a href="#">Brand</a>
+    </div>
+    <div class="col">
+      <h3>Resources</h3>
+      <a href="#">Blog</a><a href="#benchmarks">Benchmarks</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a>
+      <h3>Legal</h3>
+      <a href="#">Terms of service</a><a href="#">Privacy policy</a><a href="#">Report a security issue</a>
+    </div>
+  </div>
+  <p class="fbase"><span><i></i>All systems operational</span><span>Sample page · Gimorra 2026</span></p>
+</footer>
+
+<section class="mdoc" id="mdoc" aria-label="Machine-readable version">
+  <div class="bar"><span class="caps">text/markdown · for agents</span><button class="btn line" type="button" id="copyDoc">Copy</button></div>
+  <pre id="mdocPre"></pre>
+</section>
+
+<div class="hm" role="radiogroup" aria-label="Page view">
+  <button type="button" role="radio" aria-checked="true" data-view="human"><i></i>Human</button>
+  <button type="button" role="radio" aria-checked="false" data-view="machine" tabindex="-1"><i></i>Machine</button>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function onSeen(el, fn, threshold = .35) {
+  if (RM || !('IntersectionObserver' in window)) { fn(true); return; }
+  const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); fn(false); } }, { threshold });
+  io.observe(el);
+}
+function countUp(el, to, fmt, dur = 900) {
+  if (RM) { el.textContent = fmt(to); return; }
+  const t0 = performance.now();
+  (function tick(now) {
+    const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = fmt(to * e);
+    if (k < 1) requestAnimationFrame(tick);
+  })(t0);
+}
+async function copy(text, btn, done = 'Copied') {
+  try { await navigator.clipboard.writeText(text); }
+  catch { const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.append(t); t.select(); try { document.execCommand('copy'); } catch {} t.remove(); }
+  if (!btn) return;
+  if (btn.dataset.label === undefined) btn.dataset.label = btn.textContent;
+  if (btn.dataset.label.trim()) { btn.textContent = done; setTimeout(() => { btn.textContent = btn.dataset.label; }, 1400); }
+  else { btn.style.color = '#fff'; btn.setAttribute('aria-label', done); setTimeout(() => { btn.style.color = ''; btn.setAttribute('aria-label', 'Copy prompt'); }, 1400); }
+}
+
+/* announcement, mobile menu */
+$('#announce button').addEventListener('click', () => { $('#announce').remove(); $('.brand').focus({ preventScroll: true }); });
+const top = $('#top'), menuBtn = $('.menu-btn');
+menuBtn.addEventListener('click', () => { const o = top.classList.toggle('open'); menuBtn.setAttribute('aria-expanded', o); menuBtn.textContent = o ? 'Close' : 'Menu'; });
+$('#navlinks').addEventListener('click', e => { if (e.target.closest('a') && top.classList.contains('open')) menuBtn.click(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && top.classList.contains('open')) { menuBtn.click(); menuBtn.focus(); } });
+
+/* typed headline */
+const typed = $('#typed');
+const PHRASES = ['SQL injection', 'Broken access control', 'Request smuggling', 'SSRF to metadata', 'Account takeover'];
+if (!RM) (async () => {
+  let i = 0;
+  await sleep(2800);
+  for (;;) {
+    const cur = PHRASES[i];
+    for (let n = cur.length - 1; n >= 0; n--) { typed.textContent = cur.slice(0, n); await sleep(24); }
+    i = (i + 1) % PHRASES.length;
+    await sleep(280);
+    const nx = PHRASES[i];
+    for (let n = 1; n <= nx.length; n++) { typed.textContent = nx.slice(0, n); await sleep(56); }
+    await sleep(2800);
+  }
+})();
+
+/* hero flow */
+const flow = $('#flow'), QS = $$('.qt', flow), REQ = $$('.reqs li', flow), ANS = $$('.as li', flow), ST = $$('.st', flow);
+function flowFinal() {
+  QS.forEach(q => { q.firstElementChild.textContent = q.dataset.q; q.parentElement.classList.add('on'); });
+  REQ.forEach(r => { r.classList.add('in'); r.classList.toggle('ev', r.hasAttribute('data-ev')); r.classList.toggle('dim', !r.hasAttribute('data-ev')); });
+  ANS.forEach(a => a.classList.add('in')); ST.forEach(s => s.classList.add('done'));
+  flow.dataset.step = 4;
+}
+function flowReset() {
+  QS.forEach(q => { q.firstElementChild.textContent = ''; q.parentElement.classList.remove('on'); });
+  REQ.forEach(r => r.classList.remove('in', 'ev', 'dim'));
+  ANS.forEach(a => a.classList.remove('in')); ST.forEach(s => s.classList.remove('done'));
+  flow.dataset.step = 0;
+}
+async function flowLoop() {
+  for (;;) {
+    flowReset(); flow.classList.remove('out'); await sleep(450);
+    for (const q of QS) {
+      q.parentElement.classList.add('on');
+      const t = q.dataset.q;
+      for (let n = 1; n <= t.length; n++) { q.firstElementChild.textContent = t.slice(0, n); await sleep(19); }
+      await sleep(170);
+    }
+    flow.dataset.step = 1; await sleep(350);
+    for (const r of REQ) { r.classList.add('in'); await sleep(190); }
+    await sleep(350);
+    ST[0].classList.add('done'); flow.dataset.step = 2; await sleep(380);
+    for (const r of REQ) { const ev = r.hasAttribute('data-ev'); r.classList.toggle('ev', ev); r.classList.toggle('dim', !ev); await sleep(110); }
+    await sleep(380);
+    ST[1].classList.add('done'); flow.dataset.step = 3; await sleep(420);
+    for (const a of ANS) { a.classList.add('in'); await sleep(300); }
+    flow.dataset.step = 4;
+    await sleep(9000);
+    while (document.hidden) await sleep(1000);
+    flow.classList.add('out'); await sleep(520);
+  }
+}
+if (RM) flowFinal(); else onSeen($('#stage'), () => flowLoop(), .25);
+
+/* batch card */
+const batch = $('#batch');
+onSeen(batch, async instant => {
+  const rows = $$('.brow', batch);
+  if (instant) { rows.forEach(r => r.classList.add('done')); return; }
+  $$('.kstats b[data-n]', batch).forEach(b => { b.dataset.final = b.textContent; b.textContent = '0'; });
+  await sleep(500);
+  for (const r of rows) { r.classList.add('done'); await sleep(380); }
+  $$('.kstats b[data-n]', batch).forEach(b => {
+    const fx = +b.dataset.fx || 0, suf = b.dataset.suf || '';
+    countUp(b, +b.dataset.n, v => v.toFixed(fx) + suf, 700);
+  });
+});
+
+/* threshold */
+const thr = $('#thr'), range = $('#thrRange'), trks = $$('.trk', thr);
+function setThr(v) {
+  v = Math.min(99, Math.max(40, Math.round(v)));
+  range.value = v;
+  thr.style.setProperty('--thr', v / 100);
+  $('#thrVal').textContent = (v / 100).toFixed(2);
+  let auto = 0;
+  trks.forEach(r => {
+    const ok = Math.round(+r.dataset.p * 100) >= v, tag = $('.tag', r);
+    r.classList.toggle('rev', !ok);
+    tag.textContent = ok ? 'Auto' : 'Review'; tag.className = 'tag ' + (ok ? 'auto' : 'review');
+    if (ok) auto++;
+  });
+  $('#thrSum').textContent = `${auto} automated · ${trks.length - auto} to review`;
+}
+range.addEventListener('input', () => setThr(+range.value));
+setThr(80);
+onSeen(thr, () => thr.classList.add('seen'));
+onSeen($('#benchmarks'), () => $('#benchmarks').classList.add('seen'), .3);
+
+/* perpetual retest */
+onSeen($('#retest'), async instant => {
+  const rows = $$('tbody tr', $('#retest'));
+  const fin = () => { $('#rtN').textContent = '312'; $('#rtT').textContent = '< 4 min'; $('#rtC').textContent = '$0.62'; };
+  if (instant) { rows.forEach(r => r.classList.add('done')); fin(); return; }
+  countUp($('#rtN'), 312, v => Math.round(v), 2100);
+  countUp($('#rtC'), .62, v => '$' + v.toFixed(2), 2100);
+  for (const r of rows) { r.classList.add('done'); await sleep(330); }
+  fin();
+}, .4);
+
+/* report routing */
+onSeen($('#routing'), async instant => {
+  const items = $$('.inb li', $('#routing')), buckets = $$('.bucket', $('#routing'));
+  const fin = () => { $('#roN').textContent = '740'; $('#roT').textContent = '< 2 min'; $('#roC').textContent = '$0.74'; };
+  if (!instant) { countUp($('#roN'), 740, v => Math.round(v), 2600); countUp($('#roC'), .74, v => '$' + v.toFixed(2), 2600); await sleep(300); }
+  for (const it of items) {
+    const b = buckets[+it.dataset.b], li = document.createElement('li');
+    li.textContent = it.textContent; $('ul', b).append(li);
+    it.classList.add('sent');
+    $('header b', b).textContent = $('ul', b).children.length;
+    if (!instant) { await sleep(30); li.classList.add('in'); await sleep(290); } else li.classList.add('in');
+  }
+  fin();
+}, .4);
+
+/* demo */
+const dcard = $('#dcard'), dform = $('#dform'), dinput = $('#demoInput');
+let dRun = 0;
+dform.addEventListener('submit', async e => {
+  e.preventDefault();
+  const run = ++dRun;
+  const dom = (dinput.value.trim() || 'app.acme.dev').replace(/^https?:\/\//i, '').replace(/[/?#].*$/, '').slice(0, 48);
+  $('#dDom').textContent = dom;
+  const rows = $$('.dres .brow', dcard);
+  rows.forEach(r => r.classList.remove('done'));
+  dcard.classList.add('ran');
+  for (const r of rows) { await sleep(RM ? 0 : 520); if (run !== dRun) return; r.classList.add('done'); }
+});
+$('#dReset').addEventListener('click', () => { dRun++; dcard.classList.remove('ran'); dinput.value = ''; dinput.focus(); });
+
+/* code tabs */
+const CODE = {
+curl: `curl https://api.gimorra.dev/v1/verdicts \\
+  -H "x-api-key: $GIMORRA_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "state": {
+      "target": "https://app.acme.dev",
+      "session": "tenant-a"
+    },
+    "questions": {
+      "reset_token_reuse": {
+        "type": "bool",
+        "instructions": "Can a password reset token be used twice?"
+      },
+      "cross_tenant_orders": {
+        "type": "bool",
+        "instructions": "Can tenant A read an order that belongs to tenant B?"
+      }
+    },
+    "threshold": 0.8
+  }'`,
+py: `import os
+from gimorra import Gimorra
+
+client = Gimorra(api_key=os.environ["GIMORRA_API_KEY"])
+
+run = client.verdicts.create(
+    state={
+        "target": "https://app.acme.dev",
+        "session": "tenant-a",
+    },
+    questions={
+        "reset_token_reuse": {
+            "type": "bool",
+            "instructions": "Can a password reset token be used twice?",
+        },
+        "cross_tenant_orders": {
+            "type": "bool",
+            "instructions": "Can tenant A read an order that belongs to tenant B?",
+        },
+    },
+    threshold=0.8,
+)
+
+for name, answer in run.answers.items():
+    print(name, answer.value, answer.p, answer.proofs)`,
+ts: `import Gimorra from "gimorra";
+
+const client = new Gimorra({ apiKey: process.env.GIMORRA_API_KEY });
+
+const run = await client.verdicts.create({
+  state: {
+    target: "https://app.acme.dev",
+    session: "tenant-a",
+  },
+  questions: {
+    reset_token_reuse: {
+      type: "bool",
+      instructions: "Can a password reset token be used twice?",
+    },
+    cross_tenant_orders: {
+      type: "bool",
+      instructions: "Can tenant A read an order that belongs to tenant B?",
+    },
+  },
+  threshold: 0.8,
+});
+
+for (const [name, answer] of Object.entries(run.answers)) {
+  console.log(name, answer.value, answer.p, answer.proofs);
+}`,
+cli: `# one run, two questions, shared session
+gimorra verdicts ask https://app.acme.dev \\
+  --session tenant-a \\
+  --bool reset_token_reuse="Can a password reset token be used twice?" \\
+  --bool cross_tenant_orders="Can tenant A read tenant B's orders?" \\
+  --threshold 0.80 \\
+  --json
+
+# re-prove a stored finding and print its evidence trail
+gimorra prove FND-2291 --evidence`
+};
+const pre = $('#codePre'), tabs = $$('#code [role=tab]');
+const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+function showCode(lang) {
+  pre.innerHTML = esc(CODE[lang]).replace(/^#.*$/gm, m => `<span class="c">${m}</span>`).replace(/"[^"\n]*"/g, m => `<span class="s">${m}</span>`);
+  pre.dataset.lang = lang; pre.scrollLeft = 0; pre.setAttribute('aria-labelledby', 'tab-' + lang);
+  tabs.forEach(t => { const on = t.dataset.lang === lang; t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1; });
+}
+tabs.forEach((t, i) => {
+  t.addEventListener('click', () => showCode(t.dataset.lang));
+  t.addEventListener('keydown', e => {
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0; if (!d) return;
+    const n = tabs[(i + d + tabs.length) % tabs.length]; n.focus(); showCode(n.dataset.lang);
+  });
+});
+showCode('curl');
+$('#copyCode').addEventListener('click', e => copy(CODE[pre.dataset.lang], e.currentTarget));
+$('#copyPrompt').addEventListener('click', e => copy($('#promptText').textContent, e.currentTarget));
+
+/* faq */
+$('#faqList').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const li = b.closest('li'), open = !li.classList.contains('open');
+  li.classList.toggle('open', open); b.setAttribute('aria-expanded', open);
+});
+
+/* updates form */
+$('#upd').addEventListener('submit', e => {
+  e.preventDefault();
+  const inp = $('#updEmail'), msg = $('#updMsg'), ok = /^\S+@\S+\.\S+$/.test(inp.value.trim());
+  msg.style.color = ok ? '' : 'var(--red)';
+  inp.setAttribute('aria-invalid', !ok);
+  msg.textContent = ok ? 'Thanks. This sample page stores nothing.' : 'Enter a valid email address.';
+  if (ok) inp.value = '';
+});
+
+/* dither art */
+(() => {
+  const B = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]], W = 960, H = 560, cw = 13.4, bw = 6.6, rh = 35;
+  let s = '';
+  for (let c = 0; c * cw < W; c++) for (let r = 0; r * rh < H; r++) {
+    const x = c * cw, y = r * rh;
+    const d = (x / W - .3) * 1.9 + (.42 - y / H) * .5, t = (B[r % 4][c % 4] + .5) / 16;
+    if (d > t) s += `<rect x="${x.toFixed(1)}" y="${y + 2}" width="${bw}" height="${rh - 4}" opacity="${Math.min(.8, .34 + d * .4).toFixed(2)}"/>`;
+  }
+  $('#dither').innerHTML = s;
+})();
+
+/* human / machine */
+const MD = `# Gimorra Verdicts
+
+> Findings proven on the live target. Deterministic validators replay every
+> suspected finding against the running app. Each verdict comes back typed,
+> with a probability and the evidence behind it.
+
+## Numbers
+
+- 100 questions per run, sharing one session
+- <60s median time to a verdict
+- $1 per 1,000 verdicts
+
+## How it works
+
+1. Send \`state\` (a target and a session) with up to 100 named \`questions\`.
+2. Gimorra replays the relevant requests against the live target once.
+3. Each answer returns \`value\`, \`p\` and the \`proofs\` that settled it.
+4. Answers at or above \`threshold\` are filed; the rest go to review.
+
+## Request
+
+POST https://api.gimorra.dev/v1/verdicts
+x-api-key: $GIMORRA_API_KEY
+
+{
+  "state": { "target": "https://app.acme.dev", "session": "tenant-a" },
+  "questions": {
+    "reset_token_reuse": { "type": "bool", "instructions": "Can a password reset token be used twice?" }
+  },
+  "threshold": 0.8
+}
+
+## Response
+
+{
+  "answers": {
+    "reset_token_reuse": { "value": true, "p": 0.97, "route": "auto", "proofs": ["prf_01"] }
+  },
+  "proofs": [
+    { "id": "prf_01", "request": "POST /auth/reset", "status": 200 }
+  ],
+  "usage": { "questions": 1, "requests": 9, "latency_ms": 4210 }
+}
+
+## Question types
+
+- bool: yes or no
+- choice: one of a fixed set of options
+- score: a position on an ordered rubric
+
+## Benchmarks (illustrative sample data)
+
+| system            | Proof-Bench | Static-Bench |
+|-------------------|-------------|--------------|
+| Gimorra Verdicts  | 91.3%       | 89.6%        |
+| Signature scanner | 48.0%       | 90.0%        |
+| LLM triage only   | 39.7%       | 88.3%        |
+
+## Pricing
+
+- $0.001 per verdict
+- Up to 100 questions per run
+- 5,000 verdicts free to start
+
+## Links
+
+- Docs: #quickstart
+- Console: gimorra-dashboard.html
+- Contact: hello@gimorra.dev
+`;
+$('#mdocPre').textContent = MD;
+$('#copyDoc').addEventListener('click', e => copy(MD, e.currentTarget));
+const hm = $$('.hm button');
+function setView(v) {
+  document.body.classList.toggle('machine', v === 'machine');
+  hm.forEach(b => { const on = b.dataset.view === v; b.setAttribute('aria-checked', on); b.tabIndex = on ? 0 : -1; });
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+/* in-page links point at sections the machine view hides, so go back to the page first */
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href^="#"]:not(.skip)');
+  if (a && a.getAttribute('href') !== '#top' && document.body.classList.contains('machine')) setView('human');
+});
+hm.forEach((b, i) => {
+  b.addEventListener('click', () => setView(b.dataset.view));
+  b.addEventListener('keydown', e => { if (!/^Arrow/.test(e.key)) return; e.preventDefault(); const n = hm[1 - i]; n.focus(); setView(n.dataset.view); });
+});
+
+/* keyboard hints */
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+  const t = e.target;
+  if (t.closest && t.closest('input,textarea,select,[contenteditable]')) return;
+  if (document.body.classList.contains('machine')) return;
+  const k = e.key.toLowerCase();
+  if (k === 't') { e.preventDefault(); $('#demo').scrollIntoView({ block: 'center' }); setTimeout(() => dinput.focus({ preventScroll: true }), RM ? 0 : 450); return; }
+  const a = $(`a[data-key="${k.replace(/[^a-z]/g, '')}"]`);
+  if (a && k.length === 1) { e.preventDefault(); a.click(); }
+});
+})();
+</script>
+</body>
+</html>
