@@ -25,7 +25,7 @@ window.TWEAK_PAGE = (() => {
     getMode: () => 'dark',
     setMode: () => {},
     sans: '--sans', mono: '--mono',
-    scale: { r: ['--r-sm', '--r', '--r-lg'], d: ['--gutter', '--section-gap', '--bleed'] },
+    scale: { r: ['--r-sm', '--r'], d: ['--gutter', '--section-gap', '--bleed'] },
     chrome: { bg: 'var(--bg-raise-2)', fg: 'var(--fg)', dim: 'var(--fg-2)', line: 'var(--line-2)', hover: 'var(--line-2)', accent: 'var(--s-blue)' },
     accentOwn: { dark: '#3b82f6' },
     /* the page's own colours in palette order (app surf raised inset hover line line2 text text2 dim green red yellow blue magenta warn); used for glass */
@@ -54,10 +54,10 @@ window.TWEAK_PAGE = (() => {
         '--fg-hover': blend(fg, light ? 90 : 60, light ? bg : '#ffffff'),
         '--line': mix(p.text, light ? 9 : 7), '--line-2': mix(p.text, light ? 15 : 12),
         '--grid': mix(p.text, light ? 8 : 6), '--axis': mix(p.text, light ? 15 : 11),
-        /* series two to four keep the page's hues; the light set is stepped down for a pale surface */
-        '--s-teal': mark(TEAL[p.mode]), '--s-violet': mark(light ? '#6d54d6' : '#8c7cf0'), '--s-amber': mark(light ? '#a8730f' : '#b8861f'),
+        /* series two and three keep the page's hues; the light set is stepped down for a pale surface */
+        '--s-teal': mark(TEAL[p.mode]), '--s-violet': mark(light ? '#6d54d6' : '#8c7cf0'),
         '--s-grey': mix(p.text, light ? 18 : 22),
-        '--good': good, '--warn': warn, '--serious': on(p.warn, step1), '--crit': crit,
+        '--good': good, '--warn': warn, '--crit': crit,
         '--good-wash': mix(good, 12), '--warn-wash': mix(warn, 12), '--crit-wash': mix(crit, 12),
         '--badge': badge[0], '--on-badge': badge[1],
         '--pill-edge': light ? 'rgba(255,255,255,.6)' : mix(p.text, 4),
@@ -66,10 +66,8 @@ window.TWEAK_PAGE = (() => {
     },
 
     /* the accent is the first series; the ordinal ramp (p50, p95, p99), the heat ramp and the accent-coloured text are steps of it */
-    accent: (c, mix, mode) => {
-      const light = mode === 'light', st = document.documentElement.style;
-      /* map() has just set the surface and text colours; when it did not run, the page's own are in force */
-      const bg = st.getPropertyValue('--bg').trim() || OWN.bg, fg = st.getPropertyValue('--fg').trim() || OWN.fg;
+    accent: (c, mix, mode, p, tokens) => {
+      const light = mode === 'light', bg = tokens ? tokens['--bg'] : OWN.bg; /* the surface map() chose; when it did not run, the page's own is in force */
       const pale = !light && lum(c) > .6; /* an accent already near white has no room above it: step down only */
       /* ordinal: pale to deep in both modes, as tints and shades of the one hue. On paper the pale end is the lightest tint that
          still holds 3:1; an accent with no such tint (it is close to 3:1 itself) starts the ramp instead. */
@@ -92,6 +90,7 @@ window.TWEAK_PAGE = (() => {
       return out;
     },
 
-    glass: '.tip',
+    gutter: { own: 'boxed', css: 'html[data-tw-gutter="full-width"]{--container:none}' },
+    glass: '.tip, .rt-menu',
   };
 })();

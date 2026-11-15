@@ -26,7 +26,6 @@ window.TWEAK_PAGE = (() => {
     });
     return out;
   };
-  let theme = null; /* the palette map() was just given: accent() is called right after it, in the same pass, and needs the surface */
   return {
     key: 'evals',
     modes: ['light', 'dark'], /* the page ships both, through light-dark() tokens */
@@ -40,7 +39,6 @@ window.TWEAK_PAGE = (() => {
     own,
     map: (p, mix) => {
       const light = p.mode === 'light';
-      theme = p; queueMicrotask(() => { theme = null; });
       return {
         '--frame': p.app, '--card': p.surf, '--paper': p.solid, '--raised': p.glass ? mix(p.solid, 86) : p.raised, '--edge': p.line,
         '--ink': p.text, '--ink-2': p.text2, '--ink-3': mix(p.text2, 70, p.dim),
@@ -50,10 +48,11 @@ window.TWEAK_PAGE = (() => {
         ...lift(p),
       };
     },
-    accent: (c, mix, mode) => {
-      const p = theme || { text: '#' + own[mode].split(' ')[7], solid: '#' + own[mode].split(' ')[1] }; /* no map() this pass: the page's own solid card */
+    accent: (c, mix, mode, p) => {
+      p = p || { text: '#' + own[mode].split(' ')[7], solid: '#' + own[mode].split(' ')[1] }; /* no map() this pass: the page's own solid card */
       return { '--accent': c, '--focus': c, '--sel': c, '--wash': mix(c, wash(c, p.text, face(p))) };
     },
-    glass: '.tip', /* only boxes that float over other content: blurring in-flow cards over the smooth backdrop looked identical and cost 2.5x GPU time while scrolling */
+    gutter: { own: 'full-width', css: 'html[data-tw-gutter="boxed"] .page{max-width:1280px;margin-inline:auto}' },
+    glass: '.tip, .rt-menu', /* only boxes that float over other content: blurring in-flow cards over the smooth backdrop looked identical and cost 2.5x GPU time while scrolling */
   };
 })();

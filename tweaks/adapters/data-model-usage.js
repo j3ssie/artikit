@@ -20,5 +20,6 @@ window.TWEAK_PAGE = {
     '--up': p.green, '--down': p.red, '--up-wash': mix(p.green, 13), '--down-wash': mix(p.red, 13),
   }),
   accent: (c, mix) => ({ '--accent': c, '--accent-wash': mix(c, 14), '--s1': c }),
-  glass: '.tooltip', /* only boxes that float over other content: blurring in-flow cards over the smooth backdrop looked identical and cost 2.5x GPU time while scrolling */
+  gutter: { own: 'boxed', css: 'html[data-tw-gutter="full-width"] .wrap{width:calc(100% - 48px)}@media (max-width:720px){html[data-tw-gutter="full-width"] .wrap{width:calc(100% - 32px)}}' },
+  glass: '.tooltip, .rt-menu', /* only boxes that float over other content: blurring in-flow cards over the smooth backdrop looked identical and cost 2.5x GPU time while scrolling */
 };

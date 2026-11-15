@@ -94,30 +94,19 @@ h1,h2,h3{margin:0;font-weight:600;color:var(--text);text-wrap:balance}
 p{margin:0;color:var(--text-body);text-wrap:pretty}
 svg.i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 .label{font-size:var(--fs-2xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
-.muted{color:var(--text-muted)}.faint{color:var(--text-faint)}.body{color:var(--text-body)}
 code{font-size:.92em;padding:.05em .35em;border-radius:var(--r-pill);background:var(--neutral-soft-bg);color:var(--text)}
 
 /* ================= motion ================= */
-@keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes growX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-@keyframes blink{50%{opacity:0}}
 @keyframes softPulse{50%{opacity:.45}}
 @keyframes halo1{50%{transform:scale(1.12);opacity:.78}}
 @keyframes halo2{50%{transform:scale(.9);opacity:.38}}
-@keyframes shimmer{to{background-position:-200% 0}}
-.page.active{animation:pageIn 280ms var(--ease) both}
-.stagger>*{animation:rise 320ms var(--ease) both}
-.stagger>*:nth-child(1){animation-delay:40ms}.stagger>*:nth-child(2){animation-delay:80ms}.stagger>*:nth-child(3){animation-delay:120ms}.stagger>*:nth-child(4){animation-delay:160ms}.stagger>*:nth-child(5){animation-delay:200ms}
-.page.active .grow{transform-origin:left;animation:growX 620ms var(--ease) both}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 
 /* ================= app shell ================= */
 .frame{display:flex;height:100vh;height:100dvh;overflow:hidden;background:var(--surface)}
 .mainc{display:flex;flex-direction:column;flex:1;min-width:0}
 .content{flex:1;overflow-y:auto;padding:var(--gutter);background:var(--page-bg)}
-.page{display:none;flex-direction:column;gap:calc(var(--stack)*2)}
-.page.active{display:flex}
 
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--border);padding:16px var(--gutter);font-size:var(--fs-sm);background:var(--surface);flex:none}
 .topbar .left{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
@@ -140,7 +129,7 @@ code{font-size:.92em;padding:.05em .35em;border-radius:var(--r-pill);background:
 .modepill i{width:6px;height:6px;border-radius:50%;background:currentColor;animation:softPulse 1.6s ease-in-out infinite}
 .iconbtn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;border:1px solid var(--border);border-radius:var(--r-ctl);background:var(--surface);color:var(--text-muted);transition:color .16s,background .16s}
 .iconbtn:hover{color:var(--text);background:var(--bg-hover)}
-.iconbtn:active,.btn-ghost:hover:active,.chip:not(.on):active{background:var(--surface-sunken)}
+.iconbtn:active,.btn-ghost:hover:active{background:var(--surface-sunken)}
 .iconbtn .moon{display:none}
 :root[data-mode="light"] .iconbtn .sun{display:none}
 :root[data-mode="light"] .iconbtn .moon{display:block}
@@ -158,9 +147,8 @@ code{font-size:.92em;padding:.05em .35em;border-radius:var(--r-pill);background:
 }
 /* touch: grow hit areas to about 40px without changing the drawn size */
 @media (pointer:coarse){
-  .iconbtn,.btn-primary,.btn-ghost,.chip,.tab{position:relative}
+  .iconbtn,.btn-primary,.btn-ghost,.tab{position:relative}
   .iconbtn::after,.btn-primary::after,.btn-ghost::after{content:"";position:absolute;inset:-6px}
-  .chip::after{content:"";position:absolute;inset:-7px -3px}
   .tab::after{content:"";position:absolute;inset:-8px -6px}
 }
 
@@ -286,7 +274,6 @@ table.dt{width:100%;border-collapse:collapse;font-size:var(--fs-sm)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .phase{display:inline-flex;align-items:center;gap:6px;color:var(--text-body)}
 .phase.dim{color:var(--text-muted)}
-.kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border:1px solid var(--border-strong);border-radius:3px;font-size:11px;color:var(--text-muted)}
 .alertbtn{position:relative;color:color-mix(in oklab, var(--warning) 85%, var(--text));border-color:color-mix(in oklab, var(--warning) 45%, transparent)}
 .alertbtn b{position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;padding:0 4px;display:grid;place-items:center;border-radius:999px;background:var(--warning);color:var(--bg-app);font-size:10px;font-weight:700}
 

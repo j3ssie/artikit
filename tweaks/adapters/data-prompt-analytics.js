@@ -55,8 +55,8 @@ window.TWEAK_PAGE = {
   },
 
   /* the accent is the page's brand, its first chart series and the one-hue ramp behind the quantiles, the funnel and the heat grid */
-  accent(c, mix, mode){
-    const st = document.documentElement.style, own = (k, d) => st.getPropertyValue(k).trim() || d;
+  accent(c, mix, mode, p, tokens){
+    const own = (k, d) => (tokens && tokens[k]) || d; /* what map() set this pass, else the page's own */
     const L = mode === 'light', S = own('--surf', '#faf7f3'), A = own('--bg', '#f5f2ee'), code = own('--code', '#201e1c'), h = this.hue(c);
     const q1 = this.fit(this.lerp(c, S, L ? .5 : .62), c, 2.1, S, A); /* pale end of the ramp still reads as a mark */
     const top = L ? c : this.fit(c, '#ffffff', 5, S, A); /* a dim accent on a dark surface leaves too little room for four steps: let the bright end go lighter */
@@ -70,6 +70,8 @@ window.TWEAK_PAGE = {
     };
   },
 
-  glass: '#tip', /* only the floating tooltip blurs: on the in-flow cards the blur looked identical over the smooth backdrop and cost GPU time while scrolling */
+  /* boxed: the wash still fills the window, so the panel is padded in instead of narrowed */
+  gutter: { own: 'full-width', css: '@media (min-width:1300px){html[data-tw-gutter="boxed"] .panel{padding-inline:max(40px,calc(50% - 640px))}}' },
+  glass: '#tip, .rt-menu', /* only the floating tooltip blurs: on the in-flow cards the blur looked identical over the smooth backdrop and cost GPU time while scrolling */
   clear: '.panel', /* paints the page wash */
 };

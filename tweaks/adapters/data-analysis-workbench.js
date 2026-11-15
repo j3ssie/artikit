@@ -43,5 +43,7 @@ window.TWEAK_PAGE = {
     const dark = mode === 'dark', k = dark ? '#fff' : '#000';
     return { '--blue': c, '--blue-d': mix(c, 86, k), '--blue-dd': mix(c, 72, k), '--sel': mix(c, dark ? 20 : 13, 'var(--solid)'), '--mark': mix(c, dark ? 36 : 24) };
   },
-  glass: '.tip,.side,.insp', /* only boxes that float over other content: blurring in-flow cards and panes over the smooth backdrop looked identical and cost 2.5x GPU time while scrolling */
+  /* boxed: the whole app becomes a centred window with an edge on each side */
+  gutter: { own: 'full-width', css: 'html[data-tw-gutter="boxed"] body{max-width:1280px;margin-inline:auto;box-shadow:-1px 0 0 var(--line),1px 0 0 var(--line)}' },
+  glass: '.tip,.side,.insp,.rt-menu', /* only boxes that float over other content: blurring in-flow cards and panes over the smooth backdrop looked identical and cost 2.5x GPU time while scrolling */
 };

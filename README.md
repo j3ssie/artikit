@@ -12,9 +12,9 @@ Every page is in [`pages/`](pages/). The file name starts with the kind of page.
 | --- | --- | --- |
 | Landing | `landing-page-` | Gimorra · Copperplate, Gimorra · Verdicts, Gimorra · Stage, Coding agents |
 | Dashboard | `dashboard-` | Gimorra · Console, Vigolium · Workbench, Vigolium · Triage, Delivery analytics |
-| Data | `data-` | Observability, Model Data, Prompt analytics, Evals, Analysis workbench |
+| Data | `data-` | Observability, Model Data, Prompt analytics, Evals, Analysis workbench, Vigolium · Charts, Vigolium · Text charts, Copperplate · Runs |
 | Canvas | `canvas-` | Gimorra · Architecture, Vigolium · Scan lifecycle, Gimorra · Workflows |
-| Blog | `blog-` | Narrative post, Release post, Research note, Terminal playbook, Serif essay |
+| Blog | `blog-` | Release post, Research note, Terminal playbook, Workbench post |
 | Terminal | `terminal-` | Terminal Design System, Terminal Design System · Field Notes |
 
 [`llms.txt`](llms.txt) has the full list with a description, size and preview image for each page.
@@ -34,7 +34,7 @@ Things a copied page still depends on:
 - The Gimorra · Architecture canvas page loads React, React Flow, htm and marked from esm.sh, so it needs a network connection. The other two canvas pages have no dependencies.
 - The two terminal pages are bundled apps of about 2.3 MB each. Open them in a browser instead of reading the source.
 
-All names, numbers and install commands in the pages are invented sample content. The five blog templates are the exception: their text describes the templates themselves and their numbers were measured.
+All names, numbers and install commands in the pages are invented sample content. The blog templates are the exception: their text describes the templates themselves and their numbers were measured. The Workbench post explains the text charts page, and its figures plot that page's sample data.
 
 ## Layout
 
@@ -64,13 +64,20 @@ wrangler.jsonc  Cloudflare Worker config
 
 ## Tweak dock
 
-The data pages carry a floating tweak dock with the same controls as the terminal design system's config bar. It is built from `tweaks/module.html`, the token sets in `tweaks/themes.json` and one adapter per page in `tweaks/adapters/`. After editing any of those, inject the block again:
+The data pages carry a floating tweak dock with the same controls as the terminal design system's config bar, plus a gutter switch between a boxed and a full-width layout. It is built from `tweaks/module.html`, the token sets in `tweaks/themes.json` and one adapter per page in `tweaks/adapters/`. After editing any of those, inject the block again:
 
 ```sh
-python3 tweaks/inject.py pages/data-evals.html tweaks/adapters/data-evals.js
+python3 tweaks/inject.py                                                        # every page that has an adapter
+python3 tweaks/inject.py pages/data-evals.html tweaks/adapters/data-evals.js    # one page
 ```
 
 The script replaces the previous block, so it is safe to run more than once.
+
+Each theme in `themes.json` is seventeen colours: the sixteen palette roles, then the primary the theme is known by. The primary is the theme's accent until the accent control picks another. An adapter's `map(p, mix)` turns a palette into the page's tokens and `accent(c, mix, mode, p, tokens)` does the same for an accent colour; `p` and `tokens` are that palette and what `map` returned for it, or `null` while the page's own colours are in force. Its `gutter` gives the layout the page ships (`own`) and the CSS for the other one.
+
+## Records table
+
+Every data page has one table with a search box, a row of switches, choosers, sortable columns and pages. It is drawn by `recordsTable(root, options)`, which is the same function in each page's script: change it in one page and copy it to the others. It writes markup with `rt-*` classes only, so each page styles it in its own CSS and can lend it controls it already has through `options.cls`.
 
 ## Deploy
 

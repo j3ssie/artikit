@@ -27,7 +27,7 @@ html[data-tw-surface="glass"] .tw{-webkit-backdrop-filter:blur(16px) saturate(12
 .tw-menu [role="option"].act{background:var(--tw-hover)}
 .tw-menu [role="option"][aria-selected="true"]{color:var(--tw-acc);font-weight:700}
 .tw-menu .tw-grp{padding:9px 8px 5px;color:var(--tw-dim);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
-.tw-dot{flex:none;width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--a) 50%,var(--b) 50%);box-shadow:0 0 0 1px var(--tw-line)} /* a theme's surface and accent */
+.tw-dot{flex:none;width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--a) 50%,var(--b) 50%);box-shadow:0 0 0 1px var(--tw-line)} /* a theme's surface and primary */
 @media (max-width:720px){.tw{left:8px;right:8px;bottom:8px;transform:none;width:auto;max-width:none;justify-content:flex-start}.tw-ctl{height:30px}.tw-space{height:150px}.tw-menu [role="option"]{padding-block:10px}}
 @media print{.tw,.tw-chip,.tw-space,.tw-menu{display:none}}
 /* glass surface: a soft backdrop behind translucent panels */
@@ -36,19 +36,20 @@ html[data-tw-surface="glass"] body{background:transparent!important}
 html[data-tw-surface="glass"]::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 50% at 18% 0%,color-mix(in srgb,var(--tw-acc) 16%,transparent),transparent 70%),radial-gradient(50% 45% at 100% 100%,color-mix(in srgb,var(--tw-warn) 13%,transparent),transparent 70%)}
 </style>
 <script id="tw-js">
-/* Tweaks: mode / theme / surface / font / size / corners / density / accent, as on the terminal design system page.
+/* Tweaks: mode / theme / surface / font / size / corners / density / gutter / accent. All but gutter are the terminal design system page's controls.
    Each page describes itself in window.TWEAK_PAGE (which of its tokens mean what); everything else here is shared.
    With every control on its default the page's own CSS is untouched.
-   The look is also written to the address as ?mode=&theme=&surface=&font=&size=&corners=&density=&accent=, and read back from it, so a link carries it. */
+   The look is also written to the address as ?mode=&theme=&surface=&font=&size=&corners=&density=&gutter=&accent=, and read back from it, so a link carries it. */
 (function(){
 'use strict';
 const P = window.TWEAK_PAGE, root = document.documentElement, KEY = 'artikit-tweaks:' + P.key;
 /* palettes, in this order: */
-const ROLES = ['app','surf','raised','inset','hover','line','line2','text','text2','dim','green','red','yellow','blue','magenta','warn'];
+const ROLES = ['app','surf','raised','inset','hover','line','line2','text','text2','dim','green','red','yellow','blue','magenta','warn','primary']; /* primary: the hue a theme is known by. It is the theme's accent until the accent control picks another */
 const THEMES = __THEMES__;
 const ACCENTS = { cyan:['#66c7d6','#1a7f8e'], green:['#78d670','#2f8a3a'], magenta:['#ec6bb4','#b8328a'], blue:['#6f9ef1','#3565c0'], orange:['#e2953f','#b5651a'] };
 const FONTS = { mono:['JetBrains Mono','Fira Code','IBM Plex Mono','Source Code Pro','Space Mono','Inconsolata','Ubuntu Mono','Victor Mono','Red Hat Mono'], sans:['Inter','Geist','IBM Plex Sans','Hanken Grotesk','Figtree','Manrope'] };
 const TWO_WEIGHTS = ['Space Mono','Ubuntu Mono']; /* static families with only regular and bold */
+const GUTTERS = ['boxed', 'full-width'], OWN_GUTTER = P.gutter ? P.gutter.own : null; /* P.gutter: { own: which of the two the page ships, css: rules for the other, keyed on html[data-tw-gutter] } */
 const SIZE = { small:.9, default:1, large:1.12, 'x-large':1.25 }, CORNER = { sharp:0, default:1, round:1.8 }, DENSITY = { compact:.72, default:1, relaxed:1.32 };
 const pal = s => Object.fromEntries(s.split(' ').map((h, i) => [ROLES[i], '#' + h]));
 const mix = (a, pct, b) => `color-mix(in srgb, ${a} ${pct}%, ${b || 'transparent'})`;
@@ -75,9 +76,9 @@ const scaled = (v, k) => v.replace(PX, m => parseFloat(m) > 0 ? `calc(${m}*var(-
 
 /* ---- state ---- */
 const themesFor = m => (P.modes.includes(m) ? ['page'] : []).concat(Object.keys(THEMES[m]));
-const cfg = { mode: P.getMode(), theme: null, surface: 'solid', font: 'default', size: 'default', corner: 'default', density: 'default', accent: 'page', open: null };
+const cfg = { mode: P.getMode(), theme: null, surface: 'solid', font: 'default', size: 'default', corner: 'default', density: 'default', gutter: OWN_GUTTER, accent: 'page', open: null };
 /* one address parameter per control. Values are matched loosely (case, spaces and dashes ignored); "default" means the page's own */
-const QK = { mode: 'mode', theme: 'theme', surface: 'surface', font: 'font', size: 'size', corner: 'corners', density: 'density', accent: 'accent' };
+const QK = { mode: 'mode', theme: 'theme', surface: 'surface', font: 'font', size: 'size', corner: 'corners', density: 'density', gutter: 'gutter', accent: 'accent' };
 const norm = v => String(v).toLowerCase().replace(/[^a-z0-9]+/g, ''), among = (v, list) => list.find(o => norm(o) === norm(v));
 function fromURL(){
   let q; try { q = new URLSearchParams(location.search); } catch (e) { return null; }
@@ -90,13 +91,14 @@ function fromURL(){
   out.font = among(g('font'), FONTS.mono.concat(FONTS.sans)) || 'default';
   out.size = among(g('size'), Object.keys(SIZE)) || 'default'; out.corner = among(g('corner'), Object.keys(CORNER)) || 'default'; out.density = among(g('density'), Object.keys(DENSITY)) || 'default';
   out.accent = among(g('accent'), Object.keys(ACCENTS)) || 'page';
+  out.gutter = among(g('gutter'), GUTTERS) || (norm(g('gutter')) === 'full' ? 'full-width' : OWN_GUTTER);
   return out;
 }
 let inURL = false;
 function toURL(){
   try {
     const q = new URLSearchParams(location.search);
-    for (const k in QK) q.set(QK[k], cfg[k] === 'page' ? 'default' : cfg[k]);
+    for (const k in QK) if (cfg[k] != null) q.set(QK[k], cfg[k] === 'page' ? 'default' : cfg[k]);
     history.replaceState(history.state, '', '?' + q + location.hash); inURL = true; /* the page's own #section stays */
   } catch (e) {}
 }
@@ -110,14 +112,16 @@ function settle(){
   if (cfg.font !== 'default' && !FONTS.mono.concat(FONTS.sans).includes(cfg.font)) cfg.font = 'default';
   if (!(cfg.size in SIZE)) cfg.size = 'default'; if (!(cfg.corner in CORNER)) cfg.corner = 'default'; if (!(cfg.density in DENSITY)) cfg.density = 'default';
   if (cfg.accent !== 'page' && !ACCENTS[cfg.accent]) cfg.accent = 'page';
+  cfg.gutter = P.gutter ? (GUTTERS.includes(cfg.gutter) ? cfg.gutter : OWN_GUTTER) : null;
 }
 settle();
 
-/* glass: the page names which boxes are panels (they blur what is behind them) and which wrappers must stop painting an opaque fill */
-if (P.glass || P.clear){
+/* glass: the page names which boxes are panels (they blur what is behind them) and which wrappers must stop painting an opaque fill.
+   gutter: the page gives the rules for the layout it does not ship (boxed for a full-width page, full-width for a boxed one) */
+if (P.glass || P.clear || P.gutter){
   const st = document.createElement('style'); st.id = 'tw-dyn';
   st.textContent = (P.glass ? `html[data-tw-surface="glass"] :is(${P.glass}){-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}` : '') +
-    (P.clear ? `html[data-tw-surface="glass"] :is(${P.clear}){background:transparent!important}` : '');
+    (P.clear ? `html[data-tw-surface="glass"] :is(${P.clear}){background:transparent!important}` : '') + (P.gutter ? P.gutter.css : '');
   document.head.append(st);
 }
 const applied = new Set(), loaded = new Set(); let baseAccent;
@@ -130,27 +134,29 @@ function loadFont(name){
 function apply(){
   const c = cfg, light = c.mode === 'light', own = c.theme === 'page', glass = c.surface === 'glass';
   applied.forEach(k => root.style.removeProperty(k)); applied.clear();
-  const put = (k, v) => { if (k && v != null){ root.style.setProperty(k, String(v)); applied.add(k); } };
+  const put = (k, v) => { if (k && v != null){ root.style.setProperty(k, String(v)); applied.add(k); } }, putAll = o => Object.entries(o).forEach(([k, v]) => put(k, v));
   P.setMode(c.mode);
   root.dataset.twMode = c.mode; if (glass) root.dataset.twSurface = 'glass'; else delete root.dataset.twSurface;
+  if (P.gutter && c.gutter !== OWN_GUTTER) root.dataset.twGutter = c.gutter; else delete root.dataset.twGutter;
   const accent = c.accent === 'page' ? null : ACCENTS[c.accent][light ? 1 : 0];
-  let chrome = P.chrome, warn = 'transparent', app = 'transparent';
+  let chrome = P.chrome, warn = 'transparent', app = 'transparent', p = null, tokens = null; /* the palette in force and what map() made of it: both stay null while the page's own look is untouched */
   baseAccent = P.accentOwn[c.mode] || P.accentOwn[P.modes[0]];
   if (!own || glass){
-    const p = pal(own ? P.own[c.mode] : THEMES[c.mode][c.theme]);
+    p = pal(own ? P.own[c.mode] : THEMES[c.mode][c.theme]);
+    if (!p.primary) p.primary = own ? baseAccent : p.blue; /* the page's own palette lists sixteen colours: its primary is its accent */
     p.solid = p.surf; p.mode = c.mode; p.glass = glass; app = p.app; warn = p.warn;
     if (glass){ /* same recipe as the terminal kit: translucent surface, tinted raised/hover layers, hairlines from the text colour */
       const t = p.text;
       p.surf = mix(p.surf, light ? 64 : 72); p.raised = light ? 'rgba(255,255,255,.6)' : mix(t, 5); p.inset = light ? mix(t, 4) : 'rgba(0,0,0,.18)';
       p.hover = mix(t, light ? 7 : 9); p.line = mix(t, light ? 10 : 9); p.line2 = mix(t, light ? 18 : 16);
     }
-    Object.entries(P.map(p, mix)).forEach(([k, v]) => put(k, v));
+    putAll(tokens = P.map(p, mix));
     put('color-scheme', c.mode);
-    chrome = { bg: glass ? mix(p.solid, 82) : p.raised, fg: p.text, dim: mix(p.text2, 62, p.dim), line: p.line2, hover: p.hover, accent: own ? P.accentOwn[c.mode] : p.blue, menu: p.solid };
-    if (!own) baseAccent = p.blue; /* a shared theme brings its own default accent */
-    if (!own && !accent) Object.entries(P.accent(p.blue, mix, c.mode)).forEach(([k, v]) => put(k, v));
+    chrome = { bg: glass ? mix(p.solid, 82) : p.raised, fg: p.text, dim: mix(p.text2, 62, p.dim), line: p.line2, hover: p.hover, accent: own ? P.accentOwn[c.mode] : p.primary, menu: p.solid };
+    if (!own) baseAccent = p.primary; /* a shared theme brings its own default accent: its primary */
   }
-  if (accent) Object.entries(P.accent(accent, mix, c.mode)).forEach(([k, v]) => put(k, v));
+  const hue = accent || (own ? null : p.primary);
+  if (hue) putAll(P.accent(hue, mix, c.mode, p, tokens));
   put('--tw-bg', chrome.bg); put('--tw-fg', chrome.fg); put('--tw-dim', chrome.dim); put('--tw-line', chrome.line); put('--tw-hover', chrome.hover);
   put('--tw-acc', accent || chrome.accent); put('--tw-menu', chrome.menu || chrome.bg); put('--tw-app', app); put('--tw-warn', warn);
   if (P.mono) put('--tw-font', `var(${P.mono})`);
@@ -163,14 +169,14 @@ function apply(){
   if (DENSITY[c.density] !== 1) put('--tw-d', DENSITY[c.density]);
 }
 apply();
-if (linked || cfg.theme !== 'page' || cfg.surface !== 'solid' || cfg.accent !== 'page' || ['font', 'size', 'corner', 'density'].some(k => cfg[k] !== 'default')) toURL();
+if (linked || cfg.theme !== 'page' || cfg.surface !== 'solid' || cfg.accent !== 'page' || cfg.gutter !== OWN_GUTTER || ['font', 'size', 'corner', 'density'].some(k => cfg[k] !== 'default')) toURL();
 
 /* ---- dock ---- */
 let dock, chip, space;
 const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
 const seg = (k, opts) => `<span class="tw-seg">${opts.map(o => `<button type="button" data-k="${k}" data-v="${o}" aria-pressed="${cfg[k] === o}">${o}</button>`).join('')}</span>`;
 const NAME = { theme: 'theme', font: 'font', size: 'size', corner: 'corners', density: 'density' };
-const sw = (hexes, b) => ({ a: '#' + hexes.split(' ')[1], b: b || '#' + hexes.split(' ')[13] }); /* surface + accent of a palette */
+const sw = (hexes, b) => { const h = hexes.split(' '); return { a: '#' + h[1], b: b || '#' + (h[16] || h[13]) }; }; /* surface + primary of a palette */
 const choices = k => k === 'theme' ? themesFor(cfg.mode).map(t => t === 'page' ? { v: t, label: 'page default', sw: P.own && P.own[cfg.mode] ? sw(P.own[cfg.mode], P.accentOwn[cfg.mode]) : null } : { v: t, label: t, sw: sw(THEMES[cfg.mode][t]) })
   : k === 'font' ? [{ v: 'default', label: 'default' }, { group: 'mono, whole page' }].concat(FONTS.mono.map(f => ({ v: f, label: f })), [{ group: 'sans' }], FONTS.sans.map(f => ({ v: f, label: f })))
   : Object.keys({ size: SIZE, corner: CORNER, density: DENSITY }[k]).map(o => ({ v: o, label: o }));
@@ -229,6 +235,7 @@ function render(){
     `<div class="tw-ctl">size ${pick('size')}</div>` +
     `<div class="tw-ctl">corners ${pick('corner')}</div>` +
     `<div class="tw-ctl">density ${pick('density')}</div>` +
+    (P.gutter ? `<div class="tw-ctl">gutter ${seg('gutter', GUTTERS)}</div>` : '') +
     `<div class="tw-ctl">accent <span class="tw-sws">${['page'].concat(Object.keys(ACCENTS)).map(a => `<button type="button" class="tw-sw" data-k="accent" data-v="${a}" title="${a === 'page' ? 'default' : a}" aria-label="${a === 'page' ? 'default' : a} accent" aria-pressed="${cfg.accent === a}" style="--c:${a === 'page' ? baseAccent : ACCENTS[a][light ? 1 : 0]}"></button>`).join('')}</span></div>` +
     `<button type="button" class="tw-x" data-k="open" data-v="" aria-label="Hide tweaks" title="Hide tweaks">hide</button>`;
   dock.hidden = !cfg.open; chip.hidden = !!cfg.open; if (space) space.hidden = !cfg.open;
@@ -242,8 +249,8 @@ function set(patch){
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {}
   if (inURL || Object.keys(QK).some(k => cfg[k] !== before[k])) toURL();
   document.dispatchEvent(new CustomEvent('tweakchange', { detail: { ...cfg } }));
-  /* text, spacing and font changes move boxes: let the page redraw anything it sized in script */
-  if (['font', 'size', 'density', 'corner'].some(k => cfg[k] !== before[k])){
+  /* text, spacing, font and width changes move boxes: let the page redraw anything it sized in script */
+  if (['font', 'size', 'density', 'corner', 'gutter'].some(k => cfg[k] !== before[k])){
     const again = () => window.dispatchEvent(new Event('resize'));
     requestAnimationFrame(() => requestAnimationFrame(again));
     if (cfg.font !== before.font && document.fonts) document.fonts.ready.then(() => setTimeout(again, 60));

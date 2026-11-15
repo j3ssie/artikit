@@ -1,0 +1,1356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Copperplate · Runs</title>
+<meta name="color-scheme" content="dark light" />
+<meta name="description" content="Sample data page in the Copperplate theme: agent runs drawn as flat plates on dot grounds, from one seeded dataset, scoped by a range switch." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' rx='7' fill='%231a150e'/%3E%3Ccircle cx='14' cy='14' r='6.5' fill='none' stroke='%2378d670' stroke-width='2'/%3E%3Ccircle cx='14' cy='14' r='2' fill='%2378d670'/%3E%3C/svg%3E" />
+<script>(function(){try{var t=localStorage.getItem('gl-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!--
+  Copperplate · Runs: a data page in the theme of the Gimorra · Copperplate landing page.
+  Tokens are in :root. Every token resolves through light-dark(), so the used color-scheme of :root is the only switch.
+  Every figure is a "plate": a flat SVG on a dot-matrix ground, painted by the pl-* classes, drawn by one
+  card(id, options, draw) call in the script from one seeded dataset (see DATA).
+  Chart colours were checked as sets on the panel surface (#211b14 dark, #fbf9f6 light):
+    categorical  --s1..--s4       orange, blue, green, cyan, in that order (the theme's own hues stepped into the lightness band)
+    verdict      --v-ok/no/maybe  confirmed, rejected, inconclusive, stacked in that order
+    ordinal      --o1..--o5       one copper hue, faint to strong
+  Blocks: header.nav (mark, range switch, theme switch) · .hero (h1, scope line, .kpis) · section > .bandhead + .grid of .card
+          .card = .ch (title, form, table switch) + .fig (the plate) + .tv (its table) + .lg (legend pills) + .cap
+          .rt (records table) · .tip (the one tooltip)
+-->
+<style>
+:root{
+  --text-1: light-dark(#33302b, #ead9c0);
+  --bg-app: light-dark(#efece8, color-mix(in oklab, #14100b 97.5%, var(--text-1)));
+  --bg-terminal: light-dark(#fbf9f6, color-mix(in oklab, #1a150e 96%, var(--text-1)));
+  --bg-raised: light-dark(#ffffff, color-mix(in oklab, #241d14 95.5%, var(--text-1)));
+  --bg-inset: light-dark(#f4f1ec, color-mix(in oklab, #100c08 95.5%, var(--text-1)));
+  --bg-hover: light-dark(#e9e5df, color-mix(in oklab, #2c2418 95%, var(--text-1)));
+  --border-1: light-dark(#ddd8d0, color-mix(in oklab, #332917 91%, var(--text-1)));
+  --border-2: light-dark(#c2bab0, color-mix(in oklab, #54432a 92.5%, var(--text-1)));
+  --text-2: color-mix(in oklab, light-dark(#6b655c, #b59c7a) 78%, var(--text-1));
+  --text-dim: color-mix(in oklab, light-dark(#a39c90, #77664c) 55%, var(--text-1));
+  /* the theme's semantic hues: pills, status text, dots */
+  --green: light-dark(#3d8b3d, #a4c26f);
+  --red: light-dark(#c53a3a, #e0705a);
+  --yellow: light-dark(#a37414, #d8a24a);
+  --green-ink: light-dark(color-mix(in oklab, var(--green) 74%, var(--text-1)), var(--green));
+  --red-ink: light-dark(color-mix(in oklab, var(--red) 84%, var(--text-1)), color-mix(in oklab, var(--red) 86%, var(--text-1)));
+  --yellow-ink: light-dark(color-mix(in oklab, var(--yellow) 72%, var(--text-1)), var(--yellow));
+  --accent: #78d670;
+  --accent-fg: light-dark(color-mix(in oklab, var(--accent) 40%, var(--text-1)), var(--accent));
+  --accent-fill: light-dark(color-mix(in oklab, var(--accent) 90%, var(--text-1)), var(--accent));
+  --accent-soft: light-dark(color-mix(in oklab, var(--accent) 16%, var(--bg-terminal)), color-mix(in oklab, var(--accent) 22%, var(--bg-terminal)));
+  --focus: var(--accent-fg);
+  /* chart series */
+  --s1: light-dark(#bc6712, #ca8038);
+  --s2: light-dark(#3766c0, #529ccb);
+  --s3: light-dark(#719e3a, #50ac49);
+  --s4: light-dark(#0785a0, #30a5b5);
+  --v-ok: light-dark(#4f9120, #a4c26f);
+  --v-no: light-dark(#af3646, #da6862);
+  --v-maybe: light-dark(#a37414, #d8a24a);
+  --o1: light-dark(#d8a378, #6d4620);
+  --o2: light-dark(#c48a59, #8c5927);
+  --o3: light-dark(#b17137, #ac6c2d);
+  --o4: light-dark(#9d5809, #ce8133);
+  --o5: light-dark(#814500, #f09638);
+  /* shadows are built from colour tokens because light-dark() resolves colours only */
+  --sh-ring: light-dark(#33302b14, #ead9c014);
+  --sh-a: light-dark(#33302b0a, #00000040);
+  --sh-b: light-dark(#33302b0d, #00000047);
+  --sh-hi: light-dark(#ffffff00, #ead9c00a);
+  --shadow-surface: 0 0 0 1px var(--sh-ring), inset 0 1px 0 var(--sh-hi), 0 1px 1px var(--sh-a), 0 2px 2px -1px var(--sh-a), 0 4px 6px -3px var(--sh-b);
+  --shadow-icon: 0 0 0 0.5px var(--sh-ring), 0 1px 1px -0.5px var(--sh-a), 0 2px 2px -1px var(--sh-a), 0 4px 4px -2px var(--sh-a), 0 8px 8px -4px var(--sh-b), 0 12px 12px -6px var(--sh-b);
+  /* plate paint */
+  --pl-dot-lit: var(--accent-fill);
+  --pl-dot-plate: color-mix(in oklab, var(--text-dim) 26%, transparent);
+  --pl-dot-plate-hi: color-mix(in oklab, var(--text-dim) 40%, transparent);
+  --pl-dot-grid: color-mix(in oklab, var(--text-dim) 78%, transparent);
+  --pl-tick: color-mix(in oklab, var(--border-2) 60%, var(--bg-terminal));
+  --pl-faint: color-mix(in oklab, var(--text-dim) 62%, var(--bg-terminal));
+  --sans: "Suisse Intl", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --r-panel: 12px;
+  --r-ctl: 6px;
+  --r-pill: 999px;
+  --measure: 1120px;
+  --gutter: 24px;
+  --band: 72px;
+  --ease: cubic-bezier(0.22, 0.68, 0.24, 1);
+  color-scheme: light dark;
+}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:76px}
+body{margin:0;background:var(--bg-app);color:var(--text-1);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::selection{background:color-mix(in oklab, var(--accent) 38%, transparent)}
+a{color:var(--text-1);text-decoration:underline;text-decoration-color:var(--border-2);text-underline-offset:3px;transition:text-decoration-color 0.16s}
+a:hover{text-decoration-color:currentColor}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:var(--r-ctl)}
+h1,h2,h3{font-weight:400;margin:0;color:var(--text-1)}
+p{margin:0}
+b,strong{font-weight:500;color:var(--text-1)}
+
+/* ---------- nav + column ---------- */
+.main,.nav-inner,.foot{max-width:calc(var(--measure) + 2 * var(--gutter));margin-inline:auto;padding-inline:var(--gutter)}
+.wrap{position:relative;min-width:0}
+section{padding:calc(var(--band) / 2) 0;position:relative}
+header.nav{position:sticky;top:0;z-index:40;background:color-mix(in oklab, var(--bg-app) 86%, transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid transparent;transition:border-color 0.2s}
+header.nav.stuck{border-bottom-color:var(--border-1)}
+.nav-inner{display:flex;align-items:center;gap:14px;height:60px}
+.mark{display:inline-flex;align-items:center;gap:10px;flex:none;color:var(--text-1);font-size:15px;letter-spacing:-0.01em;text-decoration:none}
+/* a placeholder mark: swap the svg for your own */
+.mark .glyph{display:block;width:28px;height:28px;border-radius:7px;box-shadow:var(--shadow-icon);transition:transform 0.2s var(--ease)}
+.mark:hover .glyph{transform:translateY(-1px)}
+.ver,.foot .chip{flex:none;padding:2px 9px;border-radius:var(--r-pill);background:var(--accent-soft);box-shadow:inset 0 0 0 1px color-mix(in oklab, var(--accent) 30%, transparent);color:var(--accent-fg);font-family:var(--mono);font-size:11.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.nav-links{display:flex;align-items:center;gap:2px;margin:-4px 0 -4px 6px;padding:4px;min-width:0;overflow-x:auto;scrollbar-width:none}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{flex:none;padding:5px 8px;border-radius:var(--r-pill);color:var(--text-2);font-size:14px;text-decoration:none;white-space:nowrap;transition:color 0.16s,background 0.16s}
+.nav-links a:hover{color:var(--text-1);background:var(--bg-hover)}
+.nav-links a.on{color:var(--text-1)}
+.nav-act{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto}
+/* the range switch: one pill holding three; the nav's and the run log's status filter are the same control */
+.range{display:inline-flex;align-items:center;gap:2px;height:32px;padding:3px;border-radius:var(--r-pill);background:var(--bg-terminal);box-shadow:var(--shadow-surface)}
+.range button{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;height:26px;padding:0 11px;border-radius:var(--r-pill);font-family:var(--mono);font-size:11.5px;color:var(--text-2);white-space:nowrap;transition:color 0.16s,background 0.16s}
+.range button:hover{color:var(--text-1);background:var(--bg-hover)}
+.range button[aria-pressed="true"]{color:var(--accent-fg);background:var(--accent-soft);box-shadow:inset 0 0 0 1px color-mix(in oklab, var(--accent) 30%, transparent)}
+.range button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.themebtn{display:inline-flex;align-items:center;justify-content:center;flex:none;width:30px;height:30px;padding:0;border:0;border-radius:var(--r-pill);background:none;color:var(--text-dim);cursor:pointer;transition:color 0.16s,background 0.16s}
+.themebtn:hover{color:var(--text-1);background:var(--bg-hover)}
+.themebtn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.themebtn .moon,.themebtn[data-to="dark"] .sun{display:none}
+.themebtn[data-to="dark"] .moon{display:block}
+@media (max-width:1000px){.nav-links{display:none}}
+@media (max-width:560px){.ver{display:none}}
+@media (max-width:480px){:root{--gutter:16px}.nav-inner{gap:8px}.nav-act{gap:2px}.range button{padding:0 9px}}
+@media (max-width:370px){.nav .mark .wm{display:none}}
+
+/* ---------- type blocks ---------- */
+.eyebrow{margin:0 0 10px;font-size:14px;line-height:1.6;color:var(--text-dim)}
+.eyebrow::first-letter{text-transform:uppercase}
+.bandhead{margin:0 0 28px}
+.band-title{font-size:clamp(20px,2.2vw,24px);line-height:1.25;letter-spacing:-0.02em;text-wrap:balance}
+.pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;line-height:1.6;padding:2px 9px;border-radius:var(--r-pill);background:var(--lit-bg,var(--bg-hover));color:var(--lit,var(--text-2));white-space:nowrap}
+.pill.ok{--lit:var(--green-ink);--lit-bg:color-mix(in srgb, var(--green) 14%, transparent)}
+.pill.no{--lit:var(--red-ink);--lit-bg:color-mix(in srgb, var(--red) 14%, transparent)}
+.pill.maybe{--lit:var(--yellow-ink);--lit-bg:color-mix(in srgb, var(--yellow) 14%, transparent)}
+.pill b{font-weight:400;color:var(--text-dim)}
+
+/* ---------- hero ---------- */
+.hero{padding:28px 0 calc(var(--band) / 2)}
+.hero h1{font-size:clamp(26px,2.75vw,36px);font-weight:500;line-height:1.12;letter-spacing:-0.03em;text-wrap:balance;margin:4px 0 0}
+.hero h1 .hl{color:var(--accent-fg)}
+.scope{display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:14px;font-family:var(--mono);font-size:12px;color:var(--text-2)}
+.scope i{font-style:normal;color:var(--text-dim)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:28px}
+.kpi{min-width:0;padding:16px 18px 14px;border-radius:var(--r-panel);background:var(--bg-terminal);box-shadow:var(--shadow-surface)}
+.kl{font-size:13px;color:var(--text-dim)}
+.kv{margin-top:2px;font-size:30px;font-weight:500;line-height:1.2;letter-spacing:-0.03em;color:var(--text-1)}
+.kv small{margin-left:5px;font-size:13px;font-weight:400;letter-spacing:0;color:var(--text-dim)}
+.kd{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 7px;margin-top:4px;font-family:var(--mono);font-size:11px;color:var(--text-dim)}
+.kd b{font-weight:400;color:var(--text-2)}
+.kd b.good{color:var(--green-ink)}.kd b.bad{color:var(--red-ink)}
+.kpi svg{display:block;margin-top:12px;overflow:visible}
+
+/* ---------- cards: one panel per figure ---------- */
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.card{position:relative;display:flex;flex-direction:column;min-width:0;padding:18px 20px 16px;border-radius:var(--r-panel);background:var(--bg-terminal);box-shadow:var(--shadow-surface)}
+.s4{grid-column:span 4}.s5{grid-column:span 5}.s6{grid-column:span 6}.s7{grid-column:span 7}.s8{grid-column:span 8}.s12{grid-column:span 12}
+.ch{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.ch h3{font-size:16px;line-height:1.3;letter-spacing:-0.01em}
+.form{margin-top:2px;font-family:var(--mono);font-size:11px;color:var(--text-dim)}
+.tb{all:unset;box-sizing:border-box;flex:none;cursor:pointer;display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:var(--r-ctl);font-family:var(--mono);font-size:11.5px;color:var(--text-dim);transition:color 0.16s,background 0.16s}
+.tb:hover{color:var(--text-1);background:var(--bg-hover)}
+.tb[aria-pressed="true"]{color:var(--accent-fg)}
+.tb:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.fig{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;margin-top:14px;border-radius:var(--r-ctl);cursor:default}
+.fig[hidden]{display:none}
+.plot{min-width:0}
+.lg{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:12px}
+.lg:empty{display:none}
+.sw{flex:none;width:7px;height:7px;border-radius:2px;background:var(--c)}
+.sw.t1,.sw.t2,.sw.t3{width:3px;border-radius:1px}
+.sw.t1{height:12px}.sw.t2{height:8px}.sw.t3{height:4px}
+.cap{margin-top:10px;text-align:center;font-size:12px;line-height:1.5;color:var(--text-dim);text-wrap:balance}
+
+/* ---------- plates: paint ---------- */
+.plate{display:block;overflow:visible;font-family:var(--mono)}
+.plate text{font-size:10px;stroke:none;font-variant-numeric:tabular-nums}
+.pl-dotc{fill:var(--pl-dot-plate);transition:fill 0.3s ease-out}
+.pl-dotl{fill:var(--pl-dot-lit)}
+.plate .pl-lit{opacity:0.55}
+.plate .pl-spot{opacity:0;transition:opacity 0.3s ease-out}
+.pl-card{fill:var(--bg-raised);stroke:var(--border-1)}
+.pl-chip{fill:var(--bg-hover)}
+.pl-tick{fill:var(--pl-tick)}
+.pl-axis{fill:none;stroke:var(--border-2);shape-rendering:crispEdges}
+.pl-grid{fill:none;stroke:var(--pl-dot-grid);stroke-width:2;stroke-linecap:round;stroke-dasharray:0 6} /* a gridline is one row of the ground's own dots, lit */
+.pl-rule{fill:none;stroke:var(--border-2);stroke-dasharray:1 3}
+.pl-cursor{fill:none;stroke:var(--accent-fill);stroke-width:1.2}
+.pl-t1{fill:var(--text-1)}.pl-t2{fill:var(--text-2)}.pl-t3{fill:var(--text-dim)}.pl-t4{fill:var(--pl-faint)}
+.plate .pl-b{font-weight:600}
+.plate .pl-sm{font-size:9px}.plate .pl-md{font-size:12px}.plate .pl-lg{font-size:15px;font-weight:600}.plate .pl-big{font-size:26px;font-weight:600}
+.pl-acc{fill:var(--accent-fill)}
+.pl-ok{fill:var(--v-ok)}.pl-no{fill:var(--v-no)}.pl-warn{fill:var(--v-maybe)}
+.pl-rib{fill:none;opacity:0.5;transition:opacity 0.15s}
+.pl-rib.on{opacity:0.95}
+.plate .hit{fill:transparent;stroke:none}
+.plate .hov{pointer-events:none}
+.plate [data-i]{transition:opacity 0.15s}
+.fig.dim [data-i]:not(.on):not(.hit){opacity:0.45}
+@media (hover:hover){
+  .fig:hover .pl-dotc{fill:var(--pl-dot-plate-hi)}
+  .fig:hover .pl-spot{opacity:0.45}
+}
+
+/* ---------- table view ---------- */
+.tv{flex:1;margin-top:14px;border-radius:var(--r-ctl);background:var(--bg-inset);box-shadow:inset 0 0 0 1px var(--border-1);overflow:auto;scrollbar-width:thin}
+.tv[hidden]{display:none}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--border-1)}
+th:first-child,td:first-child{text-align:left}
+thead th{position:sticky;top:0;z-index:1;background:var(--bg-hover);color:var(--text-dim);font-weight:400}
+tbody td{color:var(--text-2)}
+tbody td:first-child{color:var(--text-1)}
+tbody tr:last-child td{border-bottom:0}
+
+/* ---------- records table: search, a segmented filter, choosers, sortable columns, pages (see recordsTable in the script) ---------- */
+.rt{margin-top:16px}
+.rt-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.rt-search{display:flex;align-items:center;gap:8px;flex:1 1 200px;max-width:260px;height:32px;padding:0 12px;border-radius:var(--r-pill);background:var(--bg-inset);box-shadow:inset 0 0 0 1px var(--border-1);color:var(--text-dim);cursor:text;transition:box-shadow 0.16s,color 0.16s}
+.rt-search:focus-within{box-shadow:inset 0 0 0 1px var(--accent-fg);color:var(--text-1)}
+.rt-search svg{flex:none;width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
+.rt-search input{all:unset;flex:1;min-width:0;font-family:var(--mono);font-size:11.5px;color:var(--text-1)}
+.rt-search input::placeholder{color:var(--text-dim)}
+.rt-search input::-webkit-search-cancel-button{display:none}
+.rt-seg{max-width:100%;overflow-x:auto;scrollbar-width:none}
+.rt-seg button{flex:none}
+.rt-seg b{margin-left:6px;font-weight:400;font-variant-numeric:tabular-nums;color:var(--text-dim)}
+.rt-pick{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:var(--r-pill);background:var(--bg-terminal);box-shadow:var(--shadow-surface);font-family:var(--mono);font-size:11.5px;white-space:nowrap;color:var(--text-dim);transition:color 0.16s,background 0.16s}
+.rt-pick b{max-width:18ch;overflow:hidden;text-overflow:ellipsis;font-weight:400;color:var(--text-1)}
+.rt-pick i{width:0;height:0;margin-top:1px;border:3.5px solid transparent;border-top:4px solid currentColor;border-bottom:0}
+.rt-pick:hover,.rt-pick[aria-expanded="true"]{color:var(--text-1);background:color-mix(in oklab, var(--bg-raised) 50%, var(--bg-terminal))}
+.rt-pick.on b{color:var(--accent-fg)}
+.rt-reset{margin-left:auto}
+.rt-reset[hidden]{display:none}
+.rt-scroll{margin-top:14px;border-radius:var(--r-ctl);background:var(--bg-inset);box-shadow:inset 0 0 0 1px var(--border-1);overflow-x:auto;scrollbar-width:thin}
+.rt-table th,.rt-table td{padding:9px 14px;text-align:left}
+.rt-table .num{text-align:right}
+.rt-table thead th{background:transparent}
+.rt-table th button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:color 0.16s}
+.rt-table th.num button{flex-direction:row-reverse}
+.rt-table th button:hover,.rt-table th[aria-sort$="ending"] button{color:var(--text-1)}
+.rt-table th i{width:0;height:0;border:3.5px solid transparent;border-bottom:4.5px solid currentColor;border-top:0;opacity:0;transition:opacity 0.15s}
+.rt-table th button:hover i{opacity:0.45}
+.rt-table th[aria-sort$="ending"] i{opacity:1}
+.rt-table th[aria-sort="descending"] i{transform:rotate(180deg)}
+.rt-table tbody tr:hover td{background:color-mix(in oklab, var(--bg-hover) 55%, transparent)}
+.rt-table td b{font-weight:500;color:var(--text-1)}
+.rt-table td small{margin-left:9px;font-size:inherit;color:var(--text-dim)}
+.rt-meter{display:inline-flex;align-items:center;gap:10px}
+.rt-meter i{display:block;width:44px;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--v-ok) var(--v),var(--pl-tick) 0)}
+.rt-none td{padding:32px 14px;text-align:center;color:var(--text-dim)}
+.rt-none:hover td{background:none!important}
+.rt-clear{all:unset;cursor:pointer;margin-left:6px;color:var(--text-1);text-decoration:underline;text-decoration-color:var(--border-2);text-underline-offset:3px}
+.rt-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-top:12px;font-family:var(--mono);font-size:11.5px;color:var(--text-dim)}
+.rt-pager{display:flex;align-items:center;gap:8px}
+.rt-page{min-width:6ch;text-align:center;font-variant-numeric:tabular-nums;color:var(--text-2)}
+.rt-step{all:unset;box-sizing:border-box;cursor:pointer;display:grid;place-items:center;width:32px;height:32px;border-radius:var(--r-pill);background:var(--bg-terminal);box-shadow:var(--shadow-surface);color:var(--text-dim);transition:color 0.16s}
+.rt-step svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.rt-step:hover{color:var(--text-1)}
+.rt-step:disabled{opacity:0.4;pointer-events:none}
+.rt :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.rt-search input:focus-visible{outline:0}
+.rt-menu{position:fixed;z-index:70;box-sizing:border-box;min-width:150px;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain;padding:4px;border-radius:10px;background:var(--bg-raised);box-shadow:var(--shadow-surface),0 14px 30px -14px rgb(0 0 0 / 0.5);font-family:var(--mono);font-size:11.5px;color:var(--text-2);outline:0;scrollbar-width:thin;-webkit-user-select:none;user-select:none}
+.rt-menu[hidden]{display:none}
+.rt-menu [role="option"]{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:6px 10px;border-radius:var(--r-ctl);white-space:nowrap;cursor:pointer}
+.rt-menu [role="option"].act{background:var(--bg-hover);color:var(--text-1)}
+.rt-menu [role="option"][aria-selected="true"]{color:var(--accent-fg)}
+.rt-menu b{font-weight:400;font-variant-numeric:tabular-nums;color:var(--text-dim)}
+
+/* ---------- tooltip ---------- */
+.tip{position:fixed;left:0;top:0;z-index:60;min-width:132px;max-width:300px;padding:9px 11px;border-radius:8px;background:var(--bg-raised);box-shadow:var(--shadow-surface),0 14px 30px -14px rgb(0 0 0 / 0.5);font-family:var(--mono);font-size:11.5px;line-height:1.45;color:var(--text-2);pointer-events:none;opacity:0;transition:opacity 0.12s}
+.tip.show{opacity:1}
+.tip-t{margin:0 0 6px;font-size:11px;color:var(--text-dim)}
+.tip-r{display:flex;align-items:center;gap:8px}
+.tip-r+.tip-r{margin-top:3px}
+.tip-r i{flex:none;width:10px;height:2px;border-radius:1px;background:var(--c)}
+.tip-r b{order:2;margin-left:auto;padding-left:14px;font-weight:600;color:var(--text-1);font-variant-numeric:tabular-nums}
+
+/* ---------- footer ---------- */
+footer{margin-top:calc(var(--band) / 2);font-size:13px;color:var(--text-dim)}
+.foot{display:flex;gap:8px 18px;flex-wrap:wrap;align-items:center;padding-block:22px 40px}
+.foot::before{content:"";flex-basis:100%;height:1px;margin-bottom:14px;background:var(--border-1)}
+.foot .mark{font-size:13px;gap:8px;color:var(--text-2)}
+.foot .mark .glyph{width:20px;height:20px;border-radius:5px;box-shadow:none}
+.foot-note{flex-basis:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 18px}
+.foot code{font-family:var(--mono);font-size:12px;color:var(--text-2)}
+
+@media (max-width:1000px){
+  .s4,.s5,.s7,.s8{grid-column:span 12}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:720px){
+  .s6{grid-column:span 12}
+  .card{padding:16px 14px 14px}
+  .hero{padding-top:20px}
+  .kv{font-size:26px}
+  .rt-search{flex-basis:100%;max-width:none}
+}
+@media (max-width:340px){.kpis{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;scroll-behavior:auto!important}}
+@media print{header.nav{position:static}.tb,.range,.themebtn,.rt-bar,.rt-pager{display:none}}
+</style>
+<!-- tweaks:start -->
+<script>
+/* how this page's tokens line up with the shared tweak palettes.
+   The page's own two schemes are the dock's Copperplate (dark) and Porcelain (light): its tokens are those palettes, role for role. */
+window.TWEAK_PAGE = {
+  key: 'copperplate-runs',
+  modes: ['dark', 'light'], /* the page ships both, through light-dark() tokens */
+  /* no data-theme yet means the page is following the system */
+  getMode: () => { const t = document.documentElement.getAttribute('data-theme'); return t === 'dark' || t === 'light' ? t : matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; },
+  setMode: m => { document.documentElement.setAttribute('data-theme', m); try { localStorage.setItem('gl-theme', m); } catch (e) {} },
+  sans: '--sans', mono: '--mono', scale: { r: ['--r-panel', '--r-ctl', '--r-pill'] },
+  chrome: { bg: 'var(--bg-raised)', fg: 'var(--text-1)', dim: 'var(--text-dim)', line: 'var(--border-2)', hover: 'var(--bg-hover)', accent: 'var(--accent-fg)' },
+  accentOwn: { dark: '#78d670', light: '#516e47' },
+  /* the page's own colours in palette order (app surf raised inset hover line line2 text text2 dim green red yellow blue magenta warn); used for glass */
+  own: {
+    dark: '18140e 211b14 2b241a 18130e 342c1f 413724 5e4d34 ead9c0 c0a989 a9987e a4c26f e0705a d8a24a 8aa8bd c98da4 cf8236',
+    light: 'efece8 fbf9f6 ffffff f4f1ec e9e5df ddd8d0 c2bab0 33302b 5e5951 6e6960 3d8b3d c53a3a a37414 3565c0 ad3d8d bb6a1e',
+  },
+  map: (p, mix) => ({
+    '--bg-app': p.app, '--bg-terminal': p.surf, '--bg-raised': p.raised, '--bg-inset': p.inset, '--bg-hover': p.hover,
+    '--border-1': p.line, '--border-2': p.line2, '--text-1': p.text, '--text-2': p.text2, '--text-dim': mix(p.text2, 60, p.dim), /* the page's dim is label text, so it sits nearer the body colour than a palette's faintest step */
+    /* the semantic hues follow the theme: pills, status text, dots. The chart series (--s*, --v-*, --o*) keep the colours that were checked as sets */
+    '--green': p.green, '--red': p.red, '--yellow': p.yellow,
+  }),
+  /* the accent drives the headline, the pressed range, the cursor, the lit dots and the mark, through --accent-fg, -fill and -soft */
+  accent: c => ({ '--accent': c }),
+  gutter: { own: 'boxed', css: 'html[data-tw-gutter="full-width"] :is(.main,.nav-inner,.foot){max-width:none}' },
+  glass: '.tip, .rt-menu', /* only boxes that float over other content */
+};
+</script>
+<style id="tw-css">
+/* tweak dock: same controls as the terminal design system's config bar. Colours come from --tw-* so it follows whatever theme is active. */
+.tw{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:900;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px 10px;width:max-content;max-width:calc(100vw - 24px);padding:4px 6px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-dim);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+html[data-tw-surface="glass"] .tw{-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}
+.tw[hidden],.tw-chip[hidden]{display:none}
+.tw-ctl{display:flex;align-items:center;gap:6px;height:24px;padding:0 4px;white-space:nowrap}
+.tw button,.tw-chip{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* a chooser is a button showing its value; its list is .tw-menu below, drawn by the page, never the system's popup */
+.tw button.tw-val{display:inline-block;vertical-align:middle;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tw-fg);padding:4px 14px 4px 0;background:linear-gradient(45deg,transparent 50%,var(--tw-dim) 50%) calc(100% - 4px) 55%/4px 4px no-repeat,linear-gradient(135deg,var(--tw-dim) 50%,transparent 50%) 100% 55%/4px 4px no-repeat}
+.tw button.tw-val:hover,.tw button.tw-val[aria-expanded="true"]{color:var(--tw-acc)}
+.tw-seg{display:flex;gap:2px}
+.tw-seg button{padding:4px 7px;border-radius:4px;color:var(--tw-fg);opacity:.72}
+.tw-seg button:hover{background:var(--tw-hover);opacity:1}
+.tw-seg button[aria-pressed="true"]{background:var(--tw-hover);color:var(--tw-acc);font-weight:700;opacity:1}
+.tw-sws{display:flex;align-items:center;gap:8px}
+.tw button.tw-sw{width:11px;height:11px;border-radius:50%;background:var(--c);outline:1px solid transparent;outline-offset:2px}
+.tw button.tw-sw[aria-pressed="true"]{outline-color:var(--tw-fg)}
+.tw button.tw-x{margin-left:2px;padding:4px 7px;border-radius:4px;color:var(--tw-dim)}
+.tw button.tw-x:hover{background:var(--tw-hover);color:var(--tw-fg)}
+.tw button:focus-visible,.tw-chip:focus-visible{outline:2px solid var(--tw-acc);outline-offset:2px}
+.tw-chip{position:fixed;right:12px;bottom:12px;z-index:900;padding:7px 10px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+.tw-chip:hover{color:var(--tw-acc)}
+.tw-space{height:56px}
+.tw-menu{position:fixed;z-index:901;box-sizing:border-box;min-width:132px;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain;padding:4px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-menu);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;text-align:left;box-shadow:0 16px 40px -14px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.14);outline:0;scrollbar-width:thin;scrollbar-color:var(--tw-dim) transparent;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.tw-menu[hidden]{display:none}
+.tw-menu [role="option"]{display:flex;align-items:center;gap:8px;padding:7px 12px 7px 8px;border-radius:4px;white-space:nowrap;cursor:pointer}
+.tw-menu [role="option"].act{background:var(--tw-hover)}
+.tw-menu [role="option"][aria-selected="true"]{color:var(--tw-acc);font-weight:700}
+.tw-menu .tw-grp{padding:9px 8px 5px;color:var(--tw-dim);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.tw-dot{flex:none;width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--a) 50%,var(--b) 50%);box-shadow:0 0 0 1px var(--tw-line)} /* a theme's surface and primary */
+@media (max-width:720px){.tw{left:8px;right:8px;bottom:8px;transform:none;width:auto;max-width:none;justify-content:flex-start}.tw-ctl{height:30px}.tw-space{height:150px}.tw-menu [role="option"]{padding-block:10px}}
+@media print{.tw,.tw-chip,.tw-space,.tw-menu{display:none}}
+/* glass surface: a soft backdrop behind translucent panels */
+html[data-tw-surface="glass"]{background:var(--tw-app)!important}
+html[data-tw-surface="glass"] body{background:transparent!important}
+html[data-tw-surface="glass"]::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 50% at 18% 0%,color-mix(in srgb,var(--tw-acc) 16%,transparent),transparent 70%),radial-gradient(50% 45% at 100% 100%,color-mix(in srgb,var(--tw-warn) 13%,transparent),transparent 70%)}
+</style>
+<script id="tw-js">
+/* Tweaks: mode / theme / surface / font / size / corners / density / gutter / accent. All but gutter are the terminal design system page's controls.
+   Each page describes itself in window.TWEAK_PAGE (which of its tokens mean what); everything else here is shared.
+   With every control on its default the page's own CSS is untouched.
+   The look is also written to the address as ?mode=&theme=&surface=&font=&size=&corners=&density=&gutter=&accent=, and read back from it, so a link carries it. */
+(function(){
+'use strict';
+const P = window.TWEAK_PAGE, root = document.documentElement, KEY = 'artikit-tweaks:' + P.key;
+/* palettes, in this order: */
+const ROLES = ['app','surf','raised','inset','hover','line','line2','text','text2','dim','green','red','yellow','blue','magenta','warn','primary']; /* primary: the hue a theme is known by. It is the theme's accent until the accent control picks another */
+const THEMES = {
+ "dark": {
+  "Copperplate": "14100b 1a150e 241d14 100c08 2c2418 332917 54432a ead9c0 b59c7a 77664c a4c26f e0705a d8a24a 8aa8bd c98da4 cf8236 cf8236",
+  "Midnight": "0d0d13 16161e 1d1d28 12121a 232330 2a2a38 383848 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f 6f9ef1",
+  "Graphite": "101012 151517 1c1c1f 0c0c0e 232326 2a2a2e 3a3a40 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f b9c0d0",
+  "Phosphor": "060a06 0a120a 101a10 050905 152415 1c301c 2a462a b8e0b0 7aa874 4a6a46 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f 78d670",
+  "Dracula": "1e1f29 282a36 343746 21222c 3c3f52 3a3d4f 4d5069 f8f8f2 a8abc7 6272a4 50fa7b ff5555 f1fa8c 8be9fd ff79c6 ffb86c bd93f9",
+  "Nord": "242933 2e3440 3b4252 272c37 434c5e 3b4252 4c566a e5e9f0 aeb8cc 616e88 a3be8c bf616a ebcb8b 81a1c1 b48ead d08770 88c0d0",
+  "Solarized Dark": "00212b 002b36 073642 001f27 0a4050 073642 586e75 93a1a1 839496 586e75 859900 dc322f b58900 268bd2 d33682 cb4b16 2aa198",
+  "Tidewatch": "0a1220 0e1728 16233a 091020 1c2c47 1e2f4a 2e4368 d7e3f2 93a8c4 54688a 4fd6be ff6b7f e5c07b 56b3fa c792ea e5a45b 4fd6be",
+  "Iris": "14121f 191627 221e35 110f1c 2a2542 2b2545 413866 e6e1f5 a79fc7 675f8a 72e0a5 ff6b9d f0c674 82aaff c792ea f0a35e a99cf5",
+  "Emberline": "0c1210 101915 18241e 0a0f0d 1f2e26 22332a 35503f d8e6dc 96ad9d 587263 7fce6f f26d4f f0a848 6db2c9 d78ab0 f08c3a f08c3a",
+  "Oceanic": "0b141f 0f1a29 172538 0a111c 1d3049 203450 31507a d9e6f5 8ea9c4 526b88 5fd39b f2708a e8c268 58a6ff bc8cff e09a4e 58a6ff",
+  "Grove": "0d130c 121a10 1a2618 0b100a 21301e 263a22 3b5a35 dde8d6 a2b797 647a5a 9ccb72 e06c5f d9b656 72aec4 c194bd d19042 9ccb72",
+  "Rosewire": "170f14 1e1319 291b23 130c10 32212b 36242e 523847 f0dfe8 bd9cab 7c6070 7fd2a0 ff5c8a e8b465 7ba6e0 e56ba8 e0955a ef6fa0",
+  "Halide": "0c0c0c 111111 1a1a1a 080808 222222 262626 3d3d3d e8e8e8 a0a0a0 606060 a9c4a9 cf9a9a c9bd9a 9ab1c4 bda4b8 c4ad8f c4ad8f"
+ },
+ "light": {
+  "Porcelain": "efece8 fbf9f6 ffffff f4f1ec e9e5df ddd8d0 c2bab0 33302b 6b655c a39c90 3d8b3d c53a3a a37414 3565c0 ad3d8d bb6a1e 3565c0",
+  "Paper": "eceff1 fafbfc ffffff f0f2f4 e4e8ec d5dade b8c0c8 2a3138 5a656e 9aa4ac 188038 c5221f a86a00 1a63d0 b8207e c26401 1a63d0",
+  "Solarized Light": "eee8d5 fdf6e3 ffffff f3edda e8e1cc ddd6c1 c0b99f 586e75 657b83 93a1a1 859900 dc322f b58900 268bd2 d33682 cb4b16 1b817a",
+  "Frost": "e8edf3 f6f9fc ffffff eef2f7 dfe7ef d0dae4 aabccd 26313c 54687a 93a5b5 2e9440 d13b45 ad7a12 3a6ec4 b8459a c47222 2b7a9e",
+  "Dawn": "f2eae8 fcf7f5 ffffff f5edeb ecdfdc e2d3cf c8b1ab 3a2d2a 75605b ab948e 2c8a44 cc3344 a86e10 3565c0 c03a7e bd6420 c2456b",
+  "Linen": "efe9dd faf6ec fffdf6 f3eee1 e8e1d0 ded5c1 bfb298 38321f 6e6650 a49a80 4c7f22 bd3e2e 976a08 2e6a9e a5498a af6a12 a4532a",
+  "Sage": "e9eee6 f6f9f3 ffffff eef3ea dfe7da d2ddcb adbfa3 2b352a 5c6c58 93a58c 347a34 c04040 9c7212 33689e 9c4a8a b06a1c 347a34",
+  "Lavender": "edeaf3 f9f7fc ffffff f2eff7 e4dfee d9d3e4 b5aacb 312b3d 655c78 a096b3 2f8a48 cc3550 a06d10 4a5ecc a63cae bb681e 6d55c9"
+ }
+};
+const ACCENTS = { cyan:['#66c7d6','#1a7f8e'], green:['#78d670','#2f8a3a'], magenta:['#ec6bb4','#b8328a'], blue:['#6f9ef1','#3565c0'], orange:['#e2953f','#b5651a'] };
+const FONTS = { mono:['JetBrains Mono','Fira Code','IBM Plex Mono','Source Code Pro','Space Mono','Inconsolata','Ubuntu Mono','Victor Mono','Red Hat Mono'], sans:['Inter','Geist','IBM Plex Sans','Hanken Grotesk','Figtree','Manrope'] };
+const TWO_WEIGHTS = ['Space Mono','Ubuntu Mono']; /* static families with only regular and bold */
+const GUTTERS = ['boxed', 'full-width'], OWN_GUTTER = P.gutter ? P.gutter.own : null; /* P.gutter: { own: which of the two the page ships, css: rules for the other, keyed on html[data-tw-gutter] } */
+const SIZE = { small:.9, default:1, large:1.12, 'x-large':1.25 }, CORNER = { sharp:0, default:1, round:1.8 }, DENSITY = { compact:.72, default:1, relaxed:1.32 };
+const pal = s => Object.fromEntries(s.split(' ').map((h, i) => [ROLES[i], '#' + h]));
+const mix = (a, pct, b) => `color-mix(in srgb, ${a} ${pct}%, ${b || 'transparent'})`;
+
+/* ---- one pass over the page's own rules: px font sizes, radii and spacing get a multiplier that defaults to 1,
+        so nothing moves until size, corners or density is changed ---- */
+const FAMILY = [[/^font-size$/, 'fs'], [/^border-(top|bottom|start|end)-(left|right|start|end)-radius$/, 'r'], [/^(padding|margin)-(top|right|bottom|left|block-start|block-end|inline-start|inline-end)$|^(row|column)-gap$/, 'd']];
+const PX = /-?\d*\.?\d+px/g, tokens = P.scale || {};
+/* negative margins are left alone: they pull a box out to an edge whose gutter is fixed, so scaling them would overshoot */
+const scaled = (v, k) => v.replace(PX, m => parseFloat(m) > 0 ? `calc(${m}*var(--tw-${k},1))` : m);
+(function walk(rules){
+  for (const r of rules){
+    if (r instanceof CSSKeyframesRule) continue;
+    const st = r.style;
+    if (st) for (const prop of Array.from(st)){
+      const k = prop.startsWith('--') ? Object.keys(tokens).find(k => tokens[k].includes(prop)) : (FAMILY.find(f => f[0].test(prop)) || [])[1];
+      if (!k) continue;
+      const v = st.getPropertyValue(prop);
+      if (v && !v.includes('--tw-') && v.search(PX) >= 0) st.setProperty(prop, scaled(v, k), st.getPropertyPriority(prop));
+    }
+    if (r.cssRules && r.cssRules.length) walk(r.cssRules);
+  }
+})(Array.from(document.styleSheets).flatMap(s => { try { return s.ownerNode && s.ownerNode.id === 'tw-css' ? [] : Array.from(s.cssRules); } catch (e) { return []; } }));
+
+/* ---- state ---- */
+const themesFor = m => (P.modes.includes(m) ? ['page'] : []).concat(Object.keys(THEMES[m]));
+const cfg = { mode: P.getMode(), theme: null, surface: 'solid', font: 'default', size: 'default', corner: 'default', density: 'default', gutter: OWN_GUTTER, accent: 'page', open: null };
+/* one address parameter per control. Values are matched loosely (case, spaces and dashes ignored); "default" means the page's own */
+const QK = { mode: 'mode', theme: 'theme', surface: 'surface', font: 'font', size: 'size', corner: 'corners', density: 'density', gutter: 'gutter', accent: 'accent' };
+const norm = v => String(v).toLowerCase().replace(/[^a-z0-9]+/g, ''), among = (v, list) => list.find(o => norm(o) === norm(v));
+function fromURL(){
+  let q; try { q = new URLSearchParams(location.search); } catch (e) { return null; }
+  if (!Object.values(QK).some(name => q.has(name))) return null;
+  const g = k => q.get(QK[k]) || '', own = v => ['default', 'page', 'pagedefault'].includes(norm(v)), th = g('theme');
+  /* a link is a complete look: anything it leaves out is the default, not what this browser had saved */
+  const out = { mode: among(g('mode'), ['dark', 'light']) || (own(th) ? null : ['dark', 'light'].find(m => among(th, Object.keys(THEMES[m])))) || cfg.mode }; /* ?theme=Nord alone implies dark */
+  out.theme = own(th) ? 'page' : among(th, Object.keys(THEMES[out.mode])) || null;
+  out.surface = among(g('surface'), ['solid', 'glass']) || 'solid';
+  out.font = among(g('font'), FONTS.mono.concat(FONTS.sans)) || 'default';
+  out.size = among(g('size'), Object.keys(SIZE)) || 'default'; out.corner = among(g('corner'), Object.keys(CORNER)) || 'default'; out.density = among(g('density'), Object.keys(DENSITY)) || 'default';
+  out.accent = among(g('accent'), Object.keys(ACCENTS)) || 'page';
+  out.gutter = among(g('gutter'), GUTTERS) || (norm(g('gutter')) === 'full' ? 'full-width' : OWN_GUTTER);
+  return out;
+}
+let inURL = false;
+function toURL(){
+  try {
+    const q = new URLSearchParams(location.search);
+    for (const k in QK) if (cfg[k] != null) q.set(QK[k], cfg[k] === 'page' ? 'default' : cfg[k]);
+    history.replaceState(history.state, '', '?' + q + location.hash); inURL = true; /* the page's own #section stays */
+  } catch (e) {}
+}
+let stored = {}; try { stored = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+const linked = fromURL();
+Object.assign(cfg, linked ? { ...linked, open: stored.open == null ? null : stored.open } : stored);
+function settle(){
+  if (!THEMES[cfg.mode]) cfg.mode = P.getMode();
+  if (!themesFor(cfg.mode).includes(cfg.theme)) cfg.theme = themesFor(cfg.mode)[0];
+  if (cfg.surface !== 'glass') cfg.surface = 'solid';
+  if (cfg.font !== 'default' && !FONTS.mono.concat(FONTS.sans).includes(cfg.font)) cfg.font = 'default';
+  if (!(cfg.size in SIZE)) cfg.size = 'default'; if (!(cfg.corner in CORNER)) cfg.corner = 'default'; if (!(cfg.density in DENSITY)) cfg.density = 'default';
+  if (cfg.accent !== 'page' && !ACCENTS[cfg.accent]) cfg.accent = 'page';
+  cfg.gutter = P.gutter ? (GUTTERS.includes(cfg.gutter) ? cfg.gutter : OWN_GUTTER) : null;
+}
+settle();
+
+/* glass: the page names which boxes are panels (they blur what is behind them) and which wrappers must stop painting an opaque fill.
+   gutter: the page gives the rules for the layout it does not ship (boxed for a full-width page, full-width for a boxed one) */
+if (P.glass || P.clear || P.gutter){
+  const st = document.createElement('style'); st.id = 'tw-dyn';
+  st.textContent = (P.glass ? `html[data-tw-surface="glass"] :is(${P.glass}){-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}` : '') +
+    (P.clear ? `html[data-tw-surface="glass"] :is(${P.clear}){background:transparent!important}` : '') + (P.gutter ? P.gutter.css : '');
+  document.head.append(st);
+}
+const applied = new Set(), loaded = new Set(); let baseAccent;
+function loadFont(name){
+  if (loaded.has(name)) return; loaded.add(name);
+  const l = document.createElement('link'); l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' + name.replace(/ /g, '+') + ':wght@' + (TWO_WEIGHTS.includes(name) ? '400;700' : '400;500;600;700') + '&display=swap';
+  document.head.append(l);
+}
+function apply(){
+  const c = cfg, light = c.mode === 'light', own = c.theme === 'page', glass = c.surface === 'glass';
+  applied.forEach(k => root.style.removeProperty(k)); applied.clear();
+  const put = (k, v) => { if (k && v != null){ root.style.setProperty(k, String(v)); applied.add(k); } }, putAll = o => Object.entries(o).forEach(([k, v]) => put(k, v));
+  P.setMode(c.mode);
+  root.dataset.twMode = c.mode; if (glass) root.dataset.twSurface = 'glass'; else delete root.dataset.twSurface;
+  if (P.gutter && c.gutter !== OWN_GUTTER) root.dataset.twGutter = c.gutter; else delete root.dataset.twGutter;
+  const accent = c.accent === 'page' ? null : ACCENTS[c.accent][light ? 1 : 0];
+  let chrome = P.chrome, warn = 'transparent', app = 'transparent', p = null, tokens = null; /* the palette in force and what map() made of it: both stay null while the page's own look is untouched */
+  baseAccent = P.accentOwn[c.mode] || P.accentOwn[P.modes[0]];
+  if (!own || glass){
+    p = pal(own ? P.own[c.mode] : THEMES[c.mode][c.theme]);
+    if (!p.primary) p.primary = own ? baseAccent : p.blue; /* the page's own palette lists sixteen colours: its primary is its accent */
+    p.solid = p.surf; p.mode = c.mode; p.glass = glass; app = p.app; warn = p.warn;
+    if (glass){ /* same recipe as the terminal kit: translucent surface, tinted raised/hover layers, hairlines from the text colour */
+      const t = p.text;
+      p.surf = mix(p.surf, light ? 64 : 72); p.raised = light ? 'rgba(255,255,255,.6)' : mix(t, 5); p.inset = light ? mix(t, 4) : 'rgba(0,0,0,.18)';
+      p.hover = mix(t, light ? 7 : 9); p.line = mix(t, light ? 10 : 9); p.line2 = mix(t, light ? 18 : 16);
+    }
+    putAll(tokens = P.map(p, mix));
+    put('color-scheme', c.mode);
+    chrome = { bg: glass ? mix(p.solid, 82) : p.raised, fg: p.text, dim: mix(p.text2, 62, p.dim), line: p.line2, hover: p.hover, accent: own ? P.accentOwn[c.mode] : p.primary, menu: p.solid };
+    if (!own) baseAccent = p.primary; /* a shared theme brings its own default accent: its primary */
+  }
+  const hue = accent || (own ? null : p.primary);
+  if (hue) putAll(P.accent(hue, mix, c.mode, p, tokens));
+  put('--tw-bg', chrome.bg); put('--tw-fg', chrome.fg); put('--tw-dim', chrome.dim); put('--tw-line', chrome.line); put('--tw-hover', chrome.hover);
+  put('--tw-acc', accent || chrome.accent); put('--tw-menu', chrome.menu || chrome.bg); put('--tw-app', app); put('--tw-warn', warn);
+  if (P.mono) put('--tw-font', `var(${P.mono})`);
+  if (c.font !== 'default'){
+    const mono = FONTS.mono.includes(c.font), stack = `"${c.font}",` + (mono ? 'ui-monospace,SFMono-Regular,Menlo,monospace' : 'system-ui,-apple-system,"Segoe UI",sans-serif');
+    loadFont(c.font); put(P.sans, stack); if (mono) put(P.mono, stack);
+  }
+  if (SIZE[c.size] !== 1) put('--tw-fs', SIZE[c.size]);
+  if (CORNER[c.corner] !== 1) put('--tw-r', CORNER[c.corner]);
+  if (DENSITY[c.density] !== 1) put('--tw-d', DENSITY[c.density]);
+}
+apply();
+if (linked || cfg.theme !== 'page' || cfg.surface !== 'solid' || cfg.accent !== 'page' || cfg.gutter !== OWN_GUTTER || ['font', 'size', 'corner', 'density'].some(k => cfg[k] !== 'default')) toURL();
+
+/* ---- dock ---- */
+let dock, chip, space;
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
+const seg = (k, opts) => `<span class="tw-seg">${opts.map(o => `<button type="button" data-k="${k}" data-v="${o}" aria-pressed="${cfg[k] === o}">${o}</button>`).join('')}</span>`;
+const NAME = { theme: 'theme', font: 'font', size: 'size', corner: 'corners', density: 'density' };
+const sw = (hexes, b) => { const h = hexes.split(' '); return { a: '#' + h[1], b: b || '#' + (h[16] || h[13]) }; }; /* surface + primary of a palette */
+const choices = k => k === 'theme' ? themesFor(cfg.mode).map(t => t === 'page' ? { v: t, label: 'page default', sw: P.own && P.own[cfg.mode] ? sw(P.own[cfg.mode], P.accentOwn[cfg.mode]) : null } : { v: t, label: t, sw: sw(THEMES[cfg.mode][t]) })
+  : k === 'font' ? [{ v: 'default', label: 'default' }, { group: 'mono, whole page' }].concat(FONTS.mono.map(f => ({ v: f, label: f })), [{ group: 'sans' }], FONTS.sans.map(f => ({ v: f, label: f })))
+  : Object.keys({ size: SIZE, corner: CORNER, density: DENSITY }[k]).map(o => ({ v: o, label: o }));
+const pick = k => { const now = (choices(k).find(o => o.v === cfg[k]) || { label: cfg[k] }).label; return `<button type="button" class="tw-val" data-k="${k}" aria-haspopup="listbox" aria-expanded="false" aria-controls="tw-menu" aria-label="${NAME[k]}: ${esc(now)}">${esc(now)}</button>`; };
+
+/* the list of a chooser: a listbox the page draws, so it wears the active theme. Arrow keys, Home/End, typing a name, Enter, Escape */
+let menu, menuFor = null, opts = [], at = -1, typed = '', typedAt = 0;
+function setAt(i, quiet){
+  at = i; opts.forEach((o, n) => o.classList.toggle('act', n === i));
+  const o = opts[i]; if (!o) return; menu.setAttribute('aria-activedescendant', o.id);
+  if (quiet) return; /* the pointer is already on it */
+  if (o.offsetTop < menu.scrollTop + 4) menu.scrollTop = o.offsetTop - 4; else if (o.offsetTop + o.offsetHeight > menu.scrollTop + menu.clientHeight - 4) menu.scrollTop = o.offsetTop + o.offsetHeight - menu.clientHeight + 4;
+}
+function place(){ /* above the control when the dock sits at the bottom, kept inside the window */
+  const r = menuFor.getBoundingClientRect(), up = r.top > innerHeight - r.bottom;
+  menu.style.minWidth = Math.max(132, Math.round(r.width) + 18) + 'px';
+  menu.style.maxHeight = Math.max(120, Math.min(480, (up ? r.top : innerHeight - r.bottom) - 14)) + 'px';
+  menu.style.left = Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, r.left - 9)) + 'px';
+  menu.style.top = up ? 'auto' : r.bottom + 6 + 'px'; menu.style.bottom = up ? innerHeight - r.top + 6 + 'px' : 'auto';
+}
+function openMenu(btn){
+  closeMenu(); const k = btn.dataset.k;
+  menu.innerHTML = choices(k).map((o, i) => o.group ? `<div class="tw-grp" role="presentation">${esc(o.group)}</div>` :
+    `<div role="option" id="tw-o${i}" data-v="${esc(o.v)}" aria-selected="${cfg[k] === o.v}">${o.sw ? `<i class="tw-dot" style="--a:${o.sw.a};--b:${o.sw.b}"></i>` : ''}${esc(o.label)}</div>`).join('');
+  opts = Array.from(menu.querySelectorAll('[role="option"]')); menuFor = btn; typed = '';
+  btn.setAttribute('aria-expanded', 'true'); menu.setAttribute('aria-label', NAME[k]); menu.hidden = false; menu.scrollTop = 0;
+  place(); setAt(Math.max(0, opts.findIndex(o => o.getAttribute('aria-selected') === 'true'))); menu.focus({ preventScroll: true });
+}
+function closeMenu(refocus){
+  if (!menuFor) return; const b = menuFor; menuFor = null; menu.hidden = true;
+  if (b.isConnected){ b.setAttribute('aria-expanded', 'false'); if (refocus) b.focus({ preventScroll: true }); }
+}
+function choose(i){ const b = menuFor, o = opts[i]; closeMenu(true); if (b && o && cfg[b.dataset.k] !== o.dataset.v) set({ [b.dataset.k]: o.dataset.v }); }
+function menuKey(e){
+  const n = opts.length, k = e.key;
+  if (k === 'ArrowDown') setAt((at + 1) % n); else if (k === 'ArrowUp') setAt((at - 1 + n) % n);
+  else if (k === 'Home' || k === 'PageUp') setAt(0); else if (k === 'End' || k === 'PageDown') setAt(n - 1);
+  else if (k === 'Enter' || k === ' ') choose(at); else if (k === 'Escape') closeMenu(true);
+  else if (k === 'Tab'){ closeMenu(true); return; } /* focus is back on the control, so Tab moves on from there */
+  else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey){ /* type a name to jump to it */
+    const t = Date.now(); typed = (t - typedAt > 700 ? '' : typed) + k.toLowerCase(); typedAt = t;
+    for (let j = 0, from = typed.length > 1 ? at : at + 1; j < n; j++){ const i = (from + j) % n; if (opts[i].textContent.trim().toLowerCase().startsWith(typed)){ setAt(i); break; } }
+  } else return;
+  e.preventDefault(); e.stopPropagation();
+}
+
+function render(){
+  if (!dock) return;
+  closeMenu();
+  const light = cfg.mode === 'light', had = document.activeElement, keep = had && dock.contains(had) ? [had.dataset.k, had.dataset.v] : null;
+  dock.innerHTML =
+    `<div class="tw-ctl">mode ${seg('mode', ['dark', 'light'])}</div>` +
+    `<div class="tw-ctl">theme ${pick('theme')}</div>` +
+    `<div class="tw-ctl">surface ${seg('surface', ['solid', 'glass'])}</div>` +
+    `<div class="tw-ctl">font ${pick('font')}</div>` +
+    `<div class="tw-ctl">size ${pick('size')}</div>` +
+    `<div class="tw-ctl">corners ${pick('corner')}</div>` +
+    `<div class="tw-ctl">density ${pick('density')}</div>` +
+    (P.gutter ? `<div class="tw-ctl">gutter ${seg('gutter', GUTTERS)}</div>` : '') +
+    `<div class="tw-ctl">accent <span class="tw-sws">${['page'].concat(Object.keys(ACCENTS)).map(a => `<button type="button" class="tw-sw" data-k="accent" data-v="${a}" title="${a === 'page' ? 'default' : a}" aria-label="${a === 'page' ? 'default' : a} accent" aria-pressed="${cfg.accent === a}" style="--c:${a === 'page' ? baseAccent : ACCENTS[a][light ? 1 : 0]}"></button>`).join('')}</span></div>` +
+    `<button type="button" class="tw-x" data-k="open" data-v="" aria-label="Hide tweaks" title="Hide tweaks">hide</button>`;
+  dock.hidden = !cfg.open; chip.hidden = !!cfg.open; if (space) space.hidden = !cfg.open;
+  if (keep){ const el = keep[1] != null ? dock.querySelector(`[data-k="${keep[0]}"][data-v="${keep[1]}"]`) : dock.querySelector(`.tw-val[data-k="${keep[0]}"]`); if (el) el.focus({ preventScroll: true }); }
+}
+function set(patch){
+  const before = { ...cfg };
+  Object.assign(cfg, patch);
+  if (patch.mode && patch.mode !== before.mode && !('theme' in patch)) cfg.theme = cfg.theme === 'page' && P.modes.includes(cfg.mode) ? 'page' : themesFor(cfg.mode)[0];
+  settle(); apply(); render();
+  try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {}
+  if (inURL || Object.keys(QK).some(k => cfg[k] !== before[k])) toURL();
+  document.dispatchEvent(new CustomEvent('tweakchange', { detail: { ...cfg } }));
+  /* text, spacing, font and width changes move boxes: let the page redraw anything it sized in script */
+  if (['font', 'size', 'density', 'corner', 'gutter'].some(k => cfg[k] !== before[k])){
+    const again = () => window.dispatchEvent(new Event('resize'));
+    requestAnimationFrame(() => requestAnimationFrame(again));
+    if (cfg.font !== before.font && document.fonts) document.fonts.ready.then(() => setTimeout(again, 60));
+  }
+}
+function mount(){
+  dock = document.createElement('div'); dock.className = 'tw'; dock.id = 'tweaks'; dock.setAttribute('role', 'group'); dock.setAttribute('aria-label', 'Theme tweaks');
+  chip = document.createElement('button'); chip.type = 'button'; chip.className = 'tw-chip'; chip.textContent = 'tweaks'; chip.setAttribute('aria-label', 'Show tweaks');
+  if (P.spacer !== false){ space = document.createElement('div'); space.className = 'tw-space'; space.setAttribute('aria-hidden', 'true'); document.body.append(space); }
+  menu = document.createElement('div'); menu.className = 'tw-menu'; menu.id = 'tw-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1; menu.hidden = true;
+  document.body.append(dock, chip, menu);
+  if (cfg.open == null) cfg.open = innerWidth > 720;
+  dock.addEventListener('click', e => {
+    const v = e.target.closest('.tw-val'); if (v){ if (menuFor === v) closeMenu(true); else openMenu(v); return; }
+    const b = e.target.closest('button[data-k]'); if (!b) return; set({ [b.dataset.k]: b.dataset.k === 'open' ? false : b.dataset.v }); if (b.dataset.k === 'open') chip.focus();
+  });
+  dock.addEventListener('keydown', e => { const v = e.target.closest('.tw-val'); if (v && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){ e.preventDefault(); openMenu(v); } });
+  menu.addEventListener('keydown', menuKey);
+  menu.addEventListener('click', e => { const o = e.target.closest('[role="option"]'); if (o) choose(opts.indexOf(o)); });
+  menu.addEventListener('pointermove', e => { const o = e.target.closest('[role="option"]'), i = opts.indexOf(o); if (o && i !== at) setAt(i, true); });
+  menu.addEventListener('focusout', e => { if (menuFor && e.relatedTarget !== menuFor && !menu.contains(e.relatedTarget)) closeMenu(); });
+  document.addEventListener('pointerdown', e => { if (menuFor && !menu.contains(e.target) && !menuFor.contains(e.target)) closeMenu(); }, true);
+  addEventListener('resize', () => closeMenu()); addEventListener('blur', () => closeMenu());
+  chip.addEventListener('click', () => { set({ open: true }); const f = dock.querySelector('button'); if (f) f.focus(); });
+  render();
+}
+if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
+window.Tweaks = { get: () => ({ ...cfg }), set, themes: THEMES, mix };
+})();
+</script>
+<!-- tweaks:end -->
+</head>
+<body>
+<header class="nav">
+  <div class="nav-inner">
+    <a class="mark" href="#top" aria-label="Acme runs, back to top"><svg class="glyph" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="var(--accent-soft)"/><circle cx="14" cy="14" r="6.5" fill="none" stroke="var(--accent-fill)" stroke-width="2"/><circle cx="14" cy="14" r="2" fill="var(--accent-fill)"/></svg><span class="wm">acme</span></a>
+    <span class="ver">sample data</span>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#verdicts">Verdicts</a>
+      <a href="#workers">Workers</a>
+      <a href="#controls">Controls</a>
+      <a href="#coverage">Coverage</a>
+      <a href="#log">Run log</a>
+    </nav>
+    <div class="nav-act">
+      <div class="range" id="range" role="group" aria-label="Date range"><button type="button" data-n="7" aria-pressed="false">7d</button><button type="button" data-n="30" aria-pressed="true">30d</button><button type="button" data-n="90" aria-pressed="false">90d</button></div>
+      <button class="themebtn" id="themebtn" type="button" data-to="light" aria-label="Switch to light theme" title="Switch to light theme">
+        <svg class="sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3.2" /><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.05 3.05l1.13 1.13M11.82 11.82l1.13 1.13M12.95 3.05l-1.13 1.13M4.18 11.82l-1.13 1.13" /></svg>
+        <svg class="moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.8 5.8 0 0 1 6.4 2.5a5.8 5.8 0 1 0 7.1 7.1z" /></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+<section class="hero" id="top">
+  <div class="wrap">
+    <h1>Every run, <span class="hl">on the record</span>.</h1>
+    <p class="scope" id="scope" aria-live="polite"></p>
+    <div class="kpis" id="kpis"></div>
+  </div>
+</section>
+
+<section id="verdicts">
+  <div class="wrap">
+    <header class="bandhead">
+      <p class="eyebrow">verdicts</p>
+      <h2 class="band-title">What the verifier did with every candidate.</h2>
+    </header>
+    <div class="grid" data-grid="verdicts"></div>
+  </div>
+</section>
+
+<section id="workers">
+  <div class="wrap">
+    <header class="bandhead">
+      <p class="eyebrow">orchestration</p>
+      <h2 class="band-title">Who took the work, and how it went.</h2>
+    </header>
+    <div class="grid" data-grid="workers"></div>
+  </div>
+</section>
+
+<section id="controls">
+  <div class="wrap">
+    <header class="bandhead">
+      <p class="eyebrow">controls</p>
+      <h2 class="band-title">What the gate refused, and what survived the re-run.</h2>
+    </header>
+    <div class="grid" data-grid="controls"></div>
+  </div>
+</section>
+
+<section id="coverage">
+  <div class="wrap">
+    <header class="bandhead">
+      <p class="eyebrow">evidence</p>
+      <h2 class="band-title">Where the coverage came from, and when runs start.</h2>
+    </header>
+    <div class="grid" data-grid="coverage"></div>
+  </div>
+</section>
+
+<section id="log">
+  <div class="wrap">
+    <header class="bandhead">
+      <p class="eyebrow">run log</p>
+      <h2 class="band-title">Every run in the range, one row each.</h2>
+    </header>
+    <div class="grid"><article class="card s12" id="c-records">
+      <header class="ch"><div><h3>All runs</h3><p class="form">table · search · filters · sort</p></div></header>
+      <div id="records-table"></div>
+    </article></div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="foot">
+    <a class="mark" href="#top"><svg class="glyph" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="var(--accent-soft)"/><circle cx="14" cy="14" r="6.5" fill="none" stroke="var(--accent-fill)" stroke-width="2"/><circle cx="14" cy="14" r="2" fill="var(--accent-fill)"/></svg> acme</a>
+    <span class="chip">sample data</span>
+    <div class="foot-note">
+      <span>Sample page: every name and number on it is invented.</span>
+      <span>Generated in the script from a fixed seed (<code>DATA</code>).</span>
+    </div>
+  </div>
+</footer>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* ================= DATA: one seeded dataset, 180 days of agent runs =================
+   Every figure on the page is an aggregate of DATA.runs (one object per run) and DATA.jobs (one per worker a run used).
+   Change the seed, the weights or the lists here and every plate follows. */
+const DATA = (() => {
+  let a = 20261115;
+  const R = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const gauss = () => Math.sqrt(-2 * Math.log(R() || 1e-9)) * Math.cos(2 * Math.PI * R());
+  const logn = (median, sigma) => median * Math.exp(sigma * gauss());
+  const pick = w => { let x = R() * w.reduce((s, v) => s + v, 0); for (let i = 0; i < w.length; i++) if ((x -= w[i]) < 0) return i; return w.length - 1; };
+  const DAYS = 180, END = Date.UTC(2026, 10, 14);
+  /* risk: how many signals a run on this target turns up, against a typical one */
+  const TARGET = [
+    { name: 'checkout', w: 18, risk: 1.25 }, { name: 'search', w: 15, risk: .9 }, { name: 'uploads', w: 11, risk: 1.1 }, { name: 'webhooks', w: 12, risk: 1.3 },
+    { name: 'identity', w: 13, risk: .8 }, { name: 'ledger', w: 9, risk: 1 }, { name: 'catalog', w: 12, risk: .7 }, { name: 'notifications', w: 10, risk: .85 },
+  ];
+  /* ok: the share of its jobs a worker finishes cleanly. turns and cost: a typical job */
+  const WORKER = [
+    { name: 'flow-walker', w: 10, ok: .93, turns: 11, cost: .06 }, { name: 'api-contract', w: 10, ok: .95, turns: 9, cost: .045 }, { name: 'asset-probe', w: 7, ok: .9, turns: 8, cost: .04 },
+    { name: 'replay-runner', w: 8, ok: .88, turns: 14, cost: .07 }, { name: 'perf-sampler', w: 6, ok: .84, turns: 16, cost: .085 }, { name: 'a11y-audit', w: 5, ok: .96, turns: 6, cost: .03 },
+  ];
+  const MODE = ['supervised', 'unattended'], STATUS = ['settled', 'stopped', 'expired'];
+  const SRC = ['crawl', 'worker', 'spec', 'replay'], KIND = ['step', 'route', 'host', 'form'];
+  const DENY = ['out of bounds', 'ambiguous host', 'write not approved', 'run stopped', 'run expired'];
+  const SRCW = [12, 17, 6, 4], KINDW = [[8, 2, 1, 1], [9, 5, 1, 2], [1, 7, 1, 1], [5, 3, 0, 1]], DENYW = [6, 2, 3];
+  /* supervised runs follow the working day; unattended ones are scheduled overnight */
+  const HD = Array.from({ length: 24 }, (_, h) => 1 + 8 * Math.exp(-(((h - 11) / 3.4) ** 2)));
+  const HN = Array.from({ length: 24 }, (_, h) => { const d = Math.min(Math.abs(h - 2), 24 - Math.abs(h - 2)); return 1 + 9 * Math.exp(-((d / 2.2) ** 2)); });
+  const runs = [], jobs = [], day = [];
+  for (let d = 0; d < DAYS; d++) {
+    const date = new Date(END - (DAYS - 1 - d) * 864e5), dow = (date.getUTCDay() + 6) % 7; /* 0 is Monday */
+    const mu = (7 + 5 * d / (DAYS - 1)) * (dow > 4 ? .35 : 1) * (1 + .12 * Math.sin(d / 9));
+    const n = Math.max(1, Math.round(mu + gauss() * Math.sqrt(mu) * .7));
+    for (let k = 0; k < n; k++) {
+      const target = pick(TARGET.map(t => t.w)), Tg = TARGET[target], mode = R() < .34 + .22 * d / DAYS ? 1 : 0, hour = pick(mode ? HN : HD);
+      const status = R() < .04 ? 1 : R() < .03 ? 2 : 0;
+      /* three to five workers, no repeats */
+      const pool = WORKER.map((w, i) => i), team = [];
+      for (let j = 3 + pick([3, 4, 2]); j > 0 && pool.length; j--) team.push(pool.splice(pick(pool.map(i => WORKER[i].w)), 1)[0]);
+      const t0 = d * 24 + hour + R(), run = { d, dow, hour, t0, target, mode, status, team };
+      let cost = 0;
+      for (const w of team) {
+        const W = WORKER[w], p = R(), okp = W.ok - (status ? .25 : 0) - .05 * (1 - d / (DAYS - 1));
+        const out = p < okp ? 0 : p < okp + (1 - okp) * .62 ? 1 : 2; /* 0 clean, 1 retried, 2 dead */
+        const turns = Math.max(2, Math.round(logn(W.turns, .32) * (out === 2 ? .5 : 1))), c = turns * W.cost * (.8 + .4 * R());
+        jobs.push({ run, w, out, turns, cost: c }); cost += c;
+      }
+      const size = team.length / 4;
+      const sig = Math.max(2, Math.round(logn(14 * Tg.risk, .45) * size));
+      const cand = Math.max(0, Math.round(sig * (.36 + .05 * gauss())));
+      const inb = cand - Math.min(cand, Math.round(cand * Math.max(0, .035 + .03 * gauss())));
+      const ok = Math.min(inb, Math.round(inb * Math.min(.9, Math.max(.05, .36 + .1 * gauss() + .06 * d / DAYS))));
+      const maybe = Math.min(inb - ok, Math.round((inb - ok) * Math.max(0, .24 + .1 * gauss())));
+      const steps = Math.round(logn(190, .4) * size), deny = [0, 0, 0, 0, 0];
+      for (let x = Math.round(steps * Math.max(0, .012 + .008 * gauss()) * (mode ? 1.35 : 1)); x > 0; x--) deny[pick(DENYW)]++;
+      if (status === 1) deny[3] = 1 + Math.floor(R() * 5);
+      if (status === 2) deny[4] = 1 + Math.floor(R() * 4);
+      const cov = SRCW.map(() => [0, 0, 0, 0]);
+      for (let x = Math.max(4, Math.round(logn(30, .35))); x > 0; x--) { const s = pick(SRCW); cov[s][pick(KINDW[s])]++; }
+      runs.push(Object.assign(run, { id: (0x100000 + Math.floor(R() * 0xefffff)).toString(16), sig, cand, inb, ok, maybe, no: inb - ok - maybe, kept: ok - (ok && R() < .22 ? 1 : 0),
+        steps, deny, cov, dur: Math.max(1.5, logn(mode ? 19 : 12.5, .42) * size * (status ? .55 : 1)), spend: cost + cand * .04 }));
+    }
+    day.push({ d, date, dow });
+  }
+  return { DAYS, TARGET, WORKER, MODE, STATUS, SRC, KIND, DENY, runs, jobs, day };
+})();
+const { TARGET, WORKER, MODE, STATUS, SRC, KIND, DENY } = DATA;
+const SRCC = ['--s1', '--s2', '--s3', '--s4'], VC = ['--v-ok', '--v-no', '--v-maybe'], OC = ['--o1', '--o2', '--o3', '--o4', '--o5'];
+const VERDICT = ['confirmed', 'rejected', 'inconclusive'], OUT = ['clean', 'retried', 'dead'], OUTC = ['pl-ok', 'pl-warn', 'pl-no'], OUTV = ['--v-ok', '--v-maybe', '--v-no'], OUTH = [22, 14, 6];
+
+/* ---------- the slice every figure reads: the last N days, and the N days before them ---------- */
+function slice(N) {
+  const d0 = DATA.DAYS - N;
+  return { N, d0, days: DATA.day.slice(d0), cur: DATA.runs.filter(r => r.d >= d0), prev: DATA.runs.filter(r => r.d >= d0 - N && r.d < d0), jobs: DATA.jobs.filter(j => j.run.d >= d0) };
+}
+
+/* ---------- small helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const sum = a => a.reduce((s, v) => s + v, 0);
+const total = (rows, f) => rows.reduce((s, r) => s + f(r), 0);
+const median = a => { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y), i = (s.length - 1) / 2; return (s[Math.floor(i)] + s[Math.ceil(i)]) / 2; };
+const NF = new Intl.NumberFormat('en-US'), fmt = n => NF.format(Math.round(n));
+const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+const usd = v => '$' + (v >= 1000 ? fmt(v) : v.toFixed(2));
+const fdur = m => { const s = Math.round(m * 60); return s < 60 ? s + 's' : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`; };
+const DF = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }), dl = date => DF.format(date);
+const r1 = v => Math.round(v * 10) / 10;
+let CH = 6.02; /* advance of one mono character at the plates' 10px type */
+const T = (x, y, s, cls = 'pl-t3', anchor = 'start') => `<text class="${cls}" x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}">${esc(s)}</text>`;
+const nice = (max, n = 4) => { const raw = Math.max(max, 1e-9) / n, p = 10 ** Math.floor(Math.log10(raw)), f = raw / p, step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p, out = []; for (let v = 0; v < max + step - 1e-9; v += step) out.push(+v.toFixed(6)); return out; };
+/* days when the range is short, three-day blocks when it is long */
+function buckets(S, size = S.N <= 30 ? 1 : 3) {
+  if (size === 1) return S.days.map(x => ({ label: dl(x.date), from: x.d, to: x.d }));
+  const out = [];
+  for (let to = DATA.DAYS - 1; to >= S.d0; to -= size) { const from = Math.max(S.d0, to - size + 1); out.unshift({ label: `${dl(DATA.day[from].date)} to ${dl(DATA.day[to].date)}`, short: dl(DATA.day[from].date), from, to }); }
+  return out;
+}
+const inBucket = (S, b) => S.cur.filter(r => r.d >= b.from && r.d <= b.to);
+
+/* ---------- the ground every plate stands on: a dot lattice, faded toward its edges, with a lit copy seen through a mask
+   that follows the pointer (the spot) and rings out from a click (the wave). Dots sit at 1.5 + 6k in both directions. ---------- */
+const snap = v => Math.round((v - 1.5) / 6) * 6 + 1.5;
+const ground = (id, W, H) => `<defs><pattern id="${id}d" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r=".7" class="pl-dotc"/></pattern><pattern id="${id}a" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1" class="pl-dotl"/></pattern>`
+  + `<radialGradient id="${id}g"><stop offset=".2" stop-color="#fff"/><stop offset=".65" stop-color="#666"/><stop offset="1" stop-color="#000"/></radialGradient>`
+  + `<radialGradient id="${id}s"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="#fff" stop-opacity=".45"/><stop offset=".7" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>`
+  + `<radialGradient id="${id}w"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".97" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>`
+  + `<mask id="${id}m"><rect width="${W}" height="${H}" fill="url(#${id}g)"/></mask><mask id="${id}f" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}"><circle r="0" fill="url(#${id}s)" class="pl-spot"/><circle r="0" fill="url(#${id}w)" class="pl-wave"/></mask></defs>`
+  + `<g mask="url(#${id}m)"><rect width="${W}" height="${H}" fill="url(#${id}d)"/><g mask="url(#${id}f)" class="pl-lit"><rect width="${W}" height="${H}" fill="url(#${id}a)"/></g></g>`;
+
+/* a y axis: tick labels, a solid baseline, and one lit row of the ground's dots at each tick.
+   The baseline sits on a lattice row and every tick is a whole number of rows above it. Returns the plot box and the y scale */
+function axes(W, H, top, o = {}) {
+  const ticks = nice(top, o.n || 4), max = ticks[ticks.length - 1], labels = ticks.map(v => v >= 10000 ? v / 1000 + 'K' : fmt(v)), n = ticks.length - 1;
+  const m = { l: Math.ceil(Math.max(...labels.map(s => s.length)) * CH) + 12, r: 4, t: 14, b: 24, ...o.m };
+  const x0 = snap(m.l), x1 = W - m.r, y1 = snap(H - m.b), step = Math.max(12, Math.floor((y1 - m.t) / n / 6) * 6), y0 = y1 - step * n;
+  let body = '';
+  ticks.forEach((t, i) => { const y = y1 - step * i; body += (i ? `<path class="pl-grid" d="M${x0} ${y}H${x1}"/>` : `<path class="pl-axis" d="M${x0 - 3} ${y}H${x1}"/>`) + T(x0 - 9, y + 3.5, labels[i], 'pl-t4', 'end'); });
+  return { body, y: v => y1 - (v / max) * (y1 - y0), x0, x1, y0, y1, max, w: x1 - x0, h: y1 - y0 };
+}
+/* labels under a time axis, counted back from the latest so the last period is always named */
+function xLabels(n, x, label, y, w) {
+  const step = Math.ceil(n / Math.max(2, Math.floor(w / 64))); let s = '';
+  for (let i = n - 1; i >= 0; i -= step) s += T(x(i), y, label(i), 'pl-t4', 'middle');
+  return s;
+}
+/* ranked bars: one row per item, a bar with its value at the tip. rows = [{ label, v, tip, c, note }]: c is a colour of the row's own, note is dim text after the value.
+   o = { c, f, top, bar, pitch }: bar is the thickness (6), pitch the most a row may take (36) */
+function rankBars(W, H, rows, o) {
+  const bar = o.bar || 6, x0 = snap(Math.ceil(Math.max(...rows.map(r => r.label.length)) * CH) + 16), vw = Math.ceil(Math.max(...rows.map(r => (o.f(r.v) + (r.note ? ' ' + r.note : '')).length)) * CH) + 12;
+  const top = o.top || 4, pitch = Math.min(o.pitch || 36, (H - top - 4) / rows.length), max = Math.max(...rows.map(r => r.v), 1e-9), pts = [];
+  let body = `<path class="pl-axis" d="M${x0} ${top + 2}V${r1(top + pitch * rows.length - 2)}"/>`;
+  rows.forEach((r, i) => {
+    const y = top + pitch * (i + .5), w = Math.max(3, (r.v / max) * (W - x0 - vw - 4)), v = o.f(r.v);
+    body += `<g data-i="${i}">${T(x0 - 10, y + 3.5, r.label, 'pl-t2', 'end')}<rect x="${x0 + 1}" y="${r1(y - bar / 2)}" width="${r1(w)}" height="${bar}" rx="${Math.min(3, bar / 2)}" style="fill:var(${r.c || o.c})"/>${T(x0 + w + 9, y + 3.5, v, 'pl-t1')}${r.note ? T(x0 + w + 9 + (v.length + 1) * CH, y + 3.5, r.note, 'pl-t3') : ''}</g><rect class="hit" data-i="${i}" y="${r1(y - pitch / 2)}" width="${W}" height="${r1(pitch)}"/>`;
+    pts.push({ x: x0 + w, y, box: [1, y - pitch / 2 + 3, W - 2, pitch - 6, 6], tip: r.tip });
+  });
+  return { body, pts, dim: true };
+}
+
+/* ================= cards: card(id, options, draw) =================
+   draw({W, H, S}) returns { body, defs, legend, pts, table, hover, dim, aria, H }.
+   pts[i] = { x, y, box: [x, y, w, h, r], tip: { t, rows: [[colourToken, label, value]] } } is what hover, focus and the arrow keys read;
+   box is where the accent cursor is drawn. Marks that belong to point i carry data-i="i". hover: 'x' snaps to the nearest column, default is the mark under the pointer. */
+const cards = [], card = (id, o, draw) => cards.push({ id, ...o, draw });
+let S, N = 30;
+const tipEl = $('#tip'), still = matchMedia('(prefers-reduced-motion: reduce)');
+
+function mount() {
+  for (const c of cards) {
+    const a = document.createElement('article'); a.className = 'card s' + c.span; a.id = 'c-' + c.id;
+    a.innerHTML = '<header class="ch"><div><h3></h3><p class="form"></p></div><button type="button" class="tb" aria-pressed="false">table</button></header><div class="fig" tabindex="0" role="img"><div class="plot"></div></div><div class="tv" hidden></div><div class="lg"></div><p class="cap"></p>';
+    $('h3', a).textContent = c.title; $('.form', a).textContent = c.form; $('.cap', a).textContent = c.cap;
+    $(`[data-grid="${c.sec}"]`).append(a);
+    Object.assign(c, { el: a, fig: $('.fig', a), plot: $('.plot', a), lg: $('.lg', a), tv: $('.tv', a), btn: $('.tb', a), cur: -1 });
+    wire(c);
+  }
+}
+function render(c, grow = 0) {
+  const shown = !c.fig.hidden, W = shown ? (c.W = Math.max(220, Math.floor(c.plot.clientWidth))) : c.W || 600, o = c.out = c.draw({ W, H: (c.h || 236) + grow, S }), H = o.H || (c.h || 236) + grow;
+  legend(c.lg, o.legend || []);
+  if (!shown) return table(c); /* the table view is up: refresh it and leave the plate for when it comes back */
+  c.plot.innerHTML = `<svg class="plate" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">${ground('g-' + c.id, W, H)}${o.defs ? `<defs>${o.defs}</defs>` : ''}${o.body}<g class="hov"></g></svg>`;
+  c.fig.setAttribute('aria-label', `${c.title}. ${o.aria || c.cap} Use the arrow keys to step through the values.`);
+  c.cur = -1;
+}
+/* cards in one row are as tall as the tallest: a plate with room left over is drawn again to fill its panel */
+function fill(c) {
+  if (c.fixed || c.fig.hidden) return;
+  const room = c.fig.clientHeight - c.plot.offsetHeight;
+  if (room > 6) render(c, Math.min(200, Math.floor(room)));
+}
+function legend(el, items) {
+  const sw = (c, kind) => { const i = document.createElement('i'); i.className = 'sw' + (kind ? ' ' + kind : ''); i.style.setProperty('--c', `var(${c})`); return i; };
+  el.replaceChildren(...items.map(it => {
+    const s = document.createElement('span'); s.className = 'pill' + (it.pill ? ' ' + it.pill : '');
+    if (it.ramp) { s.style.gap = '2px'; s.append(it.label, ' ', ...it.ramp.map(c => sw(c)), ' ', it.end); return s; }
+    if (it.c) s.append(sw(it.c, it.kind));
+    s.append(it.label);
+    if (it.note) { const b = document.createElement('b'); b.textContent = it.note; s.append(b); }
+    return s;
+  }));
+}
+function table(c) {
+  const t = c.out.table, el = document.createElement('table'), head = document.createElement('thead'), body = document.createElement('tbody');
+  const row = (cells, tag) => { const tr = document.createElement('tr'); cells.forEach(v => { const x = document.createElement(tag); x.textContent = v; tr.append(x); }); return tr; };
+  head.append(row(t.head, 'th')); t.rows.forEach(r => body.append(row(r, 'td'))); el.append(head, body);
+  c.tv.replaceChildren(el);
+}
+let tipFor; /* the readout the tooltip holds: moving over the same point only moves it */
+function tipShow(t, x, y) {
+  if (t !== tipFor) {
+    tipFor = t; tipEl.replaceChildren();
+    if (t.t) { const p = document.createElement('p'); p.className = 'tip-t'; p.textContent = t.t; tipEl.append(p); }
+    for (const [c, l, v] of t.rows) {
+      const r = document.createElement('div'), s = document.createElement('span'), b = document.createElement('b'); r.className = 'tip-r';
+      if (c) { const i = document.createElement('i'); i.style.setProperty('--c', `var(${c})`); r.append(i); }
+      s.textContent = l; b.textContent = v; r.append(s, b); tipEl.append(r);
+    }
+  }
+  const w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  let left = x + 14, top = y - h - 12;
+  if (left + w > innerWidth - 8) left = x - w - 14; if (left < 8) left = 8; if (top < 8) top = y + 18;
+  tipEl.style.transform = `translate(${Math.round(left)}px,${Math.round(top)}px)`; tipEl.classList.add('show');
+}
+function locate(c, e) {
+  const o = c.out, pts = o.pts || []; if (!pts.length) return -1;
+  if (o.hover === 'x') { const x = e.clientX - c.plot.firstElementChild.getBoundingClientRect().left; if (x < pts[0].x - 20 || x > pts[pts.length - 1].x + 20) return -1; let b = 0; pts.forEach((p, i) => { if (Math.abs(p.x - x) < Math.abs(pts[b].x - x)) b = i; }); return b; }
+  const t = e.target.closest('[data-i]'); return t ? +t.dataset.i : -1;
+}
+function show(c, i, cx, cy) {
+  const o = c.out, p = o.pts[i]; if (!p) return;
+  if (c.cur !== i) {
+    c.fig.querySelectorAll('.on').forEach(el => el.classList.remove('on'));
+    c.fig.querySelectorAll(`[data-i="${i}"]`).forEach(el => el.classList.add('on'));
+    c.fig.classList.toggle('dim', !!o.dim);
+    const b = p.box; $('.hov', c.fig).innerHTML = b ? `<rect class="pl-cursor" x="${r1(b[0])}" y="${r1(b[1])}" width="${r1(b[2])}" height="${r1(b[3])}" rx="${b[4] || 4}"/>` : '';
+    c.cur = i;
+  }
+  const r = c.plot.firstElementChild.getBoundingClientRect();
+  tipShow(p.tip, cx == null ? r.left + p.x : cx, cy == null ? r.top + p.y : cy);
+}
+function leave(c) {
+  if (c.cur < 0 && !tipEl.classList.contains('show')) return;
+  c.cur = -1; c.fig.classList.remove('dim'); c.fig.querySelectorAll('.on').forEach(el => el.classList.remove('on'));
+  const h = $('.hov', c.fig); if (h) h.innerHTML = '';
+  tipEl.classList.remove('show');
+}
+/* the ground's answer to the pointer: the spot follows a mouse, a press sends one wave across the plate */
+const waves = new WeakMap();
+function spot(c, e, press) {
+  const svg = c.plot.firstElementChild; if (!svg || (!press && e.pointerType !== 'mouse')) return;
+  const r = svg.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (!press) { const s = $('.pl-spot', svg); if (s) { s.setAttribute('cx', r1(x)); s.setAttribute('cy', r1(y)); s.setAttribute('r', 180); } return; }
+  const ring = $('.pl-wave', svg); if (still.matches || !ring) return;
+  const far = Math.hypot(Math.max(x, r.width - x), Math.max(y, r.height - y)) + 90, stop = $(`#g-${c.id}w stop`, svg), t0 = performance.now();
+  ring.setAttribute('cx', r1(x)); ring.setAttribute('cy', r1(y)); cancelAnimationFrame(waves.get(c));
+  const frame = now => {
+    const t = Math.min(1, (now - t0) / 1300), rad = (1 - (1 - t) ** 3) * far;
+    ring.setAttribute('r', r1(rad)); ring.setAttribute('opacity', t < 1 ? ((1 - t) ** 1.4).toFixed(3) : 0);
+    if (stop) stop.setAttribute('offset', Math.max(0, 1 - 90 / Math.max(rad, 1)).toFixed(3)); /* the wake: the ring's inner band */
+    if (t < 1 && ring.isConnected) waves.set(c, requestAnimationFrame(frame));
+  };
+  waves.set(c, requestAnimationFrame(frame));
+}
+function wire(c) {
+  const f = c.fig;
+  f.addEventListener('pointermove', e => { spot(c, e); const i = locate(c, e); if (i < 0) leave(c); else show(c, i, e.clientX, e.clientY); });
+  f.addEventListener('pointerdown', e => spot(c, e, true));
+  f.addEventListener('pointerleave', () => leave(c));
+  f.addEventListener('blur', () => leave(c));
+  f.addEventListener('keydown', e => {
+    const n = (c.out.pts || []).length, k = e.key; if (!n) return; let i = c.cur;
+    if (k === 'ArrowRight' || k === 'ArrowDown') i = i < 0 ? 0 : (i + 1) % n; else if (k === 'ArrowLeft' || k === 'ArrowUp') i = i < 0 ? n - 1 : (i - 1 + n) % n;
+    else if (k === 'Home') i = 0; else if (k === 'End') i = n - 1; else if (k === 'Escape') return leave(c); else return;
+    e.preventDefault(); show(c, i);
+  });
+  c.btn.addEventListener('click', () => {
+    const on = c.btn.getAttribute('aria-pressed') !== 'true'; c.btn.setAttribute('aria-pressed', on); leave(c);
+    if (on) { c.tv.style.height = c.fig.offsetHeight + 'px'; table(c); }
+    c.fig.hidden = on; c.tv.hidden = !on; c.btn.textContent = on ? 'plate' : 'table';
+    if (!on) { render(c); fill(c); }
+  });
+}
+
+/* ================= hero: the scope line and the stat tiles ================= */
+function hero() {
+  const parts = [`last ${S.N} days`, `${dl(S.days[0].date)} to ${dl(S.days[S.days.length - 1].date)}`, `${fmt(S.cur.length)} runs`, `${TARGET.length} targets`, `${WORKER.length} workers`];
+  $('#scope').replaceChildren(...parts.flatMap((p, i) => { const s = document.createElement('span'); s.textContent = p; if (!i) return [s]; const d = document.createElement('i'); d.textContent = '·'; return [d, s]; }));
+}
+function kpis() {
+  const B = buckets(S), per = f => B.map(b => f(inBucket(S, b))), rel = (a, b) => b ? (a - b) / b * 100 : 0, sign = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0);
+  const ok = total(S.cur, r => r.ok), okP = total(S.prev, r => r.ok), med = median(S.cur.map(r => r.dur)), medP = median(S.prev.map(r => r.dur)), sp = total(S.cur, r => r.spend), spP = total(S.prev, r => r.spend);
+  const tiles = [
+    { l: 'Runs', v: fmt(S.cur.length), d: rel(S.cur.length, S.prev.length), good: 0, sp: per(rs => rs.length) },
+    { l: 'Confirmed results', v: fmt(ok), d: rel(ok, okP), good: 0, sp: per(rs => total(rs, r => r.ok)) },
+    { l: 'Median run time', v: fdur(med), d: rel(med, medP), good: -1, sp: per(rs => median(rs.map(r => r.dur))) },
+    { l: 'Spend', v: usd(sp), unit: 'est.', d: rel(sp, spP), good: 0, sp: per(rs => total(rs, r => r.spend)) },
+  ];
+  const el = $('#kpis'); el.replaceChildren();
+  for (const t of tiles) {
+    const a = document.createElement('article'); a.className = 'kpi';
+    const tone = !t.good || Math.abs(t.d) < .05 ? '' : (t.d > 0) === (t.good > 0) ? 'good' : 'bad', arrow = Math.abs(t.d) < .05 ? '■' : t.d > 0 ? '▲' : '▼';
+    a.innerHTML = '<p class="kl"></p><p class="kv"></p><p class="kd"><b></b><span></span></p>';
+    $('.kl', a).textContent = t.l; $('.kv', a).textContent = t.v; if (t.unit) { const s = document.createElement('small'); s.textContent = t.unit; $('.kv', a).append(s); }
+    $('.kd b', a).textContent = `${arrow} ${sign(t.d)}%`; if (tone) $('.kd b', a).className = tone; $('.kd span', a).textContent = `vs the ${S.N} days before`;
+    el.append(a);
+    /* the trend is a tick row: one column per period, the latest in the accent */
+    const cs = getComputedStyle(a), W = Math.floor(a.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)), H = 26, n = t.sp.length, hi = Math.max(...t.sp, 1e-9), pitch = W / n, bw = Math.max(2, Math.min(6, Math.floor(pitch) - 2));
+    a.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">${t.sp.map((v, i) => { const h = Math.max(2, v / hi * H); return `<rect x="${r1(pitch * i + (pitch - bw) / 2)}" y="${r1(H - h)}" width="${bw}" height="${r1(h)}" rx="1" class="${i === n - 1 ? 'pl-acc' : 'pl-tick'}"/>`; }).join('')}</svg>`);
+  }
+}
+
+/* ================= verdicts ================= */
+card('verdicts', { sec: 'verdicts', span: 8, h: 252, title: 'Candidates by verdict', form: 'stacked column', cap: 'Every candidate the verifier re-ran, by what came back. Only confirmed is stored.' }, ({ W, H, S }) => {
+  const B = buckets(S), rows = B.map(b => { const rs = inBucket(S, b); return [total(rs, r => r.ok), total(rs, r => r.no), total(rs, r => r.maybe)]; });
+  const A = axes(W, H, Math.max(1, ...rows.map(sum))), n = B.length, pitch = A.w / n, bw = Math.max(4, Math.min(14, Math.round(pitch * .46))), gap = bw >= 10 ? 2 : 1, x = i => A.x0 + pitch * (i + .5), pts = [];
+  let body = A.body;
+  rows.forEach((r, i) => {
+    let cum = 0, g = '';
+    r.forEach((v, k) => { if (!v) return; const top = A.y(cum + v), bot = A.y(cum) - (cum ? gap : 0); g += `<rect x="${r1(x(i) - bw / 2)}" y="${r1(top)}" width="${bw}" height="${r1(Math.max(1, bot - top))}" rx="1" style="fill:var(${VC[k]})"/>`; cum += v; });
+    body += `<g data-i="${i}">${g}</g>`;
+    pts.push({ x: x(i), y: A.y(cum), box: [x(i) - Math.min(pitch, bw + 10) / 2, A.y0 - 6, Math.min(pitch, bw + 10), A.h + 9, 4], tip: { t: B[i].label, rows: r.map((v, k) => [VC[k], VERDICT[k], fmt(v)]).concat([[null, 'candidates', fmt(sum(r))]]) } });
+  });
+  body += xLabels(n, x, i => B[i].short || B[i].label, A.y1 + 16, A.w);
+  return { body, pts, hover: 'x', dim: true, legend: [{ pill: 'ok', c: VC[0], label: 'confirmed' }, { pill: 'no', c: VC[1], label: 'rejected' }, { pill: 'maybe', c: VC[2], label: 'inconclusive' }],
+    table: { head: ['Period', 'Confirmed', 'Rejected', 'Inconclusive', 'Candidates'], rows: B.map((b, i) => [b.label, ...rows[i].map(fmt), fmt(sum(rows[i]))]) },
+    aria: `Stacked columns, one per ${S.N <= 30 ? 'day' : 'three days'}: confirmed, rejected and inconclusive candidates.` };
+});
+
+card('split', { sec: 'verdicts', span: 4, h: 252, title: 'Verdict split', form: 'segmented bar', cap: 'One whole: the candidates re-run in the range.' }, ({ W, H, S }) => {
+  const v = [total(S.cur, r => r.ok), total(S.cur, r => r.no), total(S.cur, r => r.maybe)], tot = sum(v) || 1, x0 = 6, x1 = W - 6, w = x1 - x0, pts = [];
+  let body = T(x0, 38, fmt(v[0]), 'pl-t1 pl-big') + T(x0 + fmt(v[0]).length * CH * 2.6 + 9, 38, 'confirmed', 'pl-t2') + T(x1, 38, `of ${fmt(tot)}`, 'pl-t3', 'end');
+  /* the thin bar: three parts, a 2px gap between them */
+  let x = x0; const live = v.filter(Boolean).length, room = w - 2 * (live - 1);
+  v.forEach((n, k) => { if (!n) return; const sw = n / tot * room; body += `<rect data-i="${k}" x="${r1(x)}" y="54" width="${r1(sw)}" height="8" rx="2" style="fill:var(${VC[k]})"/>`; x += sw + 2; });
+  const top = 78, pitch = Math.min(64, (H - top - 6) / 3);
+  v.forEach((n, k) => {
+    const y = top + pitch * (k + .5);
+    body += `<g data-i="${k}"><rect x="${x0}" y="${r1(y - 4)}" width="8" height="8" rx="2" style="fill:var(${VC[k]})"/>${T(x0 + 16, y + 3.5, VERDICT[k], 'pl-t2')}${T(x1 - 46, y + 3.5, fmt(n), 'pl-t1', 'end')}${T(x1, y + 3.5, pct(n, tot) + '%', 'pl-t3', 'end')}</g>`
+      + (k < 2 ? `<path class="pl-rule" d="M${x0} ${r1(y + pitch / 2)}H${x1}"/>` : '') + `<rect class="hit" data-i="${k}" y="${r1(y - pitch / 2)}" width="${W}" height="${r1(pitch)}"/>`;
+    pts.push({ x: x1 - 60, y: y - 6, box: [1, y - pitch / 2 + 4, W - 2, pitch - 8, 6], tip: { t: VERDICT[k], rows: [[VC[k], 'candidates', fmt(n)], [null, 'share', pct(n, tot) + '%']] } });
+  });
+  return { body, pts, dim: true, table: { head: ['Verdict', 'Candidates', 'Share'], rows: v.map((n, k) => [VERDICT[k], fmt(n), pct(n, tot) + '%']) },
+    aria: `${fmt(v[0])} of ${fmt(tot)} candidates confirmed, ${fmt(v[1])} rejected, ${fmt(v[2])} inconclusive.` };
+});
+
+/* ================= workers ================= */
+card('workers', { sec: 'workers', span: 12, fixed: true, title: 'Jobs per worker', form: 'status ticks', cap: 'One tick per job, newest on the right. Height and colour both say how it ended; a row holds as many jobs as fit.' }, ({ W, S }) => {
+  const narrow = W < 620, rowH = narrow ? 64 : 44, n = WORKER.length, H = n * rowH + (n - 1) * 8, xT = narrow ? 14 : snap(180), xE = narrow ? W - 14 : W - 112, cap = Math.max(8, Math.floor((xE - xT + 2) / 6));
+  const defs = `<pattern id="tk-idle" x="${xT}" width="6" height="1" patternUnits="userSpaceOnUse"><rect width="4" height="1" class="pl-tick"/></pattern>`, pts = [], rows = [];
+  let body = '';
+  WORKER.forEach((Wk, w) => {
+    const all = S.jobs.filter(j => j.w === w), shown = all.slice(-cap), y = w * (rowH + 8), mid = narrow ? y + 43 : y + rowH / 2, cnt = [0, 1, 2].map(k => all.filter(j => j.out === k).length), rate = pct(cnt[0], all.length);
+    body += `<rect x=".5" y="${y + .5}" width="${W - 1}" height="${rowH - 1}" rx="6" class="pl-card"/>` + T(14, narrow ? y + 20 : y + 20, Wk.name, 'pl-t1 pl-md') + T(narrow ? 14 + (Wk.name.length + 1.5) * CH * 1.2 : 14, narrow ? y + 20 : y + 34, `${fmt(all.length)} jobs`, 'pl-t3 pl-sm');
+    body += `<rect x="${xT}" y="${mid - 11}" width="${cap * 6 - 2}" height="22" fill="url(#tk-idle)"/>`;
+    shown.forEach((j, k) => {
+      const x = xT + k * 6, i = pts.length, h = OUTH[j.out];
+      body += `<rect x="${x}" y="${mid - 11}" width="4" height="22" style="fill:var(--bg-raised)"/><rect data-i="${i}" x="${x}" y="${mid - h / 2}" width="4" height="${h}" rx="1" class="${OUTC[j.out]}"/><rect class="hit" data-i="${i}" x="${x - 1}" y="${mid - 15}" width="6" height="30"/>`;
+      pts.push({ x: x + 2, y: mid - 13, box: [x - 2, mid - 14, 8, 28, 3], tip: { t: `${Wk.name} · run ${j.run.id}`, rows: [[OUTV[j.out], OUT[j.out], dl(DATA.day[j.run.d].date)], [null, 'target', TARGET[j.run.target].name], [null, 'turns', j.turns], [null, 'cost', usd(j.cost)]] } });
+    });
+    const cx = W - 96, cy = narrow ? y + 7 : mid - 10;
+    body += `<rect x="${cx}" y="${cy}" width="82" height="20" rx="10" class="pl-chip"/><circle cx="${cx + 13}" cy="${cy + 10}" r="3" class="${rate >= 90 ? 'pl-ok' : rate >= 80 ? 'pl-warn' : 'pl-no'}"/>` + T(cx + 22, cy + 13.5, `${rate}% clean`, 'pl-t2');
+    rows.push([Wk.name, fmt(all.length), fmt(cnt[0]), fmt(cnt[1]), fmt(cnt[2]), rate + '%', usd(total(all, j => j.cost))]);
+  });
+  return { H, body, defs, pts, legend: [{ c: OUTV[0], kind: 't1', label: 'clean' }, { c: OUTV[1], kind: 't2', label: 'retried' }, { c: OUTV[2], kind: 't3', label: 'dead' }],
+    table: { head: ['Worker', 'Jobs', 'Clean', 'Retried', 'Dead', 'Clean rate', 'Cost'], rows }, aria: 'One row of ticks per worker, one tick per job in the range.' };
+});
+
+card('spend', { sec: 'workers', span: 6, h: 228, title: 'Spend by worker', form: 'ranked bar', cap: 'Estimated cost of the jobs each worker took, largest first.' }, ({ W, H, S }) => {
+  const rows = WORKER.map((Wk, w) => { const js = S.jobs.filter(j => j.w === w), v = total(js, j => j.cost); return { label: Wk.name, v, n: js.length, tip: { t: Wk.name, rows: [['--s1', 'spend', usd(v)], [null, 'jobs', fmt(js.length)], [null, 'a job', usd(js.length ? v / js.length : 0)]] } }; }).sort((a, b) => b.v - a.v);
+  return { ...rankBars(W, H, rows, { c: '--s1', f: usd }), table: { head: ['Worker', 'Spend', 'Jobs', 'A job'], rows: rows.map(r => [r.label, usd(r.v), fmt(r.n), usd(r.n ? r.v / r.n : 0)]) }, aria: 'Ranked bars: estimated spend per worker.' };
+});
+
+card('dur', { sec: 'workers', span: 6, h: 228, title: 'Run time', form: 'histogram', cap: 'Runs by how long they took, in five-minute bins. The cursor marks the median.' }, ({ W, H, S }) => {
+  const n = 10, bins = new Array(n).fill(0); S.cur.forEach(r => bins[Math.min(n - 1, Math.floor(r.dur / 5))]++);
+  const A = axes(W, H, Math.max(1, ...bins), { m: { t: 34 } }), pitch = A.w / n, bw = Math.max(6, Math.min(22, Math.round(pitch - 8))), x = i => A.x0 + pitch * (i + .5), med = median(S.cur.map(r => r.dur)), name = i => i === n - 1 ? '45 minutes or more' : `${i * 5} to ${i * 5 + 5} minutes`, pts = [];
+  let body = A.body;
+  bins.forEach((v, i) => {
+    body += (v ? `<rect data-i="${i}" x="${r1(x(i) - bw / 2)}" y="${r1(A.y(v))}" width="${bw}" height="${r1(Math.max(1, A.y1 - A.y(v)))}" rx="1.5" style="fill:var(--s1)"/>` : '') + T(x(i), A.y1 + 16, i === n - 1 ? '45+' : i * 5, 'pl-t4', 'middle');
+    pts.push({ x: x(i), y: A.y(v), box: [x(i) - Math.min(pitch, bw + 10) / 2, A.y0 - 6, Math.min(pitch, bw + 10), A.h + 9, 4], tip: { t: name(i), rows: [['--s1', 'runs', fmt(v)], [null, 'share', pct(v, S.cur.length) + '%']] } });
+  });
+  /* the median: the plates' accent cursor, with its reading on a chip */
+  const xm = A.x0 + Math.min(n - .05, med / 5) * pitch, label = `median ${fdur(med)}`, lw = label.length * CH + 16, lx = Math.min(A.x1 - lw, Math.max(A.x0, xm + 6));
+  body += `<path class="pl-cursor" d="M${r1(xm)} ${A.y0 - 10}V${A.y1}"/><rect x="${r1(lx)}" y="${A.y0 - 28}" width="${r1(lw)}" height="18" rx="9" class="pl-chip"/>` + T(lx + 8, A.y0 - 15.5, label, 'pl-t2');
+  return { body, pts, hover: 'x', dim: true, table: { head: ['Run time', 'Runs', 'Share'], rows: bins.map((v, i) => [name(i), fmt(v), pct(v, S.cur.length) + '%']) }, aria: `Histogram of run time. The median is ${fdur(med)}.` };
+});
+
+/* ================= controls ================= */
+card('gate', { sec: 'controls', span: 6, h: 236, title: 'Steps the gate refused', form: 'ranked bar', cap: 'Every refusal by its reason. A refused step sends nothing.' }, ({ W, H, S }) => {
+  const steps = total(S.cur, r => r.steps), by = DENY.map((d, k) => total(S.cur, r => r.deny[k])), all = sum(by);
+  const rows = DENY.map((d, k) => ({ label: d, v: by[k], tip: { t: d, rows: [['--v-no', 'steps refused', fmt(by[k])], [null, 'share of refusals', pct(by[k], all) + '%']] } })).sort((a, b) => b.v - a.v);
+  const share = (steps ? all / steps * 100 : 0).toFixed(1) + '%', out = rankBars(W, H, rows, { c: '--v-no', f: fmt, top: 34 });
+  out.body = T(6, 20, share, 'pl-t1 pl-lg') + T(6 + share.length * CH * 1.5 + 8, 20, `of ${fmt(steps)} steps refused`, 'pl-t3') + out.body;
+  return { ...out, table: { head: ['Reason', 'Steps refused', 'Share'], rows: rows.map(r => [r.label, fmt(r.v), pct(r.v, all) + '%']) }, aria: `${share} of ${fmt(steps)} steps were refused, ranked by reason.` };
+});
+
+card('funnel', { sec: 'controls', span: 6, h: 236, title: 'From signal to stored result', form: 'funnel · 5 stages', cap: 'What survives each stage. The share is of the stage before.' }, ({ W, H, S }) => {
+  const st = [['signals', r => r.sig], ['candidates', r => r.cand], ['in bounds', r => r.inb], ['confirmed', r => r.ok], ['kept after triage', r => r.kept]].map(([l, f]) => [l, total(S.cur, f)]), all = Math.max(st[0][1], 1);
+  const rows = st.map(([label, v], i) => { const note = i ? pct(v, st[i - 1][1]) + '%' : '', share = pct(v, all) + '%'; return { label, v, c: OC[i], note, share, tip: { t: label, rows: [[OC[i], 'count', fmt(v)]].concat(i ? [[null, 'of the stage before', note], [null, 'of all signals', share]] : []) } }; });
+  return { ...rankBars(W, H, rows, { f: fmt, bar: 14, pitch: 40, top: 6 }), table: { head: ['Stage', 'Count', 'Of the stage before', 'Of all signals'], rows: rows.map(r => [r.label, fmt(r.v), r.note, r.share]) }, aria: 'Five stages from raw signals to results kept after triage.' };
+});
+
+/* ================= coverage ================= */
+card('flow', { sec: 'coverage', span: 7, h: 252, title: 'Sources into one table', form: 'flow · 4 sources', cap: 'Every source unions onto one coverage table. A ribbon is as wide as its share of the rows.' }, ({ W, H, S }) => {
+  const m = SRC.map((s, i) => KIND.map((k, j) => total(S.cur, r => r.cov[i][j]))), bySrc = m.map(sum), byKind = KIND.map((k, j) => sum(m.map(r => r[j]))), all = sum(bySrc) || 1, narrow = W < 470, pts = [];
+  const xL = narrow ? 0 : 120, xC = narrow ? .5 : Math.round(W * .47) + .5, cw = W - xC - .5, pad = 14, top = 30, rk = (H - top - 14) / 4;
+  let body = '';
+  if (!narrow) {
+    /* ribbons: evenly spaced on the left, stacked in order where they meet the table */
+    const wd = bySrc.map(v => Math.max(2, v / all * 44)), stack = sum(wd) + 9; let ty = H / 2 - stack / 2;
+    SRC.forEach((s, i) => {
+      const y = 34 + i * ((H - 68) / 3), t = ty + wd[i] / 2, xm = (xL + xC) / 2; ty += wd[i] + 3;
+      body += `<path data-i="${i}" class="pl-rib" d="M${xL} ${r1(y)}C${r1(xm)} ${r1(y)} ${r1(xm)} ${r1(t)} ${xC} ${r1(t)}" style="stroke:var(${SRCC[i]});stroke-width:${r1(wd[i])}"/>`
+        + `<g data-i="${i}"><rect x="6" y="${r1(y - 4)}" width="8" height="8" rx="2" style="fill:var(${SRCC[i]})"/>${T(20, y + 3.5, s, 'pl-t2')}${T(xL - 10, y + 3.5, fmt(bySrc[i]), 'pl-t3', 'end')}</g><rect class="hit" data-i="${i}" y="${r1(y - 16)}" width="${xL}" height="32"/>`;
+      pts.push({ x: xL - 20, y: y - 8, box: [1, y - 14, xL - 4, 28, 6], tip: { t: s, rows: KIND.map((k, j) => [null, k, fmt(m[i][j])]).concat([[SRCC[i], 'rows', fmt(bySrc[i])]]) } });
+    });
+  } else SRC.forEach((s, i) => pts.push({ x: W / 2, y: 0, tip: { t: s, rows: KIND.map((k, j) => [null, k, fmt(m[i][j])]).concat([[SRCC[i], 'rows', fmt(bySrc[i])]]) } }));
+  /* the table: one row per kind, its count and a thin bar split by source */
+  body += `<rect x="${xC}" y=".5" width="${cw}" height="${H - 1}" rx="6" class="pl-card"/>` + T(xC + pad, 20, 'coverage', 'pl-t1 pl-b') + T(xC + cw - pad, 20, `${fmt(all)} rows`, 'pl-t3', 'end') + `<path class="pl-rule" d="M${xC + pad - 4} 30H${xC + cw - pad + 4}"/>`;
+  const bwMax = cw - 2 * pad, kmax = Math.max(...byKind, 1);
+  KIND.forEach((k, j) => {
+    const y = top + rk * (j + .5), i = SRC.length + j; let x = xC + pad, seg = '';
+    const live = m.filter(r => r[j]).length, room = byKind[j] / kmax * bwMax - 2 * Math.max(0, live - 1);
+    m.forEach((r, s) => { if (!r[j]) return; const w = Math.max(1, r[j] / byKind[j] * room); seg += `<rect x="${r1(x)}" y="${r1(y + 5)}" width="${r1(w)}" height="4" rx="2" style="fill:var(${SRCC[s]})"/>`; x += w + 2; });
+    body += `<g data-i="${i}">${T(xC + pad, y - 1, k, 'pl-t2')}${T(xC + cw - pad, y - 1, fmt(byKind[j]), 'pl-t1', 'end')}${seg}</g><rect class="hit" data-i="${i}" x="${xC}" y="${r1(y - rk / 2)}" width="${cw}" height="${r1(rk)}"/>`;
+    pts.push({ x: xC + cw - 40, y: y - 12, box: [xC + 5, y - rk / 2 + 3, cw - 10, rk - 6, 5], tip: { t: `${k} rows`, rows: SRC.map((s, si) => [SRCC[si], s, fmt(m[si][j])]).concat([[null, 'all sources', fmt(byKind[j])]]) } });
+  });
+  return { body, pts, legend: SRC.map((s, i) => ({ c: SRCC[i], label: s, note: pct(bySrc[i], all) + '%' })),
+    table: { head: ['Kind', ...SRC, 'All'], rows: KIND.map((k, j) => [k, ...m.map(r => fmt(r[j])), fmt(byKind[j])]).concat([['all kinds', ...bySrc.map(fmt), fmt(all)]]) }, aria: 'Four sources feeding one coverage table, and the table split by kind of row.' };
+});
+
+card('heat', { sec: 'coverage', span: 5, fixed: true, title: 'When runs start', form: 'heat grid · 7 × 24', cap: 'Runs by weekday and hour, UTC. Supervised runs follow the working day; unattended ones go overnight.' }, ({ W, S }) => {
+  const DAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], g = DAY.map(() => new Array(24).fill(0)); S.cur.forEach(r => g[r.dow][r.hour]++);
+  const max = Math.max(1, ...g.flat()), xl = Math.ceil(3 * CH) + 10, pitch = Math.floor((W - xl - 2) / 24), cw = pitch - 2, ch = 18, top = 8, H = top + 7 * (ch + 2) + 22, hh = h => String(h).padStart(2, '0'), pts = [];
+  let body = '';
+  g.forEach((row, d) => {
+    const y = top + d * (ch + 2); body += T(xl - 8, y + ch / 2 + 3.5, DAY[d], 'pl-t4', 'end');
+    row.forEach((v, h) => {
+      const x = xl + h * pitch, k = v ? Math.min(5, Math.ceil(v / max * 5)) : 0;
+      body += `<rect data-i="${pts.length}" x="${x}" y="${y}" width="${cw}" height="${ch}" rx="2" ${k ? `style="fill:var(${OC[k - 1]})"` : 'class="pl-tick"'}/>`;
+      pts.push({ x: x + cw / 2, y, box: [x - 2, y - 2, cw + 4, ch + 4, 3.5], tip: { t: `${DAY[d]} ${hh(h)}:00 to ${hh(h)}:59`, rows: [[k ? OC[k - 1] : null, 'runs', fmt(v)]] } });
+    });
+  });
+  for (let h = 0; h < 24; h += 3) body += T(xl + h * pitch + cw / 2, top + 7 * (ch + 2) + 12, hh(h), 'pl-t4', 'middle');
+  return { H, body, pts, legend: [{ ramp: OC, label: 'fewer', end: 'more' }],
+    table: { head: ['Hour', ...DAY], rows: Array.from({ length: 24 }, (_, h) => [hh(h) + ':00', ...g.map(r => fmt(r[h]))]) }, aria: 'A grid of seven weekdays by twenty-four hours; stronger copper means more runs started.' };
+});
+
+/* ================= records table: recordsTable(root, options) =================
+   One table with a search box, a segmented filter, choosers, sortable columns and pages. It only writes markup and rt-* classes: the look is the page's CSS.
+   options  rows      the records, plain objects
+            columns   [{ key, label, num, cls, cell(row), sort(row) }]  cell returns the cell's HTML and sort what to order by; both default to row[key]. sort: false leaves a column unsortable
+            search    the keys the search box reads
+            seg       { key, label, options }  one filter as a row of switches, each with its count
+            picks     [{ key, label, options }]  filters as choosers; without options they list the values found in the rows
+            sort      { key, dir }   size, sizes  rows a page   noun  ['run', 'runs']   glyph  { search, prev, next } as HTML
+            cls       { search, seg, pick, reset, table, step }  class names to add, so a part can wear a control the page already has
+   Returns { rows(next) }: swap the records, keep the filters and the sort, and go back to the first page. */
+function recordsTable(root, o) {
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const cols = o.columns, picks = o.picks || [], noun = o.noun || ['row', 'rows'], sizes = o.sizes || [10, 25, 50], id = 'rt' + (recordsTable.n = (recordsTable.n || 0) + 1);
+  const G = Object.assign({ search: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3.5 3.5"/></svg>', prev: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.500"/></svg>', next: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.500 4.500 4.500-4.500 4.500"/></svg>' }, o.glyph);
+  const K = o.cls || {}, cl = k => 'rt-' + k + (K[k] ? ' ' + K[k] : '');
+  const st = { q: '', seg: '', pick: {}, sort: o.sort ? { ...o.sort } : null, page: 0, size: o.size || sizes[0] };
+  let rows = o.rows;
+  const found = k => Array.from(new Set(rows.map(r => String(r[k])))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  /* does a row pass every filter, leaving out the one whose options are being counted */
+  const pass = (r, skip) => (!st.q || o.search.some(k => String(r[k]).toLowerCase().includes(st.q)))
+    && (!o.seg || skip === o.seg.key || !st.seg || String(r[o.seg.key]) === st.seg)
+    && picks.every(p => skip === p.key || !st.pick[p.key] || String(r[p.key]) === st.pick[p.key]);
+  const tally = k => { const n = { '': 0 }; for (const r of rows) if (pass(r, k)) { n[r[k]] = (n[r[k]] || 0) + 1; n['']++; } return n; };
+  const pick = (k, label) => `<button type="button" class="${cl('pick')}" data-k="${k}" aria-haspopup="listbox" aria-expanded="false"><span>${esc(label)}</span><b></b><i aria-hidden="true"></i></button>`;
+  const nf = n => (n || 0).toLocaleString('en-US');
+  const tdc = c => [c.num ? 'num' : '', c.cls || ''].join(' ').trim();
+
+  root.classList.add('rt');
+  root.innerHTML = `<div class="rt-bar"><label class="${cl('search')}">${G.search}<input type="search" placeholder="${esc(o.placeholder || 'Filter ' + noun[1])}" aria-label="${esc(o.placeholder || 'Filter ' + noun[1])}" spellcheck="false" autocomplete="off"></label>`
+    + (o.seg ? `<div class="${cl('seg')}" role="group" aria-label="${esc(o.seg.label)}">${[''].concat(o.seg.options || found(o.seg.key)).map(v => `<button type="button" data-v="${esc(v)}" aria-pressed="${!v}">${esc(v || 'All')}<b></b></button>`).join('')}</div>` : '')
+    + picks.map(p => pick(p.key, p.label)).join('') + `<button type="button" class="${cl('reset')}" hidden>Reset</button></div>`
+    + `<div class="rt-scroll"><table class="${cl('table')}" aria-label="${esc(o.label || noun[1])}"><thead><tr>${cols.map(c => `<th scope="col"${tdc(c) ? ` class="${tdc(c)}"` : ''}${c.sort === false ? `>${esc(c.label)}` : ` aria-sort="none"><button type="button" data-k="${c.key}">${esc(c.label)}<i aria-hidden="true"></i></button>`}</th>`).join('')}</tr></thead><tbody></tbody></table></div>`
+    + `<div class="rt-foot"><span class="rt-count" role="status"></span><span class="rt-pager">${pick('#size', 'Rows')}<button type="button" class="${cl('step')}" data-d="-1" aria-label="Previous page">${G.prev}</button><span class="rt-page"></span><button type="button" class="${cl('step')}" data-d="1" aria-label="Next page">${G.next}</button></span></div>`;
+  const $ = s => root.querySelector(s), input = $('input'), body = $('tbody'), steps = root.querySelectorAll('.rt-step');
+
+  function draw() {
+    const c = st.sort && cols.find(c => c.key === st.sort.key), dir = st.sort && st.sort.dir === 'desc' ? -1 : 1, by = r => typeof c.sort === 'function' ? c.sort(r) : r[c.key];
+    const all = rows.filter(r => pass(r));
+    if (c) all.sort((a, b) => { const x = by(a), y = by(b); return dir * (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })); });
+    const pages = Math.max(1, Math.ceil(all.length / st.size)); st.page = Math.max(0, Math.min(st.page, pages - 1));
+    const from = st.page * st.size, part = all.slice(from, from + st.size);
+    body.innerHTML = part.length ? part.map(r => '<tr>' + cols.map(c => `<td${tdc(c) ? ` class="${tdc(c)}"` : ''}>${c.cell ? c.cell(r) : esc(r[c.key])}</td>`).join('') + '</tr>').join('')
+      : `<tr class="rt-none"><td colspan="${cols.length}">No ${esc(noun[1])} match these filters. <button type="button" class="rt-clear">Clear filters</button></td></tr>`;
+    $('.rt-count').textContent = (all.length ? `${from + 1}–${from + part.length} of ${nf(all.length)}` : '0') + ' ' + noun[all.length === 1 ? 0 : 1] + (all.length < rows.length ? `, filtered from ${nf(rows.length)}` : '');
+    $('.rt-page').textContent = `${st.page + 1} / ${pages}`; steps[0].disabled = st.page === 0; steps[1].disabled = st.page >= pages - 1;
+    if (o.seg) { const n = tally(o.seg.key); root.querySelectorAll('.rt-seg button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.v === st.seg); b.lastElementChild.textContent = nf(n[b.dataset.v]); }); }
+    root.querySelectorAll('.rt-pick').forEach(b => { const k = b.dataset.k; b.querySelector('b').textContent = k === '#size' ? st.size : st.pick[k] || 'All'; b.classList.toggle('on', k !== '#size' && !!st.pick[k]); });
+    root.querySelectorAll('th[aria-sort]').forEach(th => th.setAttribute('aria-sort', c && th.firstElementChild.dataset.k === c.key ? (dir > 0 ? 'ascending' : 'descending') : 'none'));
+    $('.rt-reset').hidden = !(st.q || st.seg || picks.some(p => st.pick[p.key]));
+  }
+
+  /* a chooser's list: a listbox the page draws, so it wears the theme and never the system's popup. Arrow keys, Home/End, typing a name, Enter, Escape */
+  const menu = document.createElement('div'); menu.className = 'rt-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1; menu.hidden = true; document.body.append(menu);
+  let forBtn = null, opts = [], at = -1, typed = '', typedAt = 0;
+  const setAt = (i, quiet) => { at = i; opts.forEach((el, n) => el.classList.toggle('act', n === i)); const el = opts[i]; if (!el) return; menu.setAttribute('aria-activedescendant', el.id); if (!quiet) el.scrollIntoView({ block: 'nearest' }); };
+  function open(btn) {
+    close(); const k = btn.dataset.k, p = picks.find(p => p.key === k), n = p && tally(k), cur = p ? st.pick[k] || '' : String(st.size);
+    const list = p ? [['', 'All']].concat((p.options || found(k)).map(v => [v, v])) : sizes.map(v => [String(v), v + ' rows']);
+    menu.innerHTML = list.map(([v, label], i) => `<div role="option" id="${id}-${i}" data-v="${esc(v)}" aria-selected="${v === cur}"><span>${esc(label)}</span>${n ? `<b>${nf(n[v])}</b>` : ''}</div>`).join('');
+    opts = Array.from(menu.children); forBtn = btn; typed = ''; btn.setAttribute('aria-expanded', 'true'); menu.setAttribute('aria-label', p ? p.label : 'Rows a page'); menu.hidden = false; menu.scrollTop = 0;
+    const r = btn.getBoundingClientRect(), below = innerHeight - r.bottom, up = below < 200 && r.top > below; /* above the control only when there is no room under it */
+    menu.style.minWidth = Math.round(r.width) + 'px'; menu.style.maxHeight = Math.max(120, Math.min(340, (up ? r.top : below) - 12)) + 'px';
+    menu.style.left = Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, r.left)) + 'px';
+    menu.style.top = up ? 'auto' : r.bottom + 4 + 'px'; menu.style.bottom = up ? innerHeight - r.top + 4 + 'px' : 'auto';
+    setAt(Math.max(0, opts.findIndex(el => el.getAttribute('aria-selected') === 'true'))); menu.focus({ preventScroll: true });
+  }
+  function close(refocus) { if (!forBtn) return; const b = forBtn; forBtn = null; menu.hidden = true; b.setAttribute('aria-expanded', 'false'); if (refocus) b.focus({ preventScroll: true }); }
+  function choose(i) { const b = forBtn, el = opts[i]; close(true); if (!b || !el) return; if (b.dataset.k === '#size') st.size = +el.dataset.v; else st.pick[b.dataset.k] = el.dataset.v; st.page = 0; draw(); }
+  menu.addEventListener('keydown', e => {
+    const n = opts.length, k = e.key;
+    if (k === 'ArrowDown') setAt((at + 1) % n); else if (k === 'ArrowUp') setAt((at - 1 + n) % n);
+    else if (k === 'Home' || k === 'PageUp') setAt(0); else if (k === 'End' || k === 'PageDown') setAt(n - 1);
+    else if (k === 'Enter' || k === ' ') choose(at); else if (k === 'Escape') close(true);
+    else if (k === 'Tab') { close(true); return; } /* focus is back on the control, so Tab moves on from there */
+    else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) { /* type a name to jump to it */
+      const t = Date.now(); typed = (t - typedAt > 700 ? '' : typed) + k.toLowerCase(); typedAt = t;
+      for (let j = 0, from = typed.length > 1 ? at : at + 1; j < n; j++) { const i = (from + j) % n; if (opts[i].textContent.trim().toLowerCase().startsWith(typed)) { setAt(i); break; } }
+    } else return;
+    e.preventDefault(); e.stopPropagation();
+  });
+  menu.addEventListener('click', e => { const el = e.target.closest('[role="option"]'); if (el) choose(opts.indexOf(el)); });
+  menu.addEventListener('pointermove', e => { const i = opts.indexOf(e.target.closest('[role="option"]')); if (i >= 0 && i !== at) setAt(i, true); });
+  menu.addEventListener('focusout', e => { if (forBtn && e.relatedTarget !== forBtn && !menu.contains(e.relatedTarget)) close(); });
+  document.addEventListener('pointerdown', e => { if (forBtn && !menu.contains(e.target) && !forBtn.contains(e.target)) close(); }, true);
+  addEventListener('resize', () => close()); addEventListener('scroll', e => { if (e.target !== menu) close(); }, true);
+
+  root.addEventListener('keydown', e => { const b = e.target.closest('.rt-pick'); if (b && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); open(b); } });
+  root.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.classList.contains('rt-pick')) return forBtn === b ? close(true) : open(b);
+    if (b.classList.contains('rt-step')) st.page += +b.dataset.d;
+    else {
+      if (b.closest('.rt-seg')) st.seg = b.dataset.v;
+      else if (b.closest('thead')) { const k = b.dataset.k, same = st.sort && st.sort.key === k; st.sort = { key: k, dir: same ? (st.sort.dir === 'asc' ? 'desc' : 'asc') : cols.find(c => c.key === k).num ? 'desc' : 'asc' }; } /* numbers start from the largest */
+      else if (b.matches('.rt-reset, .rt-clear')) { st.q = input.value = ''; st.seg = ''; st.pick = {}; input.focus({ preventScroll: true }); } /* the button is about to go */
+      else return;
+      st.page = 0;
+    }
+    draw();
+  });
+  input.addEventListener('input', () => { st.q = input.value.trim().toLowerCase(); st.page = 0; draw(); });
+  draw();
+  return { rows(next) { rows = next; st.page = 0; draw(); } };
+}
+
+/* the run log: one row per run in the range. It keeps its filters when the range changes */
+let recs;
+const PILL = { settled: 'ok', stopped: 'no', expired: 'maybe' };
+function records() {
+  const rows = S.cur.map(r => ({ id: r.id, target: TARGET[r.target].name, host: TARGET[r.target].name + '.sample.test', mode: MODE[r.mode], status: STATUS[r.status], workers: r.team.length, cand: r.cand, inb: r.inb, ok: r.ok, dur: r.dur, spend: r.spend, t0: r.t0,
+    started: `${dl(DATA.day[r.d].date)} ${String(r.hour).padStart(2, '0')}:${String(Math.floor((r.t0 % 1) * 60)).padStart(2, '0')}` }));
+  if (recs) return recs.rows(rows);
+  recs = recordsTable($('#records-table'), {
+    rows, noun: ['run', 'runs'], label: 'All runs in the range', placeholder: 'Filter runs', search: ['id', 'host', 'mode', 'status'], size: 10, sort: { key: 't0', dir: 'desc' },
+    cls: { seg: 'range', reset: 'tb' },
+    seg: { key: 'status', label: 'Status', options: STATUS },
+    picks: [{ key: 'target', label: 'Target', options: TARGET.map(t => t.name) }, { key: 'mode', label: 'Mode', options: MODE }],
+    columns: [
+      { key: 'id', label: 'Run', cell: r => `<b>${r.id}</b><small>${esc(r.host)}</small>` },
+      { key: 'status', label: 'Status', cell: r => `<span class="pill ${PILL[r.status]}">${r.status}</span>` },
+      { key: 'mode', label: 'Mode' },
+      { key: 'workers', label: 'Workers', num: true },
+      { key: 'cand', label: 'Candidates', num: true },
+      { key: 'ok', label: 'Confirmed', num: true, cell: r => `<span class="rt-meter">${r.ok}<i style="--v:${pct(r.ok, r.inb)}%"></i></span>` },
+      { key: 'dur', label: 'Run time', num: true, cell: r => fdur(r.dur) },
+      { key: 'spend', label: 'Spend', num: true, cell: r => usd(r.spend) },
+      { key: 't0', label: 'Started', num: true, cell: r => r.started },
+    ],
+  });
+}
+
+/* ================= boot ================= */
+function measure() {
+  const probe = document.createElement('span'); probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font-family:var(--mono);font-size:10px'; probe.textContent = '0000000000';
+  document.body.append(probe); const w = probe.getBoundingClientRect().width / 10; probe.remove();
+  CH = w || 6.02;
+}
+function renderAll() { measure(); hero(); kpis(); cards.forEach(c => render(c)); cards.forEach(fill); }
+function setRange(n) {
+  N = n; S = slice(N);
+  document.querySelectorAll('#range button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === N)));
+  renderAll(); records();
+}
+mount(); setRange(30);
+$('#range').addEventListener('click', e => { const b = e.target.closest('button[data-n]'); if (b) setRange(+b.dataset.n); });
+let resizeTimer; addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderAll, 120); });
+addEventListener('scroll', () => tipEl.classList.remove('show'), { passive: true });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(faces => { if (faces.size) renderAll(); }); /* no web fonts of its own: draw again only when the dock brought one */
+
+/* ---------- chrome: the theme switch, the rule under the nav, the band in view ---------- */
+(() => {
+  const root = document.documentElement, btn = $('#themebtn'), sys = matchMedia('(prefers-color-scheme: light)');
+  const active = () => root.dataset.theme || (sys.matches ? 'light' : 'dark');
+  const sync = () => { const to = active() === 'dark' ? 'light' : 'dark'; btn.dataset.to = to; btn.title = `Switch to ${to} theme`; btn.setAttribute('aria-label', btn.title); };
+  /* the tweak dock owns the scheme when it is on the page: it sets data-theme and remembers it */
+  btn.addEventListener('click', () => {
+    const to = active() === 'dark' ? 'light' : 'dark';
+    if (window.Tweaks) Tweaks.set({ mode: to }); else { root.dataset.theme = to; try { localStorage.setItem('gl-theme', to); } catch (e) {} }
+    sync();
+  });
+  sys.addEventListener('change', sync); document.addEventListener('tweakchange', sync); sync();
+
+  const nav = $('header.nav'), spy = Array.from(document.querySelectorAll('.nav-links a')).map(a => ({ a, el: $(a.getAttribute('href')) })).filter(x => x.el);
+  let current, queued = false;
+  const mark = () => {
+    queued = false; nav.classList.toggle('stuck', scrollY > 4);
+    const line = Math.min(160, innerHeight * .3); let hit = null;
+    for (const x of spy) if (x.el.getBoundingClientRect().top <= line) hit = x;
+    if (innerHeight + scrollY >= root.scrollHeight - 4) hit = spy[spy.length - 1];
+    if (hit === current) return; current = hit;
+    for (const x of spy) { x.a.classList.toggle('on', x === hit); if (x === hit) x.a.setAttribute('aria-current', 'location'); else x.a.removeAttribute('aria-current'); }
+  };
+  const queue = () => { if (!queued) { queued = true; requestAnimationFrame(mark); } };
+  addEventListener('scroll', queue, { passive: true }); addEventListener('resize', queue); mark();
+})();
+</script>
+</body>
+</html>

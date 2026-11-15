@@ -39,7 +39,6 @@
   --s-blue:#3b82f6;
   --s-teal:#14a089;
   --s-violet:#8c7cf0;
-  --s-amber:#b8861f;
   --s-grey:#3f3f46;
   /* ordinal blue ramp (p50 → p99) */
   --o1:#a9c9fb; --o2:#5b9cf6; --o3:#2d6fe0;
@@ -47,7 +46,7 @@
   /* sequential blue for the heatmap (near-surface → bright) */
   --q0:#101218; --q1:#12203a; --q2:#163160; --q3:#1c4788; --q4:#2662b4; --q5:#3987e5; --q6:#6da7ec; --q7:#a9c9fb;
   /* status (fixed) */
-  --good:#22b052; --warn:#f0ad26; --serious:#ec835a; --crit:#e5484d;
+  --good:#22b052; --warn:#f0ad26; --crit:#e5484d;
   --good-wash:rgba(34,176,82,.12); --warn-wash:rgba(240,173,38,.12); --crit-wash:rgba(229,72,77,.12);
   --blue-wash:rgba(59,130,246,.14);
   --glow:rgba(59,130,246,.10);   /* soft light behind the top of the page */
@@ -60,7 +59,7 @@
   --ease-io:cubic-bezier(.65,0,.35,1);
   --t-fast:140ms;
   --t-med:260ms;
-  --r-sm:6px; --r:8px; --r-lg:12px;
+  --r-sm:6px; --r:8px;
 
   --container:1200px;
   --gutter:32px;
@@ -281,7 +280,7 @@ main{padding:40px 0 96px}
 /* status */
 .status{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500}
 .status .icon{width:14px;height:14px}
-.status.good{color:var(--good)} .status.warn{color:var(--warn)} .status.crit{color:var(--crit)} .status.info{color:var(--fg-2)} .status.serious{color:var(--serious)}
+.status.good{color:var(--good)} .status.warn{color:var(--warn)} .status.crit{color:var(--crit)} .status.info{color:var(--fg-2)}
 .pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:11px;font-size:12px;font-weight:500;background:var(--bg-raise-2);color:var(--fg-2)}
 .pill.good{background:var(--good-wash);color:var(--good)}
 .pill.warn{background:var(--warn-wash);color:var(--warn)}
@@ -322,7 +321,7 @@ main{padding:40px 0 96px}
 .gantt .track{position:relative;height:36px;margin-right:var(--tail)}
 .gantt .track::before{content:"";position:absolute;left:0;right:calc(-1 * var(--tail));top:50%;height:1px;background:var(--grid)}
 .gantt .bar{position:absolute;top:calc(50% - 3px);height:6px;border-radius:3px;background:var(--s-blue);transform-origin:left center;min-width:3px}
-.gantt .bar.teal{background:var(--s-teal)} .gantt .bar.violet{background:var(--s-violet)} .gantt .bar.amber{background:var(--s-amber)}
+.gantt .bar.teal{background:var(--s-teal)} .gantt .bar.violet{background:var(--s-violet)}
 .gantt .bar.crit{background:var(--crit)} .gantt .bar.warn{background:var(--warn)} .gantt .bar.grey{background:var(--s-grey)} .gantt .bar.thin{top:calc(50% - 2px);height:4px}
 .gantt .dur{position:absolute;top:50%;transform:translateY(-50%);font-size:11.5px;color:var(--fg-2);font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:8px}
 .gantt .dur.in{color:var(--fg-2);padding-left:0;padding-right:8px;transform:translate(-100%,-50%)}
@@ -399,6 +398,48 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;padding-top:28p
 
 .only-m{display:none}
 
+/* ---------- hosts table: search, a status switch, choosers, sortable columns, pages (see recordsTable in the script) ---------- */
+.rt-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:20px}
+.rt-search{display:flex;align-items:center;gap:10px;flex:1 1 200px;max-width:280px;height:32px;padding:0 10px;border-radius:var(--r);background:var(--bg-raise);color:var(--fg-3);font-size:13px;cursor:text;transition:background-color var(--t-fast) var(--ease-out)}
+.rt-search:hover,.rt-search:focus-within{background:var(--bg-raise-2)}
+.rt-search:focus-within{outline:2px solid var(--focus);outline-offset:2px}
+.rt-search svg{flex:none;width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round}
+.rt-search input{flex:1;min-width:0;padding:0;border:0;outline:0;background:none;font:inherit;color:var(--fg);-webkit-appearance:none;appearance:none}
+.rt-search input::placeholder{color:var(--fg-3)}
+.rt-search input::-webkit-search-cancel-button{display:none}
+.rt-seg{display:inline-flex;max-width:100%;height:32px;padding:3px;overflow-x:auto;scrollbar-width:none;border-radius:var(--r);background:var(--bg-raise)}
+.rt-seg button{flex:none;padding:0 11px;border-radius:var(--r-sm);font-size:12.5px;font-weight:500;color:var(--fg-2);white-space:nowrap;text-transform:capitalize;transition:color var(--t-fast) var(--ease-out),background-color var(--t-fast) var(--ease-out)}
+.rt-seg button:hover{color:var(--fg)}
+.rt-seg button[aria-pressed="true"]{color:var(--fg);background:var(--bg-raise-2);box-shadow:0 1px 0 var(--pill-edge) inset}
+.rt-seg b{margin-left:6px;font-weight:400;font-variant-numeric:tabular-nums;color:var(--fg-3)}
+.rt-pick{height:32px;padding:0 10px 0 12px;border-radius:16px}
+.rt-pick i{width:6px;height:6px;margin:-3px 2px 0;border:solid var(--fg-3);border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
+.rt-pick[aria-expanded="true"]{background:var(--bg-raise-2);color:var(--fg)}
+.rt-reset{margin-left:auto;padding:6px 2px;font-size:12.5px;font-weight:500;color:var(--fg-2);transition:color var(--t-fast) var(--ease-out)}
+.rt-reset:hover{color:var(--fg)}
+.rt-scroll{overflow-x:auto}
+.rt-table th button{display:inline-flex;align-items:center;gap:6px;font-weight:inherit;transition:color var(--t-fast) var(--ease-out)}
+.rt-table th.r button{flex-direction:row-reverse}
+.rt-table th button:hover,.rt-table th[aria-sort$="ending"] button{color:var(--fg)}
+.rt-table th i{width:0;height:0;border:3.5px solid transparent;border-bottom:4.5px solid currentColor;border-top:0;opacity:0;transition:opacity var(--t-fast) var(--ease-out)}
+.rt-table th button:hover i{opacity:.45}
+.rt-table th[aria-sort$="ending"] i{opacity:1}
+.rt-table th[aria-sort="descending"] i{transform:rotate(180deg)}
+.rt-table .rt-none:hover td{background:none}
+.rt-none td{padding:40px 0;text-align:center;color:var(--fg-2)}
+.rt-clear{margin-left:6px;font-weight:500;color:var(--fg);text-decoration:underline;text-underline-offset:3px}
+.rt-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;padding-top:14px;box-shadow:0 -1px 0 var(--line);color:var(--fg-2);font-size:12.5px}
+.rt-pager{display:flex;align-items:center;gap:6px}
+.rt-page{min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+.rt-step svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.rt-step:disabled{opacity:.35;pointer-events:none}
+.rt-menu{position:fixed;z-index:60;box-sizing:border-box;min-width:160px;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain;padding:4px;border-radius:var(--r);background:var(--pop);box-shadow:0 0 0 1px var(--line-2),0 16px 40px -16px var(--shadow);font-size:12.5px;color:var(--fg-2);outline:0;scrollbar-width:thin;-webkit-user-select:none;user-select:none}
+.rt-menu[hidden]{display:none}
+.rt-menu [role="option"]{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:7px 9px;border-radius:var(--r-sm);white-space:nowrap;cursor:pointer}
+.rt-menu [role="option"].act{background:var(--bg-raise-2);color:var(--fg)}
+.rt-menu [role="option"][aria-selected="true"]{font-weight:500;color:var(--fg-accent)}
+.rt-menu b{font-weight:400;font-variant-numeric:tabular-nums;color:var(--fg-3)}
+
 /* ---------- responsive ---------- */
 @media (max-width:1000px){
   .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -428,6 +469,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;padding-top:28p
   .tbl .hide-m,.hide-m{display:none}
   .only-m{display:inline}
   .tbl td,.tbl th{padding-right:10px}
+  .rt-search{flex-basis:100%;max-width:none}
   .barcell .segbar{width:72px}
   .gantt{--label:138px;--depth:10px}
   .gantt .lbl .s{display:none}
@@ -486,7 +528,7 @@ window.TWEAK_PAGE = (() => {
     getMode: () => 'dark',
     setMode: () => {},
     sans: '--sans', mono: '--mono',
-    scale: { r: ['--r-sm', '--r', '--r-lg'], d: ['--gutter', '--section-gap', '--bleed'] },
+    scale: { r: ['--r-sm', '--r'], d: ['--gutter', '--section-gap', '--bleed'] },
     chrome: { bg: 'var(--bg-raise-2)', fg: 'var(--fg)', dim: 'var(--fg-2)', line: 'var(--line-2)', hover: 'var(--line-2)', accent: 'var(--s-blue)' },
     accentOwn: { dark: '#3b82f6' },
     /* the page's own colours in palette order (app surf raised inset hover line line2 text text2 dim green red yellow blue magenta warn); used for glass */
@@ -515,10 +557,10 @@ window.TWEAK_PAGE = (() => {
         '--fg-hover': blend(fg, light ? 90 : 60, light ? bg : '#ffffff'),
         '--line': mix(p.text, light ? 9 : 7), '--line-2': mix(p.text, light ? 15 : 12),
         '--grid': mix(p.text, light ? 8 : 6), '--axis': mix(p.text, light ? 15 : 11),
-        /* series two to four keep the page's hues; the light set is stepped down for a pale surface */
-        '--s-teal': mark(TEAL[p.mode]), '--s-violet': mark(light ? '#6d54d6' : '#8c7cf0'), '--s-amber': mark(light ? '#a8730f' : '#b8861f'),
+        /* series two and three keep the page's hues; the light set is stepped down for a pale surface */
+        '--s-teal': mark(TEAL[p.mode]), '--s-violet': mark(light ? '#6d54d6' : '#8c7cf0'),
         '--s-grey': mix(p.text, light ? 18 : 22),
-        '--good': good, '--warn': warn, '--serious': on(p.warn, step1), '--crit': crit,
+        '--good': good, '--warn': warn, '--crit': crit,
         '--good-wash': mix(good, 12), '--warn-wash': mix(warn, 12), '--crit-wash': mix(crit, 12),
         '--badge': badge[0], '--on-badge': badge[1],
         '--pill-edge': light ? 'rgba(255,255,255,.6)' : mix(p.text, 4),
@@ -527,10 +569,8 @@ window.TWEAK_PAGE = (() => {
     },
 
     /* the accent is the first series; the ordinal ramp (p50, p95, p99), the heat ramp and the accent-coloured text are steps of it */
-    accent: (c, mix, mode) => {
-      const light = mode === 'light', st = document.documentElement.style;
-      /* map() has just set the surface and text colours; when it did not run, the page's own are in force */
-      const bg = st.getPropertyValue('--bg').trim() || OWN.bg, fg = st.getPropertyValue('--fg').trim() || OWN.fg;
+    accent: (c, mix, mode, p, tokens) => {
+      const light = mode === 'light', bg = tokens ? tokens['--bg'] : OWN.bg; /* the surface map() chose; when it did not run, the page's own is in force */
       const pale = !light && lum(c) > .6; /* an accent already near white has no room above it: step down only */
       /* ordinal: pale to deep in both modes, as tints and shades of the one hue. On paper the pale end is the lightest tint that
          still holds 3:1; an accent with no such tint (it is close to 3:1 itself) starts the ramp instead. */
@@ -553,7 +593,8 @@ window.TWEAK_PAGE = (() => {
       return out;
     },
 
-    glass: '.tip',
+    gutter: { own: 'boxed', css: 'html[data-tw-gutter="full-width"]{--container:none}' },
+    glass: '.tip, .rt-menu',
   };
 })();
 </script>
@@ -586,7 +627,7 @@ html[data-tw-surface="glass"] .tw{-webkit-backdrop-filter:blur(16px) saturate(12
 .tw-menu [role="option"].act{background:var(--tw-hover)}
 .tw-menu [role="option"][aria-selected="true"]{color:var(--tw-acc);font-weight:700}
 .tw-menu .tw-grp{padding:9px 8px 5px;color:var(--tw-dim);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
-.tw-dot{flex:none;width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--a) 50%,var(--b) 50%);box-shadow:0 0 0 1px var(--tw-line)} /* a theme's surface and accent */
+.tw-dot{flex:none;width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--a) 50%,var(--b) 50%);box-shadow:0 0 0 1px var(--tw-line)} /* a theme's surface and primary */
 @media (max-width:720px){.tw{left:8px;right:8px;bottom:8px;transform:none;width:auto;max-width:none;justify-content:flex-start}.tw-ctl{height:30px}.tw-space{height:150px}.tw-menu [role="option"]{padding-block:10px}}
 @media print{.tw,.tw-chip,.tw-space,.tw-menu{display:none}}
 /* glass surface: a soft backdrop behind translucent panels */
@@ -595,46 +636,47 @@ html[data-tw-surface="glass"] body{background:transparent!important}
 html[data-tw-surface="glass"]::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 50% at 18% 0%,color-mix(in srgb,var(--tw-acc) 16%,transparent),transparent 70%),radial-gradient(50% 45% at 100% 100%,color-mix(in srgb,var(--tw-warn) 13%,transparent),transparent 70%)}
 </style>
 <script id="tw-js">
-/* Tweaks: mode / theme / surface / font / size / corners / density / accent, as on the terminal design system page.
+/* Tweaks: mode / theme / surface / font / size / corners / density / gutter / accent. All but gutter are the terminal design system page's controls.
    Each page describes itself in window.TWEAK_PAGE (which of its tokens mean what); everything else here is shared.
    With every control on its default the page's own CSS is untouched.
-   The look is also written to the address as ?mode=&theme=&surface=&font=&size=&corners=&density=&accent=, and read back from it, so a link carries it. */
+   The look is also written to the address as ?mode=&theme=&surface=&font=&size=&corners=&density=&gutter=&accent=, and read back from it, so a link carries it. */
 (function(){
 'use strict';
 const P = window.TWEAK_PAGE, root = document.documentElement, KEY = 'artikit-tweaks:' + P.key;
 /* palettes, in this order: */
-const ROLES = ['app','surf','raised','inset','hover','line','line2','text','text2','dim','green','red','yellow','blue','magenta','warn'];
+const ROLES = ['app','surf','raised','inset','hover','line','line2','text','text2','dim','green','red','yellow','blue','magenta','warn','primary']; /* primary: the hue a theme is known by. It is the theme's accent until the accent control picks another */
 const THEMES = {
-  dark: {
-    Copperplate: '14100b 1a150e 241d14 100c08 2c2418 332917 54432a ead9c0 b59c7a 77664c a4c26f e0705a d8a24a 8aa8bd c98da4 cf8236',
-    Midnight: '0d0d13 16161e 1d1d28 12121a 232330 2a2a38 383848 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f',
-    Graphite: '101012 151517 1c1c1f 0c0c0e 232326 2a2a2e 3a3a40 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f',
-    Phosphor: '060a06 0a120a 101a10 050905 152415 1c301c 2a462a b8e0b0 7aa874 4a6a46 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f',
-    Dracula: '1e1f29 282a36 343746 21222c 3c3f52 3a3d4f 4d5069 f8f8f2 a8abc7 6272a4 50fa7b ff5555 f1fa8c 8be9fd ff79c6 ffb86c',
-    Nord: '242933 2e3440 3b4252 272c37 434c5e 3b4252 4c566a e5e9f0 aeb8cc 616e88 a3be8c bf616a ebcb8b 81a1c1 b48ead d08770',
-    "Solarized Dark": '00212b 002b36 073642 001f27 0a4050 073642 586e75 93a1a1 839496 586e75 859900 dc322f b58900 268bd2 d33682 cb4b16',
-    Tidewatch: '0a1220 0e1728 16233a 091020 1c2c47 1e2f4a 2e4368 d7e3f2 93a8c4 54688a 4fd6be ff6b7f e5c07b 56b3fa c792ea e5a45b',
-    Iris: '14121f 191627 221e35 110f1c 2a2542 2b2545 413866 e6e1f5 a79fc7 675f8a 72e0a5 ff6b9d f0c674 82aaff c792ea f0a35e',
-    Emberline: '0c1210 101915 18241e 0a0f0d 1f2e26 22332a 35503f d8e6dc 96ad9d 587263 7fce6f f26d4f f0a848 6db2c9 d78ab0 f08c3a',
-    Oceanic: '0b141f 0f1a29 172538 0a111c 1d3049 203450 31507a d9e6f5 8ea9c4 526b88 5fd39b f2708a e8c268 58a6ff bc8cff e09a4e',
-    Grove: '0d130c 121a10 1a2618 0b100a 21301e 263a22 3b5a35 dde8d6 a2b797 647a5a 9ccb72 e06c5f d9b656 72aec4 c194bd d19042',
-    Rosewire: '170f14 1e1319 291b23 130c10 32212b 36242e 523847 f0dfe8 bd9cab 7c6070 7fd2a0 ff5c8a e8b465 7ba6e0 e56ba8 e0955a',
-    Halide: '0c0c0c 111111 1a1a1a 080808 222222 262626 3d3d3d e8e8e8 a0a0a0 606060 a9c4a9 cf9a9a c9bd9a 9ab1c4 bda4b8 c4ad8f'
-  },
-  light: {
-    Porcelain: 'efece8 fbf9f6 ffffff f4f1ec e9e5df ddd8d0 c2bab0 33302b 6b655c a39c90 3d8b3d c53a3a a37414 3565c0 ad3d8d bb6a1e',
-    Paper: 'eceff1 fafbfc ffffff f0f2f4 e4e8ec d5dade b8c0c8 2a3138 5a656e 9aa4ac 188038 c5221f a86a00 1a63d0 b8207e c26401',
-    "Solarized Light": 'eee8d5 fdf6e3 ffffff f3edda e8e1cc ddd6c1 c0b99f 586e75 657b83 93a1a1 859900 dc322f b58900 268bd2 d33682 cb4b16',
-    Frost: 'e8edf3 f6f9fc ffffff eef2f7 dfe7ef d0dae4 aabccd 26313c 54687a 93a5b5 2e9440 d13b45 ad7a12 3a6ec4 b8459a c47222',
-    Dawn: 'f2eae8 fcf7f5 ffffff f5edeb ecdfdc e2d3cf c8b1ab 3a2d2a 75605b ab948e 2c8a44 cc3344 a86e10 3565c0 c03a7e bd6420',
-    Linen: 'efe9dd faf6ec fffdf6 f3eee1 e8e1d0 ded5c1 bfb298 38321f 6e6650 a49a80 4c7f22 bd3e2e 976a08 2e6a9e a5498a af6a12',
-    Sage: 'e9eee6 f6f9f3 ffffff eef3ea dfe7da d2ddcb adbfa3 2b352a 5c6c58 93a58c 347a34 c04040 9c7212 33689e 9c4a8a b06a1c',
-    Lavender: 'edeaf3 f9f7fc ffffff f2eff7 e4dfee d9d3e4 b5aacb 312b3d 655c78 a096b3 2f8a48 cc3550 a06d10 4a5ecc a63cae bb681e'
-  }
+ "dark": {
+  "Copperplate": "14100b 1a150e 241d14 100c08 2c2418 332917 54432a ead9c0 b59c7a 77664c a4c26f e0705a d8a24a 8aa8bd c98da4 cf8236 cf8236",
+  "Midnight": "0d0d13 16161e 1d1d28 12121a 232330 2a2a38 383848 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f 6f9ef1",
+  "Graphite": "101012 151517 1c1c1f 0c0c0e 232326 2a2a2e 3a3a40 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f b9c0d0",
+  "Phosphor": "060a06 0a120a 101a10 050905 152415 1c301c 2a462a b8e0b0 7aa874 4a6a46 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f 78d670",
+  "Dracula": "1e1f29 282a36 343746 21222c 3c3f52 3a3d4f 4d5069 f8f8f2 a8abc7 6272a4 50fa7b ff5555 f1fa8c 8be9fd ff79c6 ffb86c bd93f9",
+  "Nord": "242933 2e3440 3b4252 272c37 434c5e 3b4252 4c566a e5e9f0 aeb8cc 616e88 a3be8c bf616a ebcb8b 81a1c1 b48ead d08770 88c0d0",
+  "Solarized Dark": "00212b 002b36 073642 001f27 0a4050 073642 586e75 93a1a1 839496 586e75 859900 dc322f b58900 268bd2 d33682 cb4b16 2aa198",
+  "Tidewatch": "0a1220 0e1728 16233a 091020 1c2c47 1e2f4a 2e4368 d7e3f2 93a8c4 54688a 4fd6be ff6b7f e5c07b 56b3fa c792ea e5a45b 4fd6be",
+  "Iris": "14121f 191627 221e35 110f1c 2a2542 2b2545 413866 e6e1f5 a79fc7 675f8a 72e0a5 ff6b9d f0c674 82aaff c792ea f0a35e a99cf5",
+  "Emberline": "0c1210 101915 18241e 0a0f0d 1f2e26 22332a 35503f d8e6dc 96ad9d 587263 7fce6f f26d4f f0a848 6db2c9 d78ab0 f08c3a f08c3a",
+  "Oceanic": "0b141f 0f1a29 172538 0a111c 1d3049 203450 31507a d9e6f5 8ea9c4 526b88 5fd39b f2708a e8c268 58a6ff bc8cff e09a4e 58a6ff",
+  "Grove": "0d130c 121a10 1a2618 0b100a 21301e 263a22 3b5a35 dde8d6 a2b797 647a5a 9ccb72 e06c5f d9b656 72aec4 c194bd d19042 9ccb72",
+  "Rosewire": "170f14 1e1319 291b23 130c10 32212b 36242e 523847 f0dfe8 bd9cab 7c6070 7fd2a0 ff5c8a e8b465 7ba6e0 e56ba8 e0955a ef6fa0",
+  "Halide": "0c0c0c 111111 1a1a1a 080808 222222 262626 3d3d3d e8e8e8 a0a0a0 606060 a9c4a9 cf9a9a c9bd9a 9ab1c4 bda4b8 c4ad8f c4ad8f"
+ },
+ "light": {
+  "Porcelain": "efece8 fbf9f6 ffffff f4f1ec e9e5df ddd8d0 c2bab0 33302b 6b655c a39c90 3d8b3d c53a3a a37414 3565c0 ad3d8d bb6a1e 3565c0",
+  "Paper": "eceff1 fafbfc ffffff f0f2f4 e4e8ec d5dade b8c0c8 2a3138 5a656e 9aa4ac 188038 c5221f a86a00 1a63d0 b8207e c26401 1a63d0",
+  "Solarized Light": "eee8d5 fdf6e3 ffffff f3edda e8e1cc ddd6c1 c0b99f 586e75 657b83 93a1a1 859900 dc322f b58900 268bd2 d33682 cb4b16 1b817a",
+  "Frost": "e8edf3 f6f9fc ffffff eef2f7 dfe7ef d0dae4 aabccd 26313c 54687a 93a5b5 2e9440 d13b45 ad7a12 3a6ec4 b8459a c47222 2b7a9e",
+  "Dawn": "f2eae8 fcf7f5 ffffff f5edeb ecdfdc e2d3cf c8b1ab 3a2d2a 75605b ab948e 2c8a44 cc3344 a86e10 3565c0 c03a7e bd6420 c2456b",
+  "Linen": "efe9dd faf6ec fffdf6 f3eee1 e8e1d0 ded5c1 bfb298 38321f 6e6650 a49a80 4c7f22 bd3e2e 976a08 2e6a9e a5498a af6a12 a4532a",
+  "Sage": "e9eee6 f6f9f3 ffffff eef3ea dfe7da d2ddcb adbfa3 2b352a 5c6c58 93a58c 347a34 c04040 9c7212 33689e 9c4a8a b06a1c 347a34",
+  "Lavender": "edeaf3 f9f7fc ffffff f2eff7 e4dfee d9d3e4 b5aacb 312b3d 655c78 a096b3 2f8a48 cc3550 a06d10 4a5ecc a63cae bb681e 6d55c9"
+ }
 };
 const ACCENTS = { cyan:['#66c7d6','#1a7f8e'], green:['#78d670','#2f8a3a'], magenta:['#ec6bb4','#b8328a'], blue:['#6f9ef1','#3565c0'], orange:['#e2953f','#b5651a'] };
 const FONTS = { mono:['JetBrains Mono','Fira Code','IBM Plex Mono','Source Code Pro','Space Mono','Inconsolata','Ubuntu Mono','Victor Mono','Red Hat Mono'], sans:['Inter','Geist','IBM Plex Sans','Hanken Grotesk','Figtree','Manrope'] };
 const TWO_WEIGHTS = ['Space Mono','Ubuntu Mono']; /* static families with only regular and bold */
+const GUTTERS = ['boxed', 'full-width'], OWN_GUTTER = P.gutter ? P.gutter.own : null; /* P.gutter: { own: which of the two the page ships, css: rules for the other, keyed on html[data-tw-gutter] } */
 const SIZE = { small:.9, default:1, large:1.12, 'x-large':1.25 }, CORNER = { sharp:0, default:1, round:1.8 }, DENSITY = { compact:.72, default:1, relaxed:1.32 };
 const pal = s => Object.fromEntries(s.split(' ').map((h, i) => [ROLES[i], '#' + h]));
 const mix = (a, pct, b) => `color-mix(in srgb, ${a} ${pct}%, ${b || 'transparent'})`;
@@ -661,9 +703,9 @@ const scaled = (v, k) => v.replace(PX, m => parseFloat(m) > 0 ? `calc(${m}*var(-
 
 /* ---- state ---- */
 const themesFor = m => (P.modes.includes(m) ? ['page'] : []).concat(Object.keys(THEMES[m]));
-const cfg = { mode: P.getMode(), theme: null, surface: 'solid', font: 'default', size: 'default', corner: 'default', density: 'default', accent: 'page', open: null };
+const cfg = { mode: P.getMode(), theme: null, surface: 'solid', font: 'default', size: 'default', corner: 'default', density: 'default', gutter: OWN_GUTTER, accent: 'page', open: null };
 /* one address parameter per control. Values are matched loosely (case, spaces and dashes ignored); "default" means the page's own */
-const QK = { mode: 'mode', theme: 'theme', surface: 'surface', font: 'font', size: 'size', corner: 'corners', density: 'density', accent: 'accent' };
+const QK = { mode: 'mode', theme: 'theme', surface: 'surface', font: 'font', size: 'size', corner: 'corners', density: 'density', gutter: 'gutter', accent: 'accent' };
 const norm = v => String(v).toLowerCase().replace(/[^a-z0-9]+/g, ''), among = (v, list) => list.find(o => norm(o) === norm(v));
 function fromURL(){
   let q; try { q = new URLSearchParams(location.search); } catch (e) { return null; }
@@ -676,13 +718,14 @@ function fromURL(){
   out.font = among(g('font'), FONTS.mono.concat(FONTS.sans)) || 'default';
   out.size = among(g('size'), Object.keys(SIZE)) || 'default'; out.corner = among(g('corner'), Object.keys(CORNER)) || 'default'; out.density = among(g('density'), Object.keys(DENSITY)) || 'default';
   out.accent = among(g('accent'), Object.keys(ACCENTS)) || 'page';
+  out.gutter = among(g('gutter'), GUTTERS) || (norm(g('gutter')) === 'full' ? 'full-width' : OWN_GUTTER);
   return out;
 }
 let inURL = false;
 function toURL(){
   try {
     const q = new URLSearchParams(location.search);
-    for (const k in QK) q.set(QK[k], cfg[k] === 'page' ? 'default' : cfg[k]);
+    for (const k in QK) if (cfg[k] != null) q.set(QK[k], cfg[k] === 'page' ? 'default' : cfg[k]);
     history.replaceState(history.state, '', '?' + q + location.hash); inURL = true; /* the page's own #section stays */
   } catch (e) {}
 }
@@ -696,14 +739,16 @@ function settle(){
   if (cfg.font !== 'default' && !FONTS.mono.concat(FONTS.sans).includes(cfg.font)) cfg.font = 'default';
   if (!(cfg.size in SIZE)) cfg.size = 'default'; if (!(cfg.corner in CORNER)) cfg.corner = 'default'; if (!(cfg.density in DENSITY)) cfg.density = 'default';
   if (cfg.accent !== 'page' && !ACCENTS[cfg.accent]) cfg.accent = 'page';
+  cfg.gutter = P.gutter ? (GUTTERS.includes(cfg.gutter) ? cfg.gutter : OWN_GUTTER) : null;
 }
 settle();
 
-/* glass: the page names which boxes are panels (they blur what is behind them) and which wrappers must stop painting an opaque fill */
-if (P.glass || P.clear){
+/* glass: the page names which boxes are panels (they blur what is behind them) and which wrappers must stop painting an opaque fill.
+   gutter: the page gives the rules for the layout it does not ship (boxed for a full-width page, full-width for a boxed one) */
+if (P.glass || P.clear || P.gutter){
   const st = document.createElement('style'); st.id = 'tw-dyn';
   st.textContent = (P.glass ? `html[data-tw-surface="glass"] :is(${P.glass}){-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}` : '') +
-    (P.clear ? `html[data-tw-surface="glass"] :is(${P.clear}){background:transparent!important}` : '');
+    (P.clear ? `html[data-tw-surface="glass"] :is(${P.clear}){background:transparent!important}` : '') + (P.gutter ? P.gutter.css : '');
   document.head.append(st);
 }
 const applied = new Set(), loaded = new Set(); let baseAccent;
@@ -716,27 +761,29 @@ function loadFont(name){
 function apply(){
   const c = cfg, light = c.mode === 'light', own = c.theme === 'page', glass = c.surface === 'glass';
   applied.forEach(k => root.style.removeProperty(k)); applied.clear();
-  const put = (k, v) => { if (k && v != null){ root.style.setProperty(k, String(v)); applied.add(k); } };
+  const put = (k, v) => { if (k && v != null){ root.style.setProperty(k, String(v)); applied.add(k); } }, putAll = o => Object.entries(o).forEach(([k, v]) => put(k, v));
   P.setMode(c.mode);
   root.dataset.twMode = c.mode; if (glass) root.dataset.twSurface = 'glass'; else delete root.dataset.twSurface;
+  if (P.gutter && c.gutter !== OWN_GUTTER) root.dataset.twGutter = c.gutter; else delete root.dataset.twGutter;
   const accent = c.accent === 'page' ? null : ACCENTS[c.accent][light ? 1 : 0];
-  let chrome = P.chrome, warn = 'transparent', app = 'transparent';
+  let chrome = P.chrome, warn = 'transparent', app = 'transparent', p = null, tokens = null; /* the palette in force and what map() made of it: both stay null while the page's own look is untouched */
   baseAccent = P.accentOwn[c.mode] || P.accentOwn[P.modes[0]];
   if (!own || glass){
-    const p = pal(own ? P.own[c.mode] : THEMES[c.mode][c.theme]);
+    p = pal(own ? P.own[c.mode] : THEMES[c.mode][c.theme]);
+    if (!p.primary) p.primary = own ? baseAccent : p.blue; /* the page's own palette lists sixteen colours: its primary is its accent */
     p.solid = p.surf; p.mode = c.mode; p.glass = glass; app = p.app; warn = p.warn;
     if (glass){ /* same recipe as the terminal kit: translucent surface, tinted raised/hover layers, hairlines from the text colour */
       const t = p.text;
       p.surf = mix(p.surf, light ? 64 : 72); p.raised = light ? 'rgba(255,255,255,.6)' : mix(t, 5); p.inset = light ? mix(t, 4) : 'rgba(0,0,0,.18)';
       p.hover = mix(t, light ? 7 : 9); p.line = mix(t, light ? 10 : 9); p.line2 = mix(t, light ? 18 : 16);
     }
-    Object.entries(P.map(p, mix)).forEach(([k, v]) => put(k, v));
+    putAll(tokens = P.map(p, mix));
     put('color-scheme', c.mode);
-    chrome = { bg: glass ? mix(p.solid, 82) : p.raised, fg: p.text, dim: mix(p.text2, 62, p.dim), line: p.line2, hover: p.hover, accent: own ? P.accentOwn[c.mode] : p.blue, menu: p.solid };
-    if (!own) baseAccent = p.blue; /* a shared theme brings its own default accent */
-    if (!own && !accent) Object.entries(P.accent(p.blue, mix, c.mode)).forEach(([k, v]) => put(k, v));
+    chrome = { bg: glass ? mix(p.solid, 82) : p.raised, fg: p.text, dim: mix(p.text2, 62, p.dim), line: p.line2, hover: p.hover, accent: own ? P.accentOwn[c.mode] : p.primary, menu: p.solid };
+    if (!own) baseAccent = p.primary; /* a shared theme brings its own default accent: its primary */
   }
-  if (accent) Object.entries(P.accent(accent, mix, c.mode)).forEach(([k, v]) => put(k, v));
+  const hue = accent || (own ? null : p.primary);
+  if (hue) putAll(P.accent(hue, mix, c.mode, p, tokens));
   put('--tw-bg', chrome.bg); put('--tw-fg', chrome.fg); put('--tw-dim', chrome.dim); put('--tw-line', chrome.line); put('--tw-hover', chrome.hover);
   put('--tw-acc', accent || chrome.accent); put('--tw-menu', chrome.menu || chrome.bg); put('--tw-app', app); put('--tw-warn', warn);
   if (P.mono) put('--tw-font', `var(${P.mono})`);
@@ -749,14 +796,14 @@ function apply(){
   if (DENSITY[c.density] !== 1) put('--tw-d', DENSITY[c.density]);
 }
 apply();
-if (linked || cfg.theme !== 'page' || cfg.surface !== 'solid' || cfg.accent !== 'page' || ['font', 'size', 'corner', 'density'].some(k => cfg[k] !== 'default')) toURL();
+if (linked || cfg.theme !== 'page' || cfg.surface !== 'solid' || cfg.accent !== 'page' || cfg.gutter !== OWN_GUTTER || ['font', 'size', 'corner', 'density'].some(k => cfg[k] !== 'default')) toURL();
 
 /* ---- dock ---- */
 let dock, chip, space;
 const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
 const seg = (k, opts) => `<span class="tw-seg">${opts.map(o => `<button type="button" data-k="${k}" data-v="${o}" aria-pressed="${cfg[k] === o}">${o}</button>`).join('')}</span>`;
 const NAME = { theme: 'theme', font: 'font', size: 'size', corner: 'corners', density: 'density' };
-const sw = (hexes, b) => ({ a: '#' + hexes.split(' ')[1], b: b || '#' + hexes.split(' ')[13] }); /* surface + accent of a palette */
+const sw = (hexes, b) => { const h = hexes.split(' '); return { a: '#' + h[1], b: b || '#' + (h[16] || h[13]) }; }; /* surface + primary of a palette */
 const choices = k => k === 'theme' ? themesFor(cfg.mode).map(t => t === 'page' ? { v: t, label: 'page default', sw: P.own && P.own[cfg.mode] ? sw(P.own[cfg.mode], P.accentOwn[cfg.mode]) : null } : { v: t, label: t, sw: sw(THEMES[cfg.mode][t]) })
   : k === 'font' ? [{ v: 'default', label: 'default' }, { group: 'mono, whole page' }].concat(FONTS.mono.map(f => ({ v: f, label: f })), [{ group: 'sans' }], FONTS.sans.map(f => ({ v: f, label: f })))
   : Object.keys({ size: SIZE, corner: CORNER, density: DENSITY }[k]).map(o => ({ v: o, label: o }));
@@ -815,6 +862,7 @@ function render(){
     `<div class="tw-ctl">size ${pick('size')}</div>` +
     `<div class="tw-ctl">corners ${pick('corner')}</div>` +
     `<div class="tw-ctl">density ${pick('density')}</div>` +
+    (P.gutter ? `<div class="tw-ctl">gutter ${seg('gutter', GUTTERS)}</div>` : '') +
     `<div class="tw-ctl">accent <span class="tw-sws">${['page'].concat(Object.keys(ACCENTS)).map(a => `<button type="button" class="tw-sw" data-k="accent" data-v="${a}" title="${a === 'page' ? 'default' : a}" aria-label="${a === 'page' ? 'default' : a} accent" aria-pressed="${cfg.accent === a}" style="--c:${a === 'page' ? baseAccent : ACCENTS[a][light ? 1 : 0]}"></button>`).join('')}</span></div>` +
     `<button type="button" class="tw-x" data-k="open" data-v="" aria-label="Hide tweaks" title="Hide tweaks">hide</button>`;
   dock.hidden = !cfg.open; chip.hidden = !!cfg.open; if (space) space.hidden = !cfg.open;
@@ -828,8 +876,8 @@ function set(patch){
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {}
   if (inURL || Object.keys(QK).some(k => cfg[k] !== before[k])) toURL();
   document.dispatchEvent(new CustomEvent('tweakchange', { detail: { ...cfg } }));
-  /* text, spacing and font changes move boxes: let the page redraw anything it sized in script */
-  if (['font', 'size', 'density', 'corner'].some(k => cfg[k] !== before[k])){
+  /* text, spacing, font and width changes move boxes: let the page redraw anything it sized in script */
+  if (['font', 'size', 'density', 'corner', 'gutter'].some(k => cfg[k] !== before[k])){
     const again = () => window.dispatchEvent(new Event('resize'));
     requestAnimationFrame(() => requestAnimationFrame(again));
     if (cfg.font !== before.font && document.fonts) document.fonts.ready.then(() => setTimeout(again, 60));
@@ -1164,15 +1212,9 @@ window.Tweaks = { get: () => ({ ...cfg }), set, themes: THEMES, mix };
 
     <section class="section">
       <div class="sec-head">
-        <h2>Hosts <span>busiest first</span></h2>
-        <div class="right"><a class="link" href="#infra">All 48 hosts <svg class="icon xs" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+        <h2>Hosts <span>all 48, busiest first</span></h2>
       </div>
-      <div style="overflow-x:auto">
-      <table class="tbl" id="t-hosts">
-        <thead><tr><th>Host</th><th class="hide-m">Region</th><th>CPU</th><th class="hide-m">Memory</th><th class="r hide-m">Pods</th><th class="r">Status</th></tr></thead>
-        <tbody></tbody>
-      </table>
-      </div>
+      <div id="hosts-table"></div>
     </section>
   </div>
 </section>
@@ -1583,6 +1625,144 @@ function renderLogs() {
 }
 
 const HOSTS = ['web-01', 'web-02', 'web-03', 'api-01', 'api-02', 'worker-01', 'worker-02', 'db-primary', 'db-replica', 'cache-01'];
+/* ================= records table: recordsTable(root, options) =================
+   One table with a search box, a segmented filter, choosers, sortable columns and pages. It only writes markup and rt-* classes: the look is the page's CSS.
+   options  rows      the records, plain objects
+            columns   [{ key, label, num, cls, cell(row), sort(row) }]  cell returns the cell's HTML and sort what to order by; both default to row[key]. sort: false leaves a column unsortable
+            search    the keys the search box reads
+            seg       { key, label, options }  one filter as a row of switches, each with its count
+            picks     [{ key, label, options }]  filters as choosers; without options they list the values found in the rows
+            sort      { key, dir }   size, sizes  rows a page   noun  ['finding', 'findings']   glyph  { search, prev, next } as HTML
+            cls       { search, seg, pick, reset, table, step }  class names to add, so a part can wear a control the page already has
+   Returns { rows(next) }: swap the records, keep the filters and the sort, and go back to the first page. */
+function recordsTable(root, o) {
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const cols = o.columns, picks = o.picks || [], noun = o.noun || ['row', 'rows'], sizes = o.sizes || [10, 25, 50], id = 'rt' + (recordsTable.n = (recordsTable.n || 0) + 1);
+  const G = Object.assign({ search: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3.5 3.5"/></svg>', prev: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.500"/></svg>', next: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.500 4.500 4.500-4.500 4.500"/></svg>' }, o.glyph);
+  const K = o.cls || {}, cl = k => 'rt-' + k + (K[k] ? ' ' + K[k] : '');
+  const st = { q: '', seg: '', pick: {}, sort: o.sort ? { ...o.sort } : null, page: 0, size: o.size || sizes[0] };
+  let rows = o.rows;
+  const found = k => Array.from(new Set(rows.map(r => String(r[k])))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  /* does a row pass every filter, leaving out the one whose options are being counted */
+  const pass = (r, skip) => (!st.q || o.search.some(k => String(r[k]).toLowerCase().includes(st.q)))
+    && (!o.seg || skip === o.seg.key || !st.seg || String(r[o.seg.key]) === st.seg)
+    && picks.every(p => skip === p.key || !st.pick[p.key] || String(r[p.key]) === st.pick[p.key]);
+  const tally = k => { const n = { '': 0 }; for (const r of rows) if (pass(r, k)) { n[r[k]] = (n[r[k]] || 0) + 1; n['']++; } return n; };
+  const pick = (k, label) => `<button type="button" class="${cl('pick')}" data-k="${k}" aria-haspopup="listbox" aria-expanded="false"><span>${esc(label)}</span><b></b><i aria-hidden="true"></i></button>`;
+  const nf = n => (n || 0).toLocaleString('en-US');
+  const tdc = c => [c.num ? 'num' : '', c.cls || ''].join(' ').trim();
+
+  root.classList.add('rt');
+  root.innerHTML = `<div class="rt-bar"><label class="${cl('search')}">${G.search}<input type="search" placeholder="${esc(o.placeholder || 'Filter ' + noun[1])}" aria-label="${esc(o.placeholder || 'Filter ' + noun[1])}" spellcheck="false" autocomplete="off"></label>`
+    + (o.seg ? `<div class="${cl('seg')}" role="group" aria-label="${esc(o.seg.label)}">${[''].concat(o.seg.options || found(o.seg.key)).map(v => `<button type="button" data-v="${esc(v)}" aria-pressed="${!v}">${esc(v || 'All')}<b></b></button>`).join('')}</div>` : '')
+    + picks.map(p => pick(p.key, p.label)).join('') + `<button type="button" class="${cl('reset')}" hidden>Reset</button></div>`
+    + `<div class="rt-scroll"><table class="${cl('table')}" aria-label="${esc(o.label || noun[1])}"><thead><tr>${cols.map(c => `<th scope="col"${tdc(c) ? ` class="${tdc(c)}"` : ''}${c.sort === false ? `>${esc(c.label)}` : ` aria-sort="none"><button type="button" data-k="${c.key}">${esc(c.label)}<i aria-hidden="true"></i></button>`}</th>`).join('')}</tr></thead><tbody></tbody></table></div>`
+    + `<div class="rt-foot"><span class="rt-count" role="status"></span><span class="rt-pager">${pick('#size', 'Rows')}<button type="button" class="${cl('step')}" data-d="-1" aria-label="Previous page">${G.prev}</button><span class="rt-page"></span><button type="button" class="${cl('step')}" data-d="1" aria-label="Next page">${G.next}</button></span></div>`;
+  const $ = s => root.querySelector(s), input = $('input'), body = $('tbody'), steps = root.querySelectorAll('.rt-step');
+
+  function draw() {
+    const c = st.sort && cols.find(c => c.key === st.sort.key), dir = st.sort && st.sort.dir === 'desc' ? -1 : 1, by = r => typeof c.sort === 'function' ? c.sort(r) : r[c.key];
+    const all = rows.filter(r => pass(r));
+    if (c) all.sort((a, b) => { const x = by(a), y = by(b); return dir * (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })); });
+    const pages = Math.max(1, Math.ceil(all.length / st.size)); st.page = Math.max(0, Math.min(st.page, pages - 1));
+    const from = st.page * st.size, part = all.slice(from, from + st.size);
+    body.innerHTML = part.length ? part.map(r => '<tr>' + cols.map(c => `<td${tdc(c) ? ` class="${tdc(c)}"` : ''}>${c.cell ? c.cell(r) : esc(r[c.key])}</td>`).join('') + '</tr>').join('')
+      : `<tr class="rt-none"><td colspan="${cols.length}">No ${esc(noun[1])} match these filters. <button type="button" class="rt-clear">Clear filters</button></td></tr>`;
+    $('.rt-count').textContent = (all.length ? `${from + 1}–${from + part.length} of ${nf(all.length)}` : '0') + ' ' + noun[all.length === 1 ? 0 : 1] + (all.length < rows.length ? `, filtered from ${nf(rows.length)}` : '');
+    $('.rt-page').textContent = `${st.page + 1} / ${pages}`; steps[0].disabled = st.page === 0; steps[1].disabled = st.page >= pages - 1;
+    if (o.seg) { const n = tally(o.seg.key); root.querySelectorAll('.rt-seg button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.v === st.seg); b.lastElementChild.textContent = nf(n[b.dataset.v]); }); }
+    root.querySelectorAll('.rt-pick').forEach(b => { const k = b.dataset.k; b.querySelector('b').textContent = k === '#size' ? st.size : st.pick[k] || 'All'; b.classList.toggle('on', k !== '#size' && !!st.pick[k]); });
+    root.querySelectorAll('th[aria-sort]').forEach(th => th.setAttribute('aria-sort', c && th.firstElementChild.dataset.k === c.key ? (dir > 0 ? 'ascending' : 'descending') : 'none'));
+    $('.rt-reset').hidden = !(st.q || st.seg || picks.some(p => st.pick[p.key]));
+  }
+
+  /* a chooser's list: a listbox the page draws, so it wears the theme and never the system's popup. Arrow keys, Home/End, typing a name, Enter, Escape */
+  const menu = document.createElement('div'); menu.className = 'rt-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1; menu.hidden = true; document.body.append(menu);
+  let forBtn = null, opts = [], at = -1, typed = '', typedAt = 0;
+  const setAt = (i, quiet) => { at = i; opts.forEach((el, n) => el.classList.toggle('act', n === i)); const el = opts[i]; if (!el) return; menu.setAttribute('aria-activedescendant', el.id); if (!quiet) el.scrollIntoView({ block: 'nearest' }); };
+  function open(btn) {
+    close(); const k = btn.dataset.k, p = picks.find(p => p.key === k), n = p && tally(k), cur = p ? st.pick[k] || '' : String(st.size);
+    const list = p ? [['', 'All']].concat((p.options || found(k)).map(v => [v, v])) : sizes.map(v => [String(v), v + ' rows']);
+    menu.innerHTML = list.map(([v, label], i) => `<div role="option" id="${id}-${i}" data-v="${esc(v)}" aria-selected="${v === cur}"><span>${esc(label)}</span>${n ? `<b>${nf(n[v])}</b>` : ''}</div>`).join('');
+    opts = Array.from(menu.children); forBtn = btn; typed = ''; btn.setAttribute('aria-expanded', 'true'); menu.setAttribute('aria-label', p ? p.label : 'Rows a page'); menu.hidden = false; menu.scrollTop = 0;
+    const r = btn.getBoundingClientRect(), below = innerHeight - r.bottom, up = below < 200 && r.top > below; /* above the control only when there is no room under it */
+    menu.style.minWidth = Math.round(r.width) + 'px'; menu.style.maxHeight = Math.max(120, Math.min(340, (up ? r.top : below) - 12)) + 'px';
+    menu.style.left = Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, r.left)) + 'px';
+    menu.style.top = up ? 'auto' : r.bottom + 4 + 'px'; menu.style.bottom = up ? innerHeight - r.top + 4 + 'px' : 'auto';
+    setAt(Math.max(0, opts.findIndex(el => el.getAttribute('aria-selected') === 'true'))); menu.focus({ preventScroll: true });
+  }
+  function close(refocus) { if (!forBtn) return; const b = forBtn; forBtn = null; menu.hidden = true; b.setAttribute('aria-expanded', 'false'); if (refocus) b.focus({ preventScroll: true }); }
+  function choose(i) { const b = forBtn, el = opts[i]; close(true); if (!b || !el) return; if (b.dataset.k === '#size') st.size = +el.dataset.v; else st.pick[b.dataset.k] = el.dataset.v; st.page = 0; draw(); }
+  menu.addEventListener('keydown', e => {
+    const n = opts.length, k = e.key;
+    if (k === 'ArrowDown') setAt((at + 1) % n); else if (k === 'ArrowUp') setAt((at - 1 + n) % n);
+    else if (k === 'Home' || k === 'PageUp') setAt(0); else if (k === 'End' || k === 'PageDown') setAt(n - 1);
+    else if (k === 'Enter' || k === ' ') choose(at); else if (k === 'Escape') close(true);
+    else if (k === 'Tab') { close(true); return; } /* focus is back on the control, so Tab moves on from there */
+    else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) { /* type a name to jump to it */
+      const t = Date.now(); typed = (t - typedAt > 700 ? '' : typed) + k.toLowerCase(); typedAt = t;
+      for (let j = 0, from = typed.length > 1 ? at : at + 1; j < n; j++) { const i = (from + j) % n; if (opts[i].textContent.trim().toLowerCase().startsWith(typed)) { setAt(i); break; } }
+    } else return;
+    e.preventDefault(); e.stopPropagation();
+  });
+  menu.addEventListener('click', e => { const el = e.target.closest('[role="option"]'); if (el) choose(opts.indexOf(el)); });
+  menu.addEventListener('pointermove', e => { const i = opts.indexOf(e.target.closest('[role="option"]')); if (i >= 0 && i !== at) setAt(i, true); });
+  menu.addEventListener('focusout', e => { if (forBtn && e.relatedTarget !== forBtn && !menu.contains(e.relatedTarget)) close(); });
+  document.addEventListener('pointerdown', e => { if (forBtn && !menu.contains(e.target) && !forBtn.contains(e.target)) close(); }, true);
+  addEventListener('resize', () => close()); addEventListener('scroll', e => { if (e.target !== menu) close(); }, true);
+
+  root.addEventListener('keydown', e => { const b = e.target.closest('.rt-pick'); if (b && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); open(b); } });
+  root.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.classList.contains('rt-pick')) return forBtn === b ? close(true) : open(b);
+    if (b.classList.contains('rt-step')) st.page += +b.dataset.d;
+    else {
+      if (b.closest('.rt-seg')) st.seg = b.dataset.v;
+      else if (b.closest('thead')) { const k = b.dataset.k, same = st.sort && st.sort.key === k; st.sort = { key: k, dir: same ? (st.sort.dir === 'asc' ? 'desc' : 'asc') : cols.find(c => c.key === k).num ? 'desc' : 'asc' }; } /* numbers start from the largest */
+      else if (b.matches('.rt-reset, .rt-clear')) { st.q = input.value = ''; st.seg = ''; st.pick = {}; input.focus({ preventScroll: true }); } /* the button is about to go */
+      else return;
+      st.page = 0;
+    }
+    draw();
+  });
+  input.addEventListener('input', () => { st.q = input.value.trim().toLowerCase(); st.page = 0; draw(); });
+  draw();
+  return { rows(next) { rows = next; st.page = 0; draw(); } };
+}
+
+/* the fleet behind the Hosts table: the ten named hosts as they were, then the rest of the 48 */
+const FLEET = (() => {
+  const rr = rng(8), r2 = rng(48), REGIONS = ['us-east', 'us-west', 'eu-west'], out = [];
+  const add = (name, region, cpu, mem, pods) => out.push({ name, role: name.split('-')[0], region, cpu, mem, pods, up: 2 + Math.floor(r2() * 96), status: cpu > 90 ? 'saturated' : cpu > 75 ? 'hot' : 'ok' });
+  HOSTS.forEach((name, i) => add(name, ['us-east', 'us-east', 'us-west', 'us-east', 'eu-west', 'us-west', 'eu-west', 'us-east', 'us-west', 'us-east'][i], Math.round(Math.max(8, Math.min(97, 88 - i * 8 + rr() * 10))), Math.round(Math.max(20, Math.min(95, 50 + rr() * 40))), 6 + Math.round(rr() * 18)));
+  [['web', 9, 4], ['api', 8, 3], ['worker', 10, 3], ['db-replica', 3, 2], ['cache', 3, 2], ['queue', 3, 1], ['edge', 2, 1]].forEach(([p, n, from]) => {
+    for (let k = 0; k < n; k++) add(`${p}-${pad2(from + k)}`, REGIONS[Math.floor(r2() * 3)], Math.round(8 + Math.pow(r2(), 1.6) * 88), Math.round(22 + r2() * 66), 5 + Math.round(r2() * 15));
+  });
+  return out;
+})();
+let hostsDone = false;
+function hostsTable() {
+  if (hostsDone) return; hostsDone = true;
+  const meter = v => `<div class="meter"><div class="track"><div class="fill ${v > 90 ? 'crit' : v > 75 ? 'warn' : ''}" style="transform:scaleX(${v / 100})"></div></div><span>${v}%</span></div>`;
+  const ST = { ok: ['good', 'i-check', 0], hot: ['warn', 'i-alert', 1], saturated: ['crit', 'i-x', 2] };
+  recordsTable($('#hosts-table'), {
+    rows: FLEET, noun: ['host', 'hosts'], label: 'Hosts', placeholder: 'Find a host', search: ['name', 'role', 'region'], size: 10, sizes: [10, 24, 48], sort: { key: 'cpu', dir: 'desc' },
+    cls: { table: 'tbl', pick: 'chip', step: 'iconbtn' },
+    seg: { key: 'status', label: 'Status', options: ['ok', 'hot', 'saturated'] },
+    picks: [{ key: 'region', label: 'region' }, { key: 'role', label: 'role' }],
+    columns: [
+      { key: 'name', label: 'Host', cell: r => `<span class="primary mono">${r.name}</span>` },
+      { key: 'role', label: 'Role', cls: 'hide-m muted' },
+      { key: 'region', label: 'Region', cls: 'hide-m muted' },
+      { key: 'cpu', label: 'CPU', num: true, cell: r => meter(r.cpu) },
+      { key: 'mem', label: 'Memory', num: true, cls: 'hide-m', cell: r => meter(r.mem) },
+      { key: 'pods', label: 'Pods', num: true, cls: 'r hide-m' },
+      { key: 'up', label: 'Uptime', num: true, cls: 'r hide-m', cell: r => r.up + ' d' },
+      { key: 'status', label: 'Status', cls: 'r', sort: r => ST[r.status][2], cell: r => `<span class="status ${ST[r.status][0]}" style="justify-content:flex-end">${ico(ST[r.status][1])}${r.status}</span>` },
+    ],
+  });
+}
+
 function renderInfra() {
   $('#infra-stats').innerHTML =
     statTile({ label: 'Hosts', value: 48, delta: 0, icon: 'i-server' }) +
@@ -1597,8 +1777,7 @@ function renderInfra() {
   $('#heat-scale').innerHTML = `<span>0%</span><span class="ramp">${ramp.map(c => `<i style="background:${c}"></i>`).join('')}</span><span>100%</span>`;
   const D = dataFor(state.range); const n = D.labels.length;
   lineChart($('#c-net'), { labels: D.labels, series: [{ name: 'ingress', color: css('--s-blue'), values: series(31, n, 4.2, 1.6, { daily: true, min: 1 }) }, { name: 'egress', color: css('--s-teal'), values: series(32, n, 9.1, 3.2, { daily: true, min: 2 }) }], height: 220, unit: ' Gb/s', xBase: D.per, label: `Edge ingress and egress in gigabits per second over the last ${RANGES[state.range].span}` });
-  const rr = rng(8);
-  $('#t-hosts tbody').innerHTML = HOSTS.map((hn, i) => { const cpu = Math.round(Math.max(8, Math.min(97, 88 - i * 8 + rr() * 10))); const mem = Math.round(Math.max(20, Math.min(95, 50 + rr() * 40))); const region = ['us-east', 'us-east', 'us-west', 'us-east', 'eu-west', 'us-west', 'eu-west', 'us-east', 'us-west', 'us-east'][i]; const st = cpu > 90 ? ['crit', 'i-x', 'saturated'] : cpu > 75 ? ['warn', 'i-alert', 'hot'] : ['good', 'i-check', 'ok']; const m = (v) => `<div class="meter"><div class="track"><div class="fill ${v > 90 ? 'crit' : v > 75 ? 'warn' : ''}" style="transform:scaleX(${v / 100})"></div></div><span>${v}%</span></div>`; return `<tr><td><span class="primary mono">${hn}</span></td><td class="hide-m muted">${region}</td><td>${m(cpu)}</td><td class="hide-m">${m(mem)}</td><td class="r num hide-m">${6 + Math.round(rr() * 18)}</td><td class="r"><span class="status ${st[0]}" style="justify-content:flex-end">${ico(st[1])}${st[2]}</span></td></tr>`; }).join('');
+  hostsTable();
 }
 
 function renderIncidents() {

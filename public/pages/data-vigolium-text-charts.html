@@ -1,0 +1,1334 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vigolium · Text charts</title>
+<meta name="description" content="Sample data page in the Vigolium Workbench theme: twenty-two chart forms drawn in block, shade and box-drawing characters from one seeded dataset, in dark and light schemes.">
+<meta name="theme-color" content="#1c1b19">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' fill='%231c1b19'/%3E%3Cpath d='M6 22v-6h4v6zM12 22V11h4v11zM18 22V6h4v16z' fill='%237fd962'/%3E%3C/svg%3E">
+<script>(function(){try{var t=localStorage.getItem('vg-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!--
+  Vigolium · Text charts: a data page in the theme of dashboard-vigolium-workbench.html.
+  Every chart is text: full and eighth blocks for bars and columns, shade characters for heat,
+  box-drawing characters for lines, trees and box plots. Nothing is an image except the donut ring and the brand mark.
+  One panel(id, options, draw) call per chart in the script; draw({ cols, S }) returns the lines of a <pre>.
+  cols is how many characters fit, so each chart is laid out again when the panel changes width.
+  Tokens are in the two html[data-theme] blocks. Series colours were checked as sets on both grounds:
+    --mark      a single series        --m1 --m2   scan mode (native, agentic)
+    --c1..--c4  finding class          --sev1..4   severity (critical to low)
+-->
+<style>
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#1c1b19; --surface:#272520; --text:#fce8c3; --muted:#938377; --border:#2e2b26; --well:#141310;
+  --accent:#7fd962; --secondary:#68a8e4; --tertiary:#e8943a; --success:#98bc37; --error:#f14841; --warn:#f2c55c;
+  --mark:#7fd962; --m1:#68a8e4; --m2:#e8943a;
+  --c1:#2be4d0; --c2:#f2c55c; --c3:#ff5c8f; --c4:#b794f6;
+  --sev1:#e53935; --sev2:#f08a2b; --sev3:#ffd54f; --sev4:#938377;
+}
+html[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f6edda; --surface:#ede4d1; --text:#005661; --muted:#546b6b; --border:#bbc3c4; --well:#ede4d1;
+  --accent:#0066a5; --secondary:#00598f; --tertiary:#964f08; --success:#007a47; --error:#bb4017; --warn:#896408;
+  --mark:#00935a; --m1:#0078c8; --m2:#c2660a;
+  --c1:#008f8c; --c2:#b98300; --c3:#d6336c; --c4:#8a5fd0;
+  --sev1:#c62828; --sev2:#e8791a; --sev3:#eec12a; --sev4:#7d8f8f;
+}
+:root{
+  --mono:"JetBrains Mono","Fira Code","Cascadia Code",ui-monospace,Menlo,Consolas,monospace;
+  --dim:color-mix(in srgb,var(--muted) 50%,var(--bg));
+  --soft:color-mix(in srgb,var(--text) 55%,var(--muted));
+  --hairline:color-mix(in srgb,var(--border) 90%,transparent);
+  /* corners: square. Only the tweak dock's "round" setting (--tw-r above 1) turns them on */
+  --r:calc(6px * max(0, var(--tw-r, 1) - 1));
+}
+*,*::before,*::after{box-sizing:border-box}
+html{font-size:18px;scrollbar-color:var(--dim) transparent;scroll-padding-top:76px;scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+::selection{background:color-mix(in srgb,var(--accent) 30%,transparent);color:var(--text)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;font:inherit}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.muted{color:var(--muted)}.dim{color:var(--dim)}
+.glow{transition:text-shadow .18s ease,color .18s ease}
+.glow:hover{text-shadow:0 0 4px color-mix(in srgb,currentColor 85%,transparent),0 0 10px color-mix(in srgb,currentColor 65%,transparent),0 0 22px color-mix(in srgb,currentColor 45%,transparent)}
+
+/* ── header and nav ── */
+header{position:sticky;top:0;z-index:40;border-bottom:1px solid var(--border);background:var(--bg)}
+.hdr{padding:4px 16px;min-height:32px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 16px}
+.hdr .grp{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.hdr .brand{display:inline-flex;align-items:center;gap:1ch;color:var(--accent);font-weight:700}
+.hdr .brand svg{width:13px;height:13px;fill:currentColor} /* a placeholder mark: swap the svg for your own */
+.hdr .ver{color:var(--muted)}
+.hdr .ver b{color:var(--tertiary);font-weight:400}
+.hdr .set{color:var(--secondary)}
+.hdr .set em{font-style:normal;color:var(--warn)}
+.hdr .hbtn{color:var(--muted);display:inline-flex;align-items:center;padding:5px;margin:-5px;transition:color .15s}
+.hdr .hbtn:hover{color:var(--accent)}
+.hdr .hbtn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+html[data-theme="dark"] .hbtn .moon,html[data-theme="light"] .hbtn .sun{display:none}
+.rng{display:flex;align-items:center;gap:2px}
+.chip,.rt-seg button,.rt-pick,.rt-step{border:1px solid var(--border);border-radius:var(--r);padding:2px 6px;color:var(--muted);white-space:nowrap;transition:color .15s,border-color .15s,background-color .15s}
+.chip:hover,.rt-seg button:hover,.rt-pick:hover,.rt-step:hover{color:var(--text)}
+.chip[aria-pressed="true"],.rt-seg button[aria-pressed="true"],.rt-pick.on{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 50%,transparent);background:color-mix(in srgb,var(--accent) 10%,transparent);font-weight:700}
+nav{border-bottom:1px solid var(--border);background:var(--bg)}
+.nav{padding:4px 16px;min-height:28px;line-height:1.25;display:flex;flex-wrap:wrap;align-items:center;gap:4px 0}
+.nav .gt{color:var(--border);margin-right:8px}
+.nav .sep{color:var(--border);margin:0 8px}
+.nav a{color:var(--muted);padding:2px 6px;margin:-2px 0;white-space:nowrap;transition:color .15s}
+.nav a:hover{color:var(--text)}
+.nav a.active{font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+@media (max-width:760px){.hdr .md{display:none}.nav .gt{display:none}.nav .sep{margin:0 4px}}
+
+/* ── page ── */
+main{flex:1;display:flex;flex-direction:column;gap:8px;padding:8px}
+.strip{border:1px solid var(--hairline);border-radius:var(--r);padding:6px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.strip .st{display:inline-flex;align-items:center;gap:4px}
+.strip .bar{color:var(--dim);margin-right:4px}
+.strip .lab{color:var(--muted)}
+.strip .val{font-weight:700;color:var(--accent)}
+.strip .d{color:var(--muted)}
+.strip .d.good{color:var(--success)}.strip .d.bad{color:var(--error)}
+.sect{display:flex;align-items:center;gap:8px;margin:10px 0 8px;padding:0 4px;color:var(--muted)}
+.sect b{color:var(--accent)}
+.sect::after{content:"";flex:1;border-top:1px dashed var(--border)}
+.g{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:8px}
+.w3{grid-column:span 3}.w4{grid-column:span 4}.w5{grid-column:span 5}.w6{grid-column:span 6}.w7{grid-column:span 7}.w8{grid-column:span 8}.w12{grid-column:span 12}
+@media (max-width:1240px){.w3,.w4,.w5{grid-column:span 6}.w7,.w8{grid-column:span 12}.t12{grid-column:span 12}}
+@media (max-width:760px){.w3,.w4,.w5,.w6{grid-column:span 12}}
+
+/* ── panels ── */
+.panel{display:flex;flex-direction:column;min-width:0;border:1px solid var(--hairline);border-radius:var(--r);background:var(--bg);padding:12px}
+.phead{display:flex;align-items:center;gap:8px;margin-bottom:2px}
+.title{color:var(--accent);font-weight:700;text-transform:uppercase;margin-right:auto}
+.tag{border:1px solid var(--border);border-radius:var(--r);padding:0 4px;color:var(--secondary);font-size:11px;white-space:nowrap}
+.tb{color:var(--muted);font-size:12px;padding:3px 2px;margin:-3px -2px;white-space:nowrap}
+.tb:hover,.tb[aria-pressed="true"]{color:var(--accent)}
+.note{margin:0 0 8px;color:var(--muted);font-size:12px;text-wrap:pretty}
+.lg{display:flex;flex-wrap:wrap;gap:0 14px;margin-bottom:6px;color:var(--soft);font-size:12px}
+.lg:empty{display:none}
+.lg i{font-style:normal;margin-right:5px}
+.lg b{font-weight:400;color:var(--muted)}
+.tx{position:relative;flex:1;min-width:0;cursor:default}
+.tx:focus-visible{outline-offset:4px}
+.tx[hidden]{display:none}
+.tx pre{margin:0;font:inherit;white-space:pre;overflow:hidden}
+/* rows that must touch (columns, heat, lines): the line box is the glyph's own height, so full blocks join */
+.tx pre.join{line-height:var(--join,normal)}
+.tx .stack{display:grid}
+.tx .stack>pre{grid-area:1/1}
+.tx .cur{position:absolute;top:0;bottom:0;width:1ch;background:color-mix(in srgb,var(--text) 14%,transparent);pointer-events:none;display:none}
+.tx [data-i]{transition:filter .12s,background-color .12s}
+.tx .on{filter:brightness(1.3)}
+html[data-theme="light"] .tx .on{filter:brightness(.82)}
+.tx .ln.on{filter:none;background:color-mix(in srgb,var(--accent) 9%,transparent)}
+.bigv{font-size:24px;font-weight:700;line-height:1.2;margin-bottom:6px}
+.bigv small{font-size:13.5px;font-weight:400;color:var(--muted);margin-left:8px}
+.donutwrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.donut circle{transition:opacity .12s}
+.read{margin-top:8px;padding-top:6px;border-top:1px dashed var(--border);color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:26px}
+.read b{color:var(--text);font-weight:400}
+.read .p{color:var(--accent)}
+
+/* ── stat tiles ── */
+.tile .k{color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase}
+.tile .v{margin-top:2px;font-size:24px;font-weight:700;line-height:1.2;color:var(--text)}
+.tile .v small{font-size:13.5px;font-weight:400;color:var(--muted);margin-left:4px}
+.tile .d{font-size:12px;color:var(--muted)}
+.tile .d b{font-weight:400;color:var(--soft)}
+.tile .d b.good{color:var(--success)}.tile .d b.bad{color:var(--error)}
+.tile pre{margin:6px 0 0;font:inherit;line-height:var(--join,normal);color:var(--muted);overflow:hidden;white-space:pre}
+.tile pre b{font-weight:400;color:var(--accent)}
+
+/* ── tables ── */
+.tv{flex:1;overflow:auto;border:1px solid var(--hairline);border-radius:var(--r);background:var(--well)}
+.tv[hidden]{display:none}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th{position:sticky;top:0;text-align:right;padding:6px 12px;color:var(--muted);background:var(--well);font-size:11px;text-transform:uppercase;font-weight:400;border-bottom:1px solid var(--border);white-space:nowrap}
+td{text-align:right;padding:5px 12px;border-bottom:1px solid color-mix(in srgb,var(--border) 50%,transparent);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--surface)}
+.ptab{overflow-x:auto}
+.ptab table{min-width:760px}
+.ptab th{background:var(--bg)}
+.ptab th.l,.ptab td.l{text-align:left}
+.ptab td.l{line-height:var(--join,normal)}
+
+/* ── records table: a filter line, a row of switches, choosers, sortable columns, pages (see recordsTable in the script) ── */
+.rt-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:8px}
+.rt-search{display:flex;align-items:center;gap:1ch;flex:1 1 26ch;max-width:38ch;padding:2px 6px;border:1px solid var(--border);border-radius:var(--r);color:var(--muted);cursor:text;transition:border-color .15s}
+.rt-search:focus-within{border-color:color-mix(in srgb,var(--accent) 50%,transparent)}
+.rt-search input{flex:1;min-width:0;padding:0;border:0;outline:0;background:none;font:inherit;color:var(--text);caret-color:var(--accent);-webkit-appearance:none;appearance:none}
+.rt-search input::placeholder{color:var(--dim)}
+.rt-search input::-webkit-search-cancel-button{display:none}
+.rt-seg{display:flex;flex-wrap:wrap;gap:2px}
+.rt-seg button,.rt-pick,.rt-reset,.rt-st{text-transform:lowercase}
+.rt-seg b{margin-left:1ch;font-weight:400;color:var(--dim)}
+.rt-seg button[aria-pressed="true"] b{color:var(--muted)}
+.rt-pick{display:inline-flex;align-items:center;gap:1ch}
+.rt-pick span::after{content:":"}
+.rt-pick b{max-width:20ch;overflow:hidden;text-overflow:ellipsis;font-weight:400;color:var(--text)}
+.rt-pick i{font-style:normal}
+.rt-pick i::after{content:"▾"}
+.rt-pick[aria-expanded="true"]{color:var(--text);border-color:var(--muted)}
+.rt-reset{margin-left:auto;color:var(--muted)}
+.rt-reset:hover{color:var(--accent)}
+.rt-reset::before,.rt-clear::before,.rt-st::before{content:"["}
+.rt-reset::after,.rt-clear::after,.rt-st::after{content:"]"}
+.rt-scroll{overflow-x:auto}
+.rt-table{min-width:900px}
+.rt-table th{background:var(--bg)}
+.rt-table th,.rt-table td{text-align:left}
+.rt-table .num{text-align:right}
+.rt-table td{color:var(--soft)}
+.rt-table td b{color:var(--text)}
+.rt-table td small{margin-left:1ch;font-size:inherit;color:var(--muted)}
+.rt-table th button{display:inline-flex;gap:1ch;text-transform:inherit}
+.rt-table th.num button{flex-direction:row-reverse}
+.rt-table th button:hover,.rt-table th[aria-sort$="ending"] button{color:var(--accent)}
+.rt-table th i{font-style:normal;opacity:0}
+.rt-table th i::after{content:"▲"}
+.rt-table th[aria-sort="descending"] i::after{content:"▼"}
+.rt-table th button:hover i{opacity:.5}
+.rt-table th[aria-sort$="ending"] i{opacity:1}
+.rt-st.open{color:var(--accent)}.rt-st.fixed{color:var(--success)}.rt-st.accepted{color:var(--muted)}
+.rt-none td{padding:26px 12px;text-align:center;color:var(--muted)}
+.rt-none:hover td{background:none}
+.rt-clear{margin-left:1ch;color:var(--accent)}
+.rt-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 16px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);color:var(--muted);font-size:12px}
+.rt-pager{display:flex;align-items:center;gap:6px}
+.rt-page{min-width:7ch;text-align:center;color:var(--soft)}
+.rt-step:disabled{opacity:.35;pointer-events:none}
+.rt-menu{position:fixed;z-index:70;box-sizing:border-box;min-width:18ch;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain;padding:4px 0;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);box-shadow:0 12px 28px -12px rgba(0,0,0,.55);font-size:12px;color:var(--soft);outline:0;scrollbar-width:thin;-webkit-user-select:none;user-select:none}
+html[data-theme="light"] .rt-menu{box-shadow:0 12px 28px -14px rgba(0,0,0,.3)}
+.rt-menu[hidden]{display:none}
+.rt-menu [role="option"]{display:flex;justify-content:space-between;gap:3ch;padding:3px 10px;white-space:nowrap;cursor:pointer}
+.rt-menu span::before{content:"  ";white-space:pre}
+.rt-menu [aria-selected="true"] span::before{content:"> "}
+.rt-menu [role="option"].act{background:color-mix(in srgb,var(--text) 10%,transparent);color:var(--text)}
+.rt-menu [role="option"][aria-selected="true"]{color:var(--accent);font-weight:700}
+.rt-menu b{font-weight:400;color:var(--muted)}
+
+footer{padding:8px 16px;border-top:1px solid var(--border);color:var(--muted);font-size:11px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+footer a{color:var(--accent)}
+
+@media (pointer:coarse){.hdr{padding-block:8px}.nav{gap:14px 0;padding-block:8px}.chip,.rt-seg button,.rt-pick,.rt-step{padding:5px 8px}.tb{padding:8px 4px;margin:-8px -4px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;scroll-behavior:auto!important}}
+</style>
+<!-- tweaks:start -->
+<script>
+/* how this page's tokens line up with the shared tweak palettes */
+window.TWEAK_PAGE = {
+  key: 'vigolium-text-charts',
+  modes: ['dark', 'light'], /* the page ships its own palette for both */
+  getMode: () => document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
+  setMode: m => { document.documentElement.dataset.theme = m; try { localStorage.setItem('vg-theme', m); } catch (e) {} },
+  /* the page is all mono: a mono font from the dock replaces --mono, a sans one is not applied (it would break the character grid the charts are drawn on) */
+  mono: '--mono',
+  /* no scale.r: --r reads the dock's --tw-r itself, so corners stay square on "default" and "sharp" and only "round" turns them on */
+  chrome: { bg: 'var(--surface)', fg: 'var(--text)', dim: 'var(--muted)', line: 'var(--border)', hover: 'color-mix(in srgb, var(--text) 9%, transparent)', accent: 'var(--accent)' },
+  accentOwn: { dark: '#7fd962', light: '#0066a5' },
+  /* the page's own colours in palette order (app surf raised inset hover line line2 text text2 dim green red yellow blue magenta warn); used for glass */
+  own: {
+    dark: '1c1b19 1c1b19 272520 141310 2e2b26 2e2b26 3a362f fce8c3 c9b79a 938377 98bc37 f14841 f2c55c 68a8e4 ff5c8f e8943a',
+    light: 'f6edda f6edda ede4d1 ede4d1 e4dac5 bbc3c4 a9b3b4 005661 2d6a70 546b6b 007a47 bb4017 896408 00598f a03070 964f08',
+  },
+  /* surfaces and text follow the theme; the chart series keep the page's checked colours for the mode */
+  map: (p, mix) => {
+    /* the two chrome hues beside the accent are the palette's blue and orange. Where the theme's primary sits on one of them, the next hue along stands in */
+    const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), near = (a, b) => rgb(a).reduce((s, v, i) => s + Math.abs(v - rgb(b)[i]), 0) < 84;
+    const far = (list, ...taken) => list.find(c => !taken.some(t => near(c, t))) || list[0];
+    const second = far([p.blue, p.magenta, p.green], p.primary), third = far([p.warn, p.yellow, p.magenta, p.green], p.primary, second);
+    return {
+      '--bg': p.glass ? 'transparent' : p.app, '--surface': p.raised, '--well': p.inset, '--border': p.line2,
+      '--text': p.text, '--muted': mix(p.text2, 78, p.dim),
+      '--secondary': second, '--tertiary': third, '--success': p.green, '--error': p.red, '--warn': p.yellow,
+    };
+  },
+  accent: c => ({ '--accent': c }),
+  /* boxed: the bars keep their full-width rules, so they are padded in instead of narrowed */
+  gutter: { own: 'full-width', css: 'html[data-tw-gutter="boxed"] main{padding-inline:max(8px,calc(50% - 640px))}html[data-tw-gutter="boxed"] :is(.hdr,.nav,body>footer){padding-inline:max(16px,calc(50% - 632px))}' },
+  glass: 'header, .rt-menu',
+};
+</script>
+<style id="tw-css">
+/* tweak dock: same controls as the terminal design system's config bar. Colours come from --tw-* so it follows whatever theme is active. */
+.tw{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:900;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px 10px;width:max-content;max-width:calc(100vw - 24px);padding:4px 6px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-dim);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+html[data-tw-surface="glass"] .tw{-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}
+.tw[hidden],.tw-chip[hidden]{display:none}
+.tw-ctl{display:flex;align-items:center;gap:6px;height:24px;padding:0 4px;white-space:nowrap}
+.tw button,.tw-chip{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* a chooser is a button showing its value; its list is .tw-menu below, drawn by the page, never the system's popup */
+.tw button.tw-val{display:inline-block;vertical-align:middle;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tw-fg);padding:4px 14px 4px 0;background:linear-gradient(45deg,transparent 50%,var(--tw-dim) 50%) calc(100% - 4px) 55%/4px 4px no-repeat,linear-gradient(135deg,var(--tw-dim) 50%,transparent 50%) 100% 55%/4px 4px no-repeat}
+.tw button.tw-val:hover,.tw button.tw-val[aria-expanded="true"]{color:var(--tw-acc)}
+.tw-seg{display:flex;gap:2px}
+.tw-seg button{padding:4px 7px;border-radius:4px;color:var(--tw-fg);opacity:.72}
+.tw-seg button:hover{background:var(--tw-hover);opacity:1}
+.tw-seg button[aria-pressed="true"]{background:var(--tw-hover);color:var(--tw-acc);font-weight:700;opacity:1}
+.tw-sws{display:flex;align-items:center;gap:8px}
+.tw button.tw-sw{width:11px;height:11px;border-radius:50%;background:var(--c);outline:1px solid transparent;outline-offset:2px}
+.tw button.tw-sw[aria-pressed="true"]{outline-color:var(--tw-fg)}
+.tw button.tw-x{margin-left:2px;padding:4px 7px;border-radius:4px;color:var(--tw-dim)}
+.tw button.tw-x:hover{background:var(--tw-hover);color:var(--tw-fg)}
+.tw button:focus-visible,.tw-chip:focus-visible{outline:2px solid var(--tw-acc);outline-offset:2px}
+.tw-chip{position:fixed;right:12px;bottom:12px;z-index:900;padding:7px 10px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+.tw-chip:hover{color:var(--tw-acc)}
+.tw-space{height:56px}
+.tw-menu{position:fixed;z-index:901;box-sizing:border-box;min-width:132px;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain;padding:4px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-menu);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;text-align:left;box-shadow:0 16px 40px -14px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.14);outline:0;scrollbar-width:thin;scrollbar-color:var(--tw-dim) transparent;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.tw-menu[hidden]{display:none}
+.tw-menu [role="option"]{display:flex;align-items:center;gap:8px;padding:7px 12px 7px 8px;border-radius:4px;white-space:nowrap;cursor:pointer}
+.tw-menu [role="option"].act{background:var(--tw-hover)}
+.tw-menu [role="option"][aria-selected="true"]{color:var(--tw-acc);font-weight:700}
+.tw-menu .tw-grp{padding:9px 8px 5px;color:var(--tw-dim);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.tw-dot{flex:none;width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--a) 50%,var(--b) 50%);box-shadow:0 0 0 1px var(--tw-line)} /* a theme's surface and primary */
+@media (max-width:720px){.tw{left:8px;right:8px;bottom:8px;transform:none;width:auto;max-width:none;justify-content:flex-start}.tw-ctl{height:30px}.tw-space{height:150px}.tw-menu [role="option"]{padding-block:10px}}
+@media print{.tw,.tw-chip,.tw-space,.tw-menu{display:none}}
+/* glass surface: a soft backdrop behind translucent panels */
+html[data-tw-surface="glass"]{background:var(--tw-app)!important}
+html[data-tw-surface="glass"] body{background:transparent!important}
+html[data-tw-surface="glass"]::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 50% at 18% 0%,color-mix(in srgb,var(--tw-acc) 16%,transparent),transparent 70%),radial-gradient(50% 45% at 100% 100%,color-mix(in srgb,var(--tw-warn) 13%,transparent),transparent 70%)}
+</style>
+<script id="tw-js">
+/* Tweaks: mode / theme / surface / font / size / corners / density / gutter / accent. All but gutter are the terminal design system page's controls.
+   Each page describes itself in window.TWEAK_PAGE (which of its tokens mean what); everything else here is shared.
+   With every control on its default the page's own CSS is untouched.
+   The look is also written to the address as ?mode=&theme=&surface=&font=&size=&corners=&density=&gutter=&accent=, and read back from it, so a link carries it. */
+(function(){
+'use strict';
+const P = window.TWEAK_PAGE, root = document.documentElement, KEY = 'artikit-tweaks:' + P.key;
+/* palettes, in this order: */
+const ROLES = ['app','surf','raised','inset','hover','line','line2','text','text2','dim','green','red','yellow','blue','magenta','warn','primary']; /* primary: the hue a theme is known by. It is the theme's accent until the accent control picks another */
+const THEMES = {
+ "dark": {
+  "Copperplate": "14100b 1a150e 241d14 100c08 2c2418 332917 54432a ead9c0 b59c7a 77664c a4c26f e0705a d8a24a 8aa8bd c98da4 cf8236 cf8236",
+  "Midnight": "0d0d13 16161e 1d1d28 12121a 232330 2a2a38 383848 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f 6f9ef1",
+  "Graphite": "101012 151517 1c1c1f 0c0c0e 232326 2a2a2e 3a3a40 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f b9c0d0",
+  "Phosphor": "060a06 0a120a 101a10 050905 152415 1c301c 2a462a b8e0b0 7aa874 4a6a46 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f 78d670",
+  "Dracula": "1e1f29 282a36 343746 21222c 3c3f52 3a3d4f 4d5069 f8f8f2 a8abc7 6272a4 50fa7b ff5555 f1fa8c 8be9fd ff79c6 ffb86c bd93f9",
+  "Nord": "242933 2e3440 3b4252 272c37 434c5e 3b4252 4c566a e5e9f0 aeb8cc 616e88 a3be8c bf616a ebcb8b 81a1c1 b48ead d08770 88c0d0",
+  "Solarized Dark": "00212b 002b36 073642 001f27 0a4050 073642 586e75 93a1a1 839496 586e75 859900 dc322f b58900 268bd2 d33682 cb4b16 2aa198",
+  "Tidewatch": "0a1220 0e1728 16233a 091020 1c2c47 1e2f4a 2e4368 d7e3f2 93a8c4 54688a 4fd6be ff6b7f e5c07b 56b3fa c792ea e5a45b 4fd6be",
+  "Iris": "14121f 191627 221e35 110f1c 2a2542 2b2545 413866 e6e1f5 a79fc7 675f8a 72e0a5 ff6b9d f0c674 82aaff c792ea f0a35e a99cf5",
+  "Emberline": "0c1210 101915 18241e 0a0f0d 1f2e26 22332a 35503f d8e6dc 96ad9d 587263 7fce6f f26d4f f0a848 6db2c9 d78ab0 f08c3a f08c3a",
+  "Oceanic": "0b141f 0f1a29 172538 0a111c 1d3049 203450 31507a d9e6f5 8ea9c4 526b88 5fd39b f2708a e8c268 58a6ff bc8cff e09a4e 58a6ff",
+  "Grove": "0d130c 121a10 1a2618 0b100a 21301e 263a22 3b5a35 dde8d6 a2b797 647a5a 9ccb72 e06c5f d9b656 72aec4 c194bd d19042 9ccb72",
+  "Rosewire": "170f14 1e1319 291b23 130c10 32212b 36242e 523847 f0dfe8 bd9cab 7c6070 7fd2a0 ff5c8a e8b465 7ba6e0 e56ba8 e0955a ef6fa0",
+  "Halide": "0c0c0c 111111 1a1a1a 080808 222222 262626 3d3d3d e8e8e8 a0a0a0 606060 a9c4a9 cf9a9a c9bd9a 9ab1c4 bda4b8 c4ad8f c4ad8f"
+ },
+ "light": {
+  "Porcelain": "efece8 fbf9f6 ffffff f4f1ec e9e5df ddd8d0 c2bab0 33302b 6b655c a39c90 3d8b3d c53a3a a37414 3565c0 ad3d8d bb6a1e 3565c0",
+  "Paper": "eceff1 fafbfc ffffff f0f2f4 e4e8ec d5dade b8c0c8 2a3138 5a656e 9aa4ac 188038 c5221f a86a00 1a63d0 b8207e c26401 1a63d0",
+  "Solarized Light": "eee8d5 fdf6e3 ffffff f3edda e8e1cc ddd6c1 c0b99f 586e75 657b83 93a1a1 859900 dc322f b58900 268bd2 d33682 cb4b16 1b817a",
+  "Frost": "e8edf3 f6f9fc ffffff eef2f7 dfe7ef d0dae4 aabccd 26313c 54687a 93a5b5 2e9440 d13b45 ad7a12 3a6ec4 b8459a c47222 2b7a9e",
+  "Dawn": "f2eae8 fcf7f5 ffffff f5edeb ecdfdc e2d3cf c8b1ab 3a2d2a 75605b ab948e 2c8a44 cc3344 a86e10 3565c0 c03a7e bd6420 c2456b",
+  "Linen": "efe9dd faf6ec fffdf6 f3eee1 e8e1d0 ded5c1 bfb298 38321f 6e6650 a49a80 4c7f22 bd3e2e 976a08 2e6a9e a5498a af6a12 a4532a",
+  "Sage": "e9eee6 f6f9f3 ffffff eef3ea dfe7da d2ddcb adbfa3 2b352a 5c6c58 93a58c 347a34 c04040 9c7212 33689e 9c4a8a b06a1c 347a34",
+  "Lavender": "edeaf3 f9f7fc ffffff f2eff7 e4dfee d9d3e4 b5aacb 312b3d 655c78 a096b3 2f8a48 cc3550 a06d10 4a5ecc a63cae bb681e 6d55c9"
+ }
+};
+const ACCENTS = { cyan:['#66c7d6','#1a7f8e'], green:['#78d670','#2f8a3a'], magenta:['#ec6bb4','#b8328a'], blue:['#6f9ef1','#3565c0'], orange:['#e2953f','#b5651a'] };
+const FONTS = { mono:['JetBrains Mono','Fira Code','IBM Plex Mono','Source Code Pro','Space Mono','Inconsolata','Ubuntu Mono','Victor Mono','Red Hat Mono'], sans:['Inter','Geist','IBM Plex Sans','Hanken Grotesk','Figtree','Manrope'] };
+const TWO_WEIGHTS = ['Space Mono','Ubuntu Mono']; /* static families with only regular and bold */
+const GUTTERS = ['boxed', 'full-width'], OWN_GUTTER = P.gutter ? P.gutter.own : null; /* P.gutter: { own: which of the two the page ships, css: rules for the other, keyed on html[data-tw-gutter] } */
+const SIZE = { small:.9, default:1, large:1.12, 'x-large':1.25 }, CORNER = { sharp:0, default:1, round:1.8 }, DENSITY = { compact:.72, default:1, relaxed:1.32 };
+const pal = s => Object.fromEntries(s.split(' ').map((h, i) => [ROLES[i], '#' + h]));
+const mix = (a, pct, b) => `color-mix(in srgb, ${a} ${pct}%, ${b || 'transparent'})`;
+
+/* ---- one pass over the page's own rules: px font sizes, radii and spacing get a multiplier that defaults to 1,
+        so nothing moves until size, corners or density is changed ---- */
+const FAMILY = [[/^font-size$/, 'fs'], [/^border-(top|bottom|start|end)-(left|right|start|end)-radius$/, 'r'], [/^(padding|margin)-(top|right|bottom|left|block-start|block-end|inline-start|inline-end)$|^(row|column)-gap$/, 'd']];
+const PX = /-?\d*\.?\d+px/g, tokens = P.scale || {};
+/* negative margins are left alone: they pull a box out to an edge whose gutter is fixed, so scaling them would overshoot */
+const scaled = (v, k) => v.replace(PX, m => parseFloat(m) > 0 ? `calc(${m}*var(--tw-${k},1))` : m);
+(function walk(rules){
+  for (const r of rules){
+    if (r instanceof CSSKeyframesRule) continue;
+    const st = r.style;
+    if (st) for (const prop of Array.from(st)){
+      const k = prop.startsWith('--') ? Object.keys(tokens).find(k => tokens[k].includes(prop)) : (FAMILY.find(f => f[0].test(prop)) || [])[1];
+      if (!k) continue;
+      const v = st.getPropertyValue(prop);
+      if (v && !v.includes('--tw-') && v.search(PX) >= 0) st.setProperty(prop, scaled(v, k), st.getPropertyPriority(prop));
+    }
+    if (r.cssRules && r.cssRules.length) walk(r.cssRules);
+  }
+})(Array.from(document.styleSheets).flatMap(s => { try { return s.ownerNode && s.ownerNode.id === 'tw-css' ? [] : Array.from(s.cssRules); } catch (e) { return []; } }));
+
+/* ---- state ---- */
+const themesFor = m => (P.modes.includes(m) ? ['page'] : []).concat(Object.keys(THEMES[m]));
+const cfg = { mode: P.getMode(), theme: null, surface: 'solid', font: 'default', size: 'default', corner: 'default', density: 'default', gutter: OWN_GUTTER, accent: 'page', open: null };
+/* one address parameter per control. Values are matched loosely (case, spaces and dashes ignored); "default" means the page's own */
+const QK = { mode: 'mode', theme: 'theme', surface: 'surface', font: 'font', size: 'size', corner: 'corners', density: 'density', gutter: 'gutter', accent: 'accent' };
+const norm = v => String(v).toLowerCase().replace(/[^a-z0-9]+/g, ''), among = (v, list) => list.find(o => norm(o) === norm(v));
+function fromURL(){
+  let q; try { q = new URLSearchParams(location.search); } catch (e) { return null; }
+  if (!Object.values(QK).some(name => q.has(name))) return null;
+  const g = k => q.get(QK[k]) || '', own = v => ['default', 'page', 'pagedefault'].includes(norm(v)), th = g('theme');
+  /* a link is a complete look: anything it leaves out is the default, not what this browser had saved */
+  const out = { mode: among(g('mode'), ['dark', 'light']) || (own(th) ? null : ['dark', 'light'].find(m => among(th, Object.keys(THEMES[m])))) || cfg.mode }; /* ?theme=Nord alone implies dark */
+  out.theme = own(th) ? 'page' : among(th, Object.keys(THEMES[out.mode])) || null;
+  out.surface = among(g('surface'), ['solid', 'glass']) || 'solid';
+  out.font = among(g('font'), FONTS.mono.concat(FONTS.sans)) || 'default';
+  out.size = among(g('size'), Object.keys(SIZE)) || 'default'; out.corner = among(g('corner'), Object.keys(CORNER)) || 'default'; out.density = among(g('density'), Object.keys(DENSITY)) || 'default';
+  out.accent = among(g('accent'), Object.keys(ACCENTS)) || 'page';
+  out.gutter = among(g('gutter'), GUTTERS) || (norm(g('gutter')) === 'full' ? 'full-width' : OWN_GUTTER);
+  return out;
+}
+let inURL = false;
+function toURL(){
+  try {
+    const q = new URLSearchParams(location.search);
+    for (const k in QK) if (cfg[k] != null) q.set(QK[k], cfg[k] === 'page' ? 'default' : cfg[k]);
+    history.replaceState(history.state, '', '?' + q + location.hash); inURL = true; /* the page's own #section stays */
+  } catch (e) {}
+}
+let stored = {}; try { stored = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+const linked = fromURL();
+Object.assign(cfg, linked ? { ...linked, open: stored.open == null ? null : stored.open } : stored);
+function settle(){
+  if (!THEMES[cfg.mode]) cfg.mode = P.getMode();
+  if (!themesFor(cfg.mode).includes(cfg.theme)) cfg.theme = themesFor(cfg.mode)[0];
+  if (cfg.surface !== 'glass') cfg.surface = 'solid';
+  if (cfg.font !== 'default' && !FONTS.mono.concat(FONTS.sans).includes(cfg.font)) cfg.font = 'default';
+  if (!(cfg.size in SIZE)) cfg.size = 'default'; if (!(cfg.corner in CORNER)) cfg.corner = 'default'; if (!(cfg.density in DENSITY)) cfg.density = 'default';
+  if (cfg.accent !== 'page' && !ACCENTS[cfg.accent]) cfg.accent = 'page';
+  cfg.gutter = P.gutter ? (GUTTERS.includes(cfg.gutter) ? cfg.gutter : OWN_GUTTER) : null;
+}
+settle();
+
+/* glass: the page names which boxes are panels (they blur what is behind them) and which wrappers must stop painting an opaque fill.
+   gutter: the page gives the rules for the layout it does not ship (boxed for a full-width page, full-width for a boxed one) */
+if (P.glass || P.clear || P.gutter){
+  const st = document.createElement('style'); st.id = 'tw-dyn';
+  st.textContent = (P.glass ? `html[data-tw-surface="glass"] :is(${P.glass}){-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}` : '') +
+    (P.clear ? `html[data-tw-surface="glass"] :is(${P.clear}){background:transparent!important}` : '') + (P.gutter ? P.gutter.css : '');
+  document.head.append(st);
+}
+const applied = new Set(), loaded = new Set(); let baseAccent;
+function loadFont(name){
+  if (loaded.has(name)) return; loaded.add(name);
+  const l = document.createElement('link'); l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' + name.replace(/ /g, '+') + ':wght@' + (TWO_WEIGHTS.includes(name) ? '400;700' : '400;500;600;700') + '&display=swap';
+  document.head.append(l);
+}
+function apply(){
+  const c = cfg, light = c.mode === 'light', own = c.theme === 'page', glass = c.surface === 'glass';
+  applied.forEach(k => root.style.removeProperty(k)); applied.clear();
+  const put = (k, v) => { if (k && v != null){ root.style.setProperty(k, String(v)); applied.add(k); } }, putAll = o => Object.entries(o).forEach(([k, v]) => put(k, v));
+  P.setMode(c.mode);
+  root.dataset.twMode = c.mode; if (glass) root.dataset.twSurface = 'glass'; else delete root.dataset.twSurface;
+  if (P.gutter && c.gutter !== OWN_GUTTER) root.dataset.twGutter = c.gutter; else delete root.dataset.twGutter;
+  const accent = c.accent === 'page' ? null : ACCENTS[c.accent][light ? 1 : 0];
+  let chrome = P.chrome, warn = 'transparent', app = 'transparent', p = null, tokens = null; /* the palette in force and what map() made of it: both stay null while the page's own look is untouched */
+  baseAccent = P.accentOwn[c.mode] || P.accentOwn[P.modes[0]];
+  if (!own || glass){
+    p = pal(own ? P.own[c.mode] : THEMES[c.mode][c.theme]);
+    if (!p.primary) p.primary = own ? baseAccent : p.blue; /* the page's own palette lists sixteen colours: its primary is its accent */
+    p.solid = p.surf; p.mode = c.mode; p.glass = glass; app = p.app; warn = p.warn;
+    if (glass){ /* same recipe as the terminal kit: translucent surface, tinted raised/hover layers, hairlines from the text colour */
+      const t = p.text;
+      p.surf = mix(p.surf, light ? 64 : 72); p.raised = light ? 'rgba(255,255,255,.6)' : mix(t, 5); p.inset = light ? mix(t, 4) : 'rgba(0,0,0,.18)';
+      p.hover = mix(t, light ? 7 : 9); p.line = mix(t, light ? 10 : 9); p.line2 = mix(t, light ? 18 : 16);
+    }
+    putAll(tokens = P.map(p, mix));
+    put('color-scheme', c.mode);
+    chrome = { bg: glass ? mix(p.solid, 82) : p.raised, fg: p.text, dim: mix(p.text2, 62, p.dim), line: p.line2, hover: p.hover, accent: own ? P.accentOwn[c.mode] : p.primary, menu: p.solid };
+    if (!own) baseAccent = p.primary; /* a shared theme brings its own default accent: its primary */
+  }
+  const hue = accent || (own ? null : p.primary);
+  if (hue) putAll(P.accent(hue, mix, c.mode, p, tokens));
+  put('--tw-bg', chrome.bg); put('--tw-fg', chrome.fg); put('--tw-dim', chrome.dim); put('--tw-line', chrome.line); put('--tw-hover', chrome.hover);
+  put('--tw-acc', accent || chrome.accent); put('--tw-menu', chrome.menu || chrome.bg); put('--tw-app', app); put('--tw-warn', warn);
+  if (P.mono) put('--tw-font', `var(${P.mono})`);
+  if (c.font !== 'default'){
+    const mono = FONTS.mono.includes(c.font), stack = `"${c.font}",` + (mono ? 'ui-monospace,SFMono-Regular,Menlo,monospace' : 'system-ui,-apple-system,"Segoe UI",sans-serif');
+    loadFont(c.font); put(P.sans, stack); if (mono) put(P.mono, stack);
+  }
+  if (SIZE[c.size] !== 1) put('--tw-fs', SIZE[c.size]);
+  if (CORNER[c.corner] !== 1) put('--tw-r', CORNER[c.corner]);
+  if (DENSITY[c.density] !== 1) put('--tw-d', DENSITY[c.density]);
+}
+apply();
+if (linked || cfg.theme !== 'page' || cfg.surface !== 'solid' || cfg.accent !== 'page' || cfg.gutter !== OWN_GUTTER || ['font', 'size', 'corner', 'density'].some(k => cfg[k] !== 'default')) toURL();
+
+/* ---- dock ---- */
+let dock, chip, space;
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
+const seg = (k, opts) => `<span class="tw-seg">${opts.map(o => `<button type="button" data-k="${k}" data-v="${o}" aria-pressed="${cfg[k] === o}">${o}</button>`).join('')}</span>`;
+const NAME = { theme: 'theme', font: 'font', size: 'size', corner: 'corners', density: 'density' };
+const sw = (hexes, b) => { const h = hexes.split(' '); return { a: '#' + h[1], b: b || '#' + (h[16] || h[13]) }; }; /* surface + primary of a palette */
+const choices = k => k === 'theme' ? themesFor(cfg.mode).map(t => t === 'page' ? { v: t, label: 'page default', sw: P.own && P.own[cfg.mode] ? sw(P.own[cfg.mode], P.accentOwn[cfg.mode]) : null } : { v: t, label: t, sw: sw(THEMES[cfg.mode][t]) })
+  : k === 'font' ? [{ v: 'default', label: 'default' }, { group: 'mono, whole page' }].concat(FONTS.mono.map(f => ({ v: f, label: f })), [{ group: 'sans' }], FONTS.sans.map(f => ({ v: f, label: f })))
+  : Object.keys({ size: SIZE, corner: CORNER, density: DENSITY }[k]).map(o => ({ v: o, label: o }));
+const pick = k => { const now = (choices(k).find(o => o.v === cfg[k]) || { label: cfg[k] }).label; return `<button type="button" class="tw-val" data-k="${k}" aria-haspopup="listbox" aria-expanded="false" aria-controls="tw-menu" aria-label="${NAME[k]}: ${esc(now)}">${esc(now)}</button>`; };
+
+/* the list of a chooser: a listbox the page draws, so it wears the active theme. Arrow keys, Home/End, typing a name, Enter, Escape */
+let menu, menuFor = null, opts = [], at = -1, typed = '', typedAt = 0;
+function setAt(i, quiet){
+  at = i; opts.forEach((o, n) => o.classList.toggle('act', n === i));
+  const o = opts[i]; if (!o) return; menu.setAttribute('aria-activedescendant', o.id);
+  if (quiet) return; /* the pointer is already on it */
+  if (o.offsetTop < menu.scrollTop + 4) menu.scrollTop = o.offsetTop - 4; else if (o.offsetTop + o.offsetHeight > menu.scrollTop + menu.clientHeight - 4) menu.scrollTop = o.offsetTop + o.offsetHeight - menu.clientHeight + 4;
+}
+function place(){ /* above the control when the dock sits at the bottom, kept inside the window */
+  const r = menuFor.getBoundingClientRect(), up = r.top > innerHeight - r.bottom;
+  menu.style.minWidth = Math.max(132, Math.round(r.width) + 18) + 'px';
+  menu.style.maxHeight = Math.max(120, Math.min(480, (up ? r.top : innerHeight - r.bottom) - 14)) + 'px';
+  menu.style.left = Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, r.left - 9)) + 'px';
+  menu.style.top = up ? 'auto' : r.bottom + 6 + 'px'; menu.style.bottom = up ? innerHeight - r.top + 6 + 'px' : 'auto';
+}
+function openMenu(btn){
+  closeMenu(); const k = btn.dataset.k;
+  menu.innerHTML = choices(k).map((o, i) => o.group ? `<div class="tw-grp" role="presentation">${esc(o.group)}</div>` :
+    `<div role="option" id="tw-o${i}" data-v="${esc(o.v)}" aria-selected="${cfg[k] === o.v}">${o.sw ? `<i class="tw-dot" style="--a:${o.sw.a};--b:${o.sw.b}"></i>` : ''}${esc(o.label)}</div>`).join('');
+  opts = Array.from(menu.querySelectorAll('[role="option"]')); menuFor = btn; typed = '';
+  btn.setAttribute('aria-expanded', 'true'); menu.setAttribute('aria-label', NAME[k]); menu.hidden = false; menu.scrollTop = 0;
+  place(); setAt(Math.max(0, opts.findIndex(o => o.getAttribute('aria-selected') === 'true'))); menu.focus({ preventScroll: true });
+}
+function closeMenu(refocus){
+  if (!menuFor) return; const b = menuFor; menuFor = null; menu.hidden = true;
+  if (b.isConnected){ b.setAttribute('aria-expanded', 'false'); if (refocus) b.focus({ preventScroll: true }); }
+}
+function choose(i){ const b = menuFor, o = opts[i]; closeMenu(true); if (b && o && cfg[b.dataset.k] !== o.dataset.v) set({ [b.dataset.k]: o.dataset.v }); }
+function menuKey(e){
+  const n = opts.length, k = e.key;
+  if (k === 'ArrowDown') setAt((at + 1) % n); else if (k === 'ArrowUp') setAt((at - 1 + n) % n);
+  else if (k === 'Home' || k === 'PageUp') setAt(0); else if (k === 'End' || k === 'PageDown') setAt(n - 1);
+  else if (k === 'Enter' || k === ' ') choose(at); else if (k === 'Escape') closeMenu(true);
+  else if (k === 'Tab'){ closeMenu(true); return; } /* focus is back on the control, so Tab moves on from there */
+  else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey){ /* type a name to jump to it */
+    const t = Date.now(); typed = (t - typedAt > 700 ? '' : typed) + k.toLowerCase(); typedAt = t;
+    for (let j = 0, from = typed.length > 1 ? at : at + 1; j < n; j++){ const i = (from + j) % n; if (opts[i].textContent.trim().toLowerCase().startsWith(typed)){ setAt(i); break; } }
+  } else return;
+  e.preventDefault(); e.stopPropagation();
+}
+
+function render(){
+  if (!dock) return;
+  closeMenu();
+  const light = cfg.mode === 'light', had = document.activeElement, keep = had && dock.contains(had) ? [had.dataset.k, had.dataset.v] : null;
+  dock.innerHTML =
+    `<div class="tw-ctl">mode ${seg('mode', ['dark', 'light'])}</div>` +
+    `<div class="tw-ctl">theme ${pick('theme')}</div>` +
+    `<div class="tw-ctl">surface ${seg('surface', ['solid', 'glass'])}</div>` +
+    `<div class="tw-ctl">font ${pick('font')}</div>` +
+    `<div class="tw-ctl">size ${pick('size')}</div>` +
+    `<div class="tw-ctl">corners ${pick('corner')}</div>` +
+    `<div class="tw-ctl">density ${pick('density')}</div>` +
+    (P.gutter ? `<div class="tw-ctl">gutter ${seg('gutter', GUTTERS)}</div>` : '') +
+    `<div class="tw-ctl">accent <span class="tw-sws">${['page'].concat(Object.keys(ACCENTS)).map(a => `<button type="button" class="tw-sw" data-k="accent" data-v="${a}" title="${a === 'page' ? 'default' : a}" aria-label="${a === 'page' ? 'default' : a} accent" aria-pressed="${cfg.accent === a}" style="--c:${a === 'page' ? baseAccent : ACCENTS[a][light ? 1 : 0]}"></button>`).join('')}</span></div>` +
+    `<button type="button" class="tw-x" data-k="open" data-v="" aria-label="Hide tweaks" title="Hide tweaks">hide</button>`;
+  dock.hidden = !cfg.open; chip.hidden = !!cfg.open; if (space) space.hidden = !cfg.open;
+  if (keep){ const el = keep[1] != null ? dock.querySelector(`[data-k="${keep[0]}"][data-v="${keep[1]}"]`) : dock.querySelector(`.tw-val[data-k="${keep[0]}"]`); if (el) el.focus({ preventScroll: true }); }
+}
+function set(patch){
+  const before = { ...cfg };
+  Object.assign(cfg, patch);
+  if (patch.mode && patch.mode !== before.mode && !('theme' in patch)) cfg.theme = cfg.theme === 'page' && P.modes.includes(cfg.mode) ? 'page' : themesFor(cfg.mode)[0];
+  settle(); apply(); render();
+  try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {}
+  if (inURL || Object.keys(QK).some(k => cfg[k] !== before[k])) toURL();
+  document.dispatchEvent(new CustomEvent('tweakchange', { detail: { ...cfg } }));
+  /* text, spacing, font and width changes move boxes: let the page redraw anything it sized in script */
+  if (['font', 'size', 'density', 'corner', 'gutter'].some(k => cfg[k] !== before[k])){
+    const again = () => window.dispatchEvent(new Event('resize'));
+    requestAnimationFrame(() => requestAnimationFrame(again));
+    if (cfg.font !== before.font && document.fonts) document.fonts.ready.then(() => setTimeout(again, 60));
+  }
+}
+function mount(){
+  dock = document.createElement('div'); dock.className = 'tw'; dock.id = 'tweaks'; dock.setAttribute('role', 'group'); dock.setAttribute('aria-label', 'Theme tweaks');
+  chip = document.createElement('button'); chip.type = 'button'; chip.className = 'tw-chip'; chip.textContent = 'tweaks'; chip.setAttribute('aria-label', 'Show tweaks');
+  if (P.spacer !== false){ space = document.createElement('div'); space.className = 'tw-space'; space.setAttribute('aria-hidden', 'true'); document.body.append(space); }
+  menu = document.createElement('div'); menu.className = 'tw-menu'; menu.id = 'tw-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1; menu.hidden = true;
+  document.body.append(dock, chip, menu);
+  if (cfg.open == null) cfg.open = innerWidth > 720;
+  dock.addEventListener('click', e => {
+    const v = e.target.closest('.tw-val'); if (v){ if (menuFor === v) closeMenu(true); else openMenu(v); return; }
+    const b = e.target.closest('button[data-k]'); if (!b) return; set({ [b.dataset.k]: b.dataset.k === 'open' ? false : b.dataset.v }); if (b.dataset.k === 'open') chip.focus();
+  });
+  dock.addEventListener('keydown', e => { const v = e.target.closest('.tw-val'); if (v && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){ e.preventDefault(); openMenu(v); } });
+  menu.addEventListener('keydown', menuKey);
+  menu.addEventListener('click', e => { const o = e.target.closest('[role="option"]'); if (o) choose(opts.indexOf(o)); });
+  menu.addEventListener('pointermove', e => { const o = e.target.closest('[role="option"]'), i = opts.indexOf(o); if (o && i !== at) setAt(i, true); });
+  menu.addEventListener('focusout', e => { if (menuFor && e.relatedTarget !== menuFor && !menu.contains(e.relatedTarget)) closeMenu(); });
+  document.addEventListener('pointerdown', e => { if (menuFor && !menu.contains(e.target) && !menuFor.contains(e.target)) closeMenu(); }, true);
+  addEventListener('resize', () => closeMenu()); addEventListener('blur', () => closeMenu());
+  chip.addEventListener('click', () => { set({ open: true }); const f = dock.querySelector('button'); if (f) f.focus(); });
+  render();
+}
+if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
+window.Tweaks = { get: () => ({ ...cfg }), set, themes: THEMES, mix };
+})();
+</script>
+<!-- tweaks:end -->
+</head>
+<body id="top">
+<header>
+  <div class="hdr">
+    <div class="grp">
+      <a class="brand" href="#top" aria-label="Acme, back to top">&gt;<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 16v-6h4v6zM6 16V5h4v11zM12 16V0h4v16z"/></svg>ACME</a>
+      <span class="ver md">[<b>text-charts</b> sample]</span>
+      <span class="set md">[DATASET: <em>180 days, seeded</em>]</span>
+    </div>
+    <div class="grp">
+      <span class="muted md" id="scope">range:</span>
+      <span class="rng" id="range" role="group" aria-label="Date range">
+        <button type="button" class="chip" data-n="7" aria-pressed="false">7D</button>
+        <button type="button" class="chip" data-n="30" aria-pressed="true">30D</button>
+        <button type="button" class="chip" data-n="90" aria-pressed="false">90D</button>
+      </span>
+      <button type="button" class="hbtn" id="themeBtn" aria-label="Switch colour scheme" title="Switch colour scheme">
+        <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+<nav aria-label="Sections">
+  <div class="nav" id="nav">
+    <span class="gt">&gt;</span>
+    <a href="#overview">OVERVIEW</a><span class="sep">|</span>
+    <a href="#trend">TREND</a><span class="sep">|</span>
+    <a href="#compare">COMPARE</a><span class="sep">|</span>
+    <a href="#distribution">DISTRIBUTION</a><span class="sep">|</span>
+    <a href="#composition">COMPOSITION</a><span class="sep">|</span>
+    <a href="#flow">FLOW</a><span class="sep">|</span>
+    <a href="#records">RECORDS</a>
+  </div>
+</nav>
+
+<main>
+  <h1 class="sr">Text charts</h1>
+  <div class="strip" id="strip" aria-live="polite"></div>
+
+  <section id="overview"><h2 class="sr">Overview</h2><div class="g" data-grid="overview"></div></section>
+  <section id="trend"><h2 class="sect"><b># TREND</b> change over time</h2><div class="g" data-grid="trend"></div></section>
+  <section id="compare"><h2 class="sect"><b># COMPARE</b> magnitudes side by side</h2><div class="g" data-grid="compare"></div></section>
+  <section id="distribution"><h2 class="sect"><b># DISTRIBUTION</b> where the values fall</h2><div class="g" data-grid="distribution"></div></section>
+  <section id="composition"><h2 class="sect"><b># COMPOSITION</b> how a whole splits</h2><div class="g" data-grid="composition"></div></section>
+  <section id="flow"><h2 class="sect"><b># FLOW</b> stages, schedules and the table</h2><div class="g" data-grid="flow"></div></section>
+  <section id="records"><h2 class="sect"><b># RECORDS</b> every finding as a row</h2><div class="g">
+    <div class="panel w12" id="p-records">
+      <div class="phead"><h3 class="title">All findings</h3><span class="tag">table · filters · sort</span></div>
+      <p class="note">One row per finding in the range. Type to filter, narrow by severity, class, project or status, and sort on any column.</p>
+      <div id="records-table"></div>
+    </div>
+  </div></section>
+</main>
+
+<footer><span>sample data only: every number is generated in the script from a fixed seed</span><span>·</span><a class="glow" href="#top">back to top</a></footer>
+<script>
+'use strict';
+/* ================= DATA: one seeded dataset, 180 days of validated findings =================
+   Every figure on the page is an aggregate of DATA.F (one object per finding) and DATA.day (one per day).
+   Change the seed, the weights or the lists here and every chart follows. */
+const DATA = (() => {
+  let a = 20261114;
+  const R = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const gauss = () => Math.sqrt(-2 * Math.log(R() || 1e-9)) * Math.cos(2 * Math.PI * R());
+  const logn = (median, sigma) => median * Math.exp(sigma * gauss());
+  const pick = w => { let x = R() * w.reduce((s, v) => s + v, 0); for (let i = 0; i < w.length; i++) if ((x -= w[i]) < 0) return i; return w.length - 1; };
+  const DAYS = 180, END = Date.UTC(2026, 10, 14);
+  const SEV = ['Critical', 'High', 'Medium', 'Low'], SLA = [24, 72, 336, 720], FIX = [20, 64, 190, 520];
+  const MODE = ['Native', 'Agentic'], SRC = ['Source code', 'Live traffic', 'API spec', 'Cloud config'];
+  const CLS = [
+    { name: 'Injection', short: 'Injection', w: 30, agentic: .26, sev: [9, 33, 42, 16], src: [6, 3, 1, 0], mods: ['xss', 'sqli', 'ssti', 'command-injection'], mw: [6, 5, 2, 2] },
+    { name: 'Access control', short: 'Access', w: 27, agentic: .72, sev: [10, 34, 40, 16], src: [3, 6, 2, 0], mods: ['idor', 'csrf', 'auth-bypass', 'privilege-escalation'], mw: [6, 3, 3, 2] },
+    { name: 'API & protocol', short: 'API', w: 22, agentic: .52, sev: [5, 25, 45, 25], src: [1, 5, 5, 0], mods: ['ssrf', 'race-condition', 'request-smuggling', 'cache-poisoning'], mw: [4, 3, 2, 2] },
+    { name: 'Frameworks & cloud', short: 'Cloud', w: 21, agentic: .15, sev: [3, 17, 42, 38], src: [3, 1, 1, 6], mods: ['cloud-misconfig', 'default-credentials', 'exposed-secret', 'debug-endpoint'], mw: [5, 4, 3, 3] },
+  ];
+  /* base: how slow a team fixes (1 is typical). drift: how much slower it was 180 days ago; negative means it has got slower since */
+  const PROJ = [
+    { name: 'checkout-api', w: 18, base: .8, drift: .5 }, { name: 'identity', w: 15, base: .7, drift: .4 }, { name: 'ledger', w: 13, base: 1, drift: .25 },
+    { name: 'storefront', w: 12, base: 1.25, drift: -.25 }, { name: 'mobile-bff', w: 11, base: 1.1, drift: .35 }, { name: 'admin-console', w: 10, base: 1.55, drift: .6 },
+    { name: 'partner-gateway', w: 9, base: 1.2, drift: .1 }, { name: 'data-pipeline', w: 7, base: .9, drift: .45 },
+  ];
+  /* native findings follow pushes through the working day; agentic runs are scheduled overnight */
+  const HN = Array.from({ length: 24 }, (_, h) => 1 + 7 * Math.exp(-(((h - 13.5) / 3.6) ** 2)));
+  const HA = Array.from({ length: 24 }, (_, h) => { const d = Math.min(Math.abs(h - 2.5), 24 - Math.abs(h - 2.5)); return 1 + 8 * Math.exp(-((d / 2.3) ** 2)); });
+  const CVSS = [[9, 10], [7, 8.9], [4, 6.9], [1, 3.9]];
+  const F = [], day = [];
+  for (let d = 0; d < DAYS; d++) {
+    const date = new Date(END - (DAYS - 1 - d) * 864e5), dow = (date.getUTCDay() + 6) % 7; /* 0 is Monday */
+    const mu = (8 + 7 * d / (DAYS - 1)) * (dow > 4 ? .42 : 1) * (1 + .16 * Math.sin(d / 8.5));
+    const n = Math.max(1, Math.round(mu + gauss() * Math.sqrt(mu) * .85));
+    for (let k = 0; k < n; k++) {
+      const cls = pick(CLS.map(c => c.w)), C = CLS[cls], mode = R() < C.agentic + .08 * d / DAYS ? 1 : 0;
+      let sev = pick(C.sev); if (mode && sev > 0 && R() < .22) sev--;
+      const proj = pick(PROJ.map(p => p.w)), P = PROJ[proj], hour = pick(mode ? HA : HN);
+      const accepted = R() < [.01, .03, .08, .18][sev];
+      const fix = Math.max(.5, accepted ? logn(48, .6) : logn(FIX[sev] * P.base * (1 + P.drift * (1 - d / (DAYS - 1))), .75));
+      const t0 = d * 24 + hour + R();
+      F.push({ d, dow, hour, cls, mod: pick(C.mw), mode, sev, src: pick(C.src), proj, accepted, fix, t0, t1: t0 + fix,
+        cvss: +(CVSS[sev][0] + R() * (CVSS[sev][1] - CVSS[sev][0])).toFixed(1), ttp: Math.max(.2, logn(mode ? 15 : 1.3, mode ? .62 : .7)) });
+    }
+    day.push({ d, date, dow, n, req: Math.round((620 + 420 * d / (DAYS - 1)) * (dow > 4 ? .55 : 1) * (1 + .1 * gauss())),
+      sig: Math.round(n * (8.4 + gauss() * .7)), cand: Math.round(n * (3.9 + gauss() * .3)), fired: Math.round(n * (2.05 + gauss() * .12)) });
+  }
+  /* open[d]: findings still open at the end of day d. openHi: the critical and high ones among them */
+  const open = new Array(DAYS).fill(0), openHi = new Array(DAYS).fill(0);
+  for (const f of F) for (let d = f.d; d < DAYS && f.t1 > (d + 1) * 24; d++) { open[d]++; if (f.sev < 2) openHi[d]++; }
+  return { DAYS, SEV, SLA, MODE, SRC, CLS, PROJ, F, day, open, openHi };
+})();
+const { SEV, SLA, MODE, SRC, CLS, PROJ } = DATA;
+
+/* ---------- the slice every figure reads: the last N days, and the N days before them ---------- */
+function slice(N) {
+  const d0 = DATA.DAYS - N, T0 = d0 * 24, T1 = DATA.DAYS * 24;
+  const cur = DATA.F.filter(f => f.d >= d0), prev = DATA.F.filter(f => f.d >= d0 - N && f.d < d0);
+  const days = DATA.day.slice(d0), byDay = days.map(() => []);
+  cur.forEach(f => byDay[f.d - d0].push(f));
+  /* closed in the period, whenever it was found */
+  const closed = DATA.F.filter(f => f.t1 > T0 && f.t1 <= T1), closedPrev = DATA.F.filter(f => f.t1 > T0 - N * 24 && f.t1 <= T0);
+  return { N, d0, T0, T1, cur, prev, days, byDay, closed, closedPrev, openNow: DATA.F.filter(f => f.t1 > T1) };
+}
+
+const MODEC = ['--m1', '--m2'], CLSC = ['--c1', '--c2', '--c3', '--c4'], SEVC = ['--sev1', '--sev2', '--sev3', '--sev4'], SLAL = ['24h', '3d', '14d', '30d'];
+
+/* ---------- small helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const sum = a => a.reduce((s, v) => s + v, 0);
+const mk = (tag, text, cls) => { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; };
+const tally = (arr, key, n) => { const out = new Array(n).fill(0); for (const x of arr) out[key(x)]++; return out; };
+const quant = (sorted, q) => { if (!sorted.length) return 0; const i = (sorted.length - 1) * q, lo = Math.floor(i); return sorted[lo] + (sorted[Math.min(sorted.length - 1, lo + 1)] - sorted[lo]) * (i - lo); };
+const median = a => quant(a.slice().sort((x, y) => x - y), .5);
+const NF = new Intl.NumberFormat('en-US'), fmt = n => NF.format(Math.round(n));
+const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+const DF = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }), dl = date => DF.format(date);
+const fh = h => h < 1 ? Math.round(h * 60) + 'm' : h < 48 ? (h < 10 ? h.toFixed(1) : Math.round(h)) + 'h' : (h / 24).toFixed(h < 240 ? 1 : 0) + 'd';
+const fmin = m => m < 1 ? Math.round(m * 60) + 's' : m < 10 ? m.toFixed(1) + 'm' : m < 120 ? Math.round(m) + 'm' : (m / 60).toFixed(1) + 'h';
+const freq = k => k >= 1000 ? +(k / 1000).toFixed(1) + 'M' : fmt(k) + 'K'; /* requests are stored in thousands */
+const fixedOnly = list => list.filter(f => !f.accepted);
+const inSla = list => list.filter(f => f.fix <= SLA[f.sev]).length, slaRate = list => pct(inSla(list), list.length);
+function buckets(S, size = 1) {
+  if (size === 1) return S.days.map(x => ({ label: dl(x.date), short: dl(x.date), from: x.d, to: x.d }));
+  const out = [];
+  for (let to = DATA.DAYS - 1; to >= S.d0; to -= size) { const from = Math.max(S.d0, to - size + 1); out.unshift({ label: `${dl(DATA.day[from].date)} to ${dl(DATA.day[to].date)}`, short: dl(DATA.day[from].date), from, to }); }
+  return out;
+}
+/* the finest buckets (days, then 2, 3, 7, 14 days) that still fit the width: need(n) is how many characters n buckets take */
+const fit = (S, room, need = n => 2 * n - 1) => { let B; for (const size of [1, 2, 3, 7, 14, 30]) { B = buckets(S, size); if (need(B.length) <= room) break; } return B; };
+const inB = (list, b) => list.filter(f => f.d >= b.from && f.d <= b.to);
+const xl3 = B => B.length < 3 ? [[0, B[0].short]] : [[0, B[0].short], [(B.length - 1) / 2, B[Math.floor((B.length - 1) / 2)].short], [B.length - 1, B[B.length - 1].short]];
+
+/* ---------- text drawing ---------- */
+const sp = n => ' '.repeat(Math.max(0, Math.round(n)));
+const padL = (s, n) => String(s).padStart(n), padR = (s, n) => String(s).padEnd(n);
+const cut = (s, n) => s.length > n ? s.slice(0, Math.max(1, n - 1)) + '…' : s;
+const C = (c, s, i) => `<span${i == null ? '' : ` data-i="${i}"`} style="color:var(${c})">${esc(s)}</span>`;
+const row = (i, s) => `<span class="ln" data-i="${i}">${s}</span>`;
+const pre = (lines, cls = '') => `<pre${cls ? ` class="${cls}"` : ''}>${lines.join('\n')}</pre>`;
+/* a meter track w cells wide, filled to v percent, with the 90% target marked at cell at90(w) */
+const at90 = w => Math.min(w - 1, Math.round(.9 * w));
+const track = (v, w) => { const f = Math.round(v / 100 * w), t = at90(w), run = (a, b, on) => C(on ? '--mark' : '--dim', (on ? '█' : '░').repeat(Math.max(0, b - a)));
+  return run(0, Math.min(f, t), 1) + run(Math.min(f, t), t, 0) + C('--text', '┃') + run(t + 1, Math.max(t + 1, f), 1) + run(Math.max(t + 1, f), w, 0); };
+const B8 = ' ▁▂▃▄▅▆▇█'; /* a cell filled to 0..8 eighths */
+const blocks = (n, max, w) => '█'.repeat(Math.max(0, Math.round(n / max * w))) || '░'; /* as the Workbench draws its bars */
+const spark = v => { const lo = Math.min(...v), hi = Math.max(...v); return v.map(x => B8[1 + Math.round((hi > lo ? (x - lo) / (hi - lo) : .5) * 7)]).join(''); };
+/* a line of w characters with each label centred on its position and kept inside the line */
+const ruler = (w, marks) => { const a = new Array(Math.max(0, w)).fill(' '); marks.forEach(([p, t]) => { const s = Math.max(0, Math.min(w - t.length, Math.round(p - t.length / 2))); [...t].forEach((ch, k) => { if (s + k < w) a[s + k] = ch; }); }); return a.join(''); };
+/* share w characters among parts in proportion, largest remainders first, so the row is exactly w wide */
+function share(parts, w) {
+  const t = sum(parts) || 1, raw = parts.map(p => p / t * w), out = raw.map(Math.floor); let left = w - sum(out);
+  raw.map((r, i) => [r - out[i], i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (left-- > 0) out[i]++; });
+  return out;
+}
+/* columns of eighth blocks. data is one array of segment values per column, bottom segment first */
+function columns(data, cols, { rows = 9, colors, ylab = fmt, xl = [], solid = false, top }) {
+  const tot = data.map(sum), n = data.length; top = top || Math.max(...tot, 1);
+  const yl = [ylab(top), ylab(top / 2), '0'], yw = Math.max(...yl.map(s => s.length)), room = cols - yw - 1;
+  const [w, g] = (solid ? [[3, 0], [2, 0], [1, 0]] : [[5, 2], [4, 2], [4, 1], [3, 1], [2, 1], [1, 1], [1, 0]]).find(([w, g]) => n * (w + g) - g <= room) || [1, 0], width = n * (w + g) - g, lines = [];
+  for (let r = rows - 1; r >= 0; r--) {
+    let s = C('--dim', padL(r === rows - 1 ? yl[0] : r === Math.floor((rows - 1) / 2) ? yl[1] : r === 0 ? yl[2] : '', yw) + '│');
+    data.forEach((segs, j) => {
+      const H = tot[j] ? Math.max(1, Math.round(tot[j] / top * rows * 8)) : 0, lvl = Math.max(0, Math.min(8, H - r * 8));
+      let c = colors[0];
+      if (lvl) { const at = Math.min(H - 1, r * 8 + 4) / (rows * 8) * top; let acc = 0; for (let k = 0; k < segs.length; k++) { acc += segs[k]; if (at < acc || k === segs.length - 1) { c = colors[k]; break; } } }
+      s += `<span data-i="${j}"${lvl ? ` style="color:var(${c})"` : ''}>${(lvl ? B8[lvl] : ' ').repeat(w)}</span>` + sp(j < n - 1 ? g : 0);
+    });
+    lines.push(s);
+  }
+  lines.push(C('--dim', sp(yw) + '└' + '─'.repeat(width)));
+  if (xl.length) lines.push(C('--muted', sp(yw + 1) + ruler(width, xl.map(([j, t]) => [j * (w + g) + w / 2, t]))));
+  return lines;
+}
+/* one series as a box-drawing line. xs[i] is the character column of point i; the line holds its level until the next point, then turns. Returns the rows, top first */
+function boxLine(v, top, rows, xs) {
+  const n = v.length, width = xs[n - 1] + 1, g = Array.from({ length: rows }, () => new Array(width).fill(' ')), y = v.map(x => rows - 1 - Math.round(Math.min(1, x / top) * (rows - 1)));
+  if (n === 1) g[y[0]][0] = '─';
+  for (let i = 0; i < n - 1; i++) {
+    const a = y[i], b = y[i + 1], x1 = xs[i + 1];
+    for (let x = xs[i] + (i ? 1 : 0); x < x1; x++) g[a][x] = '─';
+    if (a === b) g[a][x1] = '─';
+    else { g[a][x1] = b < a ? '╯' : '╮'; g[b][x1] = b < a ? '╭' : '╰'; for (let r = Math.min(a, b) + 1; r < Math.max(a, b); r++) g[r][x1] = '│'; }
+  }
+  return g.map(r => r.join(''));
+}
+
+/* ================= panels: panel(id, options, draw) =================
+   draw({ cols, S }) returns { html, tips, table, legend, read }. cols is the width of the panel in characters.
+   Anything carrying data-i="i" belongs to tips[i]: hovering it, or stepping to it with the arrow keys, prints tips[i] on the panel's last line.
+   A chart that is read by column (the line) returns x: { x0, xs } instead: point i sits at character x0 + xs[i]. */
+const panels = [], panel = (id, o, draw) => panels.push({ id, ...o, draw });
+let S, N = 30;
+
+function mount() {
+  for (const p of panels) {
+    const el = document.createElement('div'); el.className = 'panel w' + p.w + (p.t ? ' t' + p.t : ''); el.id = 'p-' + p.id;
+    el.innerHTML = `<div class="phead"><h3 class="title"></h3><span class="tag"></span>${p.custom ? '' : '<button type="button" class="tb glow" aria-pressed="false">[table]</button>'}</div><p class="note"></p><div class="lg"></div><div class="tx"${p.custom ? '' : ' tabindex="0" role="img"'}></div><div class="tv" hidden></div>${p.custom ? '' : '<div class="read" aria-live="polite"></div>'}`;
+    $('.title', el).textContent = p.title; $('.tag', el).textContent = p.tag; $('.note', el).textContent = p.note;
+    $(`[data-grid="${p.sec}"]`).append(el);
+    Object.assign(p, { el, tx: $('.tx', el), lg: $('.lg', el), tv: $('.tv', el), btn: $('.tb', el), read: $('.read', el), cur: -1 });
+    if (!p.custom) wire(p);
+  }
+}
+/* how many characters fit across an element, measured with the block character itself */
+function measure(el) {
+  const probe = document.createElement('pre'), ink = document.createElement('span'); ink.textContent = '█'.repeat(40); probe.append(ink); probe.style.cssText = 'position:absolute;visibility:hidden;margin:0;font:inherit';
+  el.append(probe); const r = ink.getBoundingClientRect(), cw = r.width / 40 || 8; probe.remove();
+  /* rows that must touch are set a whole pixel high, a hair under the glyph, so blocks overlap instead of leaving seams */
+  if (r.height) document.documentElement.style.setProperty('--join', Math.floor(r.height) + 'px');
+  return { cw, cols: Math.max(24, Math.floor((el.clientWidth + .5) / cw)) };
+}
+function render(p) {
+  const shown = !p.tx.hidden; if (shown) Object.assign(p, measure(p.tx));
+  const o = p.out = p.draw({ cols: p.cols || 60, S });
+  legend(p.lg, o.legend || []);
+  if (p.custom) return p.tx.replaceChildren(o.node);
+  if (!shown) return table(p);
+  p.tx.innerHTML = o.html + '<i class="cur"></i>';
+  p.tx.setAttribute('aria-label', `${p.title}. ${o.read || p.note} Use the arrow keys to step through the values.`);
+  p.cur = -1; say(p, -1);
+}
+function legend(el, items) {
+  el.replaceChildren(...items.map(it => {
+    const s = document.createElement('span');
+    if (it.c) { const i = document.createElement('i'); i.textContent = it.glyph || '■'; i.style.color = `var(${it.c})`; s.append(i); }
+    if (it.label) s.append(it.label);
+    if (it.note) { const b = document.createElement('b'); b.textContent = (it.label ? ' ' : '') + it.note; s.append(b); }
+    return s;
+  }));
+}
+function table(p) {
+  const t = p.out.table, el = document.createElement('table'), head = document.createElement('thead'), body = document.createElement('tbody');
+  const tr = (cells, tag) => { const r = document.createElement('tr'); cells.forEach(v => { const x = document.createElement(tag); x.textContent = v; r.append(x); }); return r; };
+  head.append(tr(t.head, 'th')); t.rows.forEach(r => body.append(tr(r, 'td'))); el.append(head, body); p.tv.replaceChildren(el);
+}
+/* the panel's last line: a summary, or the value under the pointer */
+function say(p, i) {
+  const t = i < 0 ? p.out.read || '' : p.out.tips[i], b = document.createElement('b'); b.textContent = t;
+  if (i < 0) return p.read.replaceChildren(t);
+  const g = document.createElement('span'); g.className = 'p'; g.textContent = '> '; p.read.replaceChildren(g, b);
+}
+function locate(p, e) {
+  const o = p.out;
+  if (o.x) { const r = p.tx.getBoundingClientRect(), c = (e.clientX - r.left) / p.cw - .5 - o.x.x0, xs = o.x.xs; if (c < -1.5 || c > xs[xs.length - 1] + 1.5) return -1; let b = 0; xs.forEach((x, i) => { if (Math.abs(x - c) < Math.abs(xs[b] - c)) b = i; }); return b; }
+  const t = e.target.closest('[data-i]'); return t && p.tx.contains(t) ? +t.dataset.i : -1;
+}
+function show(p, i) {
+  if (p.cur === i) return; p.cur = i;
+  p.tx.querySelectorAll('.on').forEach(el => el.classList.remove('on'));
+  p.tx.querySelectorAll(`[data-i="${i}"]`).forEach(el => el.classList.add('on'));
+  const cur = $('.cur', p.tx), x = p.out.x;
+  if (x && cur) { cur.style.display = 'block'; cur.style.left = (x.x0 + x.xs[i]) * p.cw + 'px'; cur.style.width = p.cw + 'px'; }
+  say(p, i);
+}
+function leave(p) {
+  if (p.cur < 0) return; p.cur = -1;
+  p.tx.querySelectorAll('.on').forEach(el => el.classList.remove('on'));
+  const cur = $('.cur', p.tx); if (cur) cur.style.display = 'none';
+  say(p, -1);
+}
+function wire(p) {
+  p.tx.addEventListener('pointermove', e => { const i = locate(p, e); if (i < 0) leave(p); else show(p, i); });
+  p.tx.addEventListener('pointerleave', () => leave(p));
+  p.tx.addEventListener('blur', () => leave(p));
+  p.tx.addEventListener('keydown', e => {
+    const n = (p.out.tips || []).length, k = e.key; if (!n) return; let i = p.cur;
+    if (k === 'ArrowRight' || k === 'ArrowDown') i = i < 0 ? 0 : (i + 1) % n; else if (k === 'ArrowLeft' || k === 'ArrowUp') i = i < 0 ? n - 1 : (i - 1 + n) % n;
+    else if (k === 'Home') i = 0; else if (k === 'End') i = n - 1; else if (k === 'Escape') return leave(p); else return;
+    e.preventDefault(); show(p, i);
+  });
+  p.btn.addEventListener('click', () => {
+    const on = p.btn.getAttribute('aria-pressed') !== 'true'; p.btn.setAttribute('aria-pressed', on); leave(p);
+    if (on) { p.tv.style.maxHeight = Math.max(160, p.tx.offsetHeight) + 'px'; table(p); }
+    p.tx.hidden = on; p.tv.hidden = !on; p.btn.textContent = on ? '[chart]' : '[table]';
+    if (!on) render(p);
+  });
+}
+
+/* ================= strip and stat tiles ================= */
+function strip() {
+  const sev = tally(S.cur, f => f.sev, 4);
+  const items = [['RANGE:', `${dl(S.days[0].date)} to ${dl(S.days[S.days.length - 1].date)}`], ['FINDINGS:', fmt(S.cur.length)], ['CRIT/HIGH:', fmt(sev[0] + sev[1])], ['REQUESTS:', freq(sum(S.days.map(d => d.req)))], ['PROJECTS:', PROJ.length]];
+  $('#strip').replaceChildren(...items.map(([l, v], i) => { const st = mk('span', null, 'st'); if (i) st.append(mk('span', '|', 'bar')); st.append(mk('span', l, 'lab'), mk('span', v, 'val')); return st; }));
+}
+function tiles() {
+  const last = DATA.DAYS - 1, ttp = median(S.cur.map(f => f.ttp)), ttpP = median(S.prev.map(f => f.ttp)), sla = slaRate(fixedOnly(S.closed)), slaP = slaRate(fixedOnly(S.closedPrev));
+  const rel = (a, b) => b ? (a - b) / b * 100 : 0, sign = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0);
+  const list = [
+    { k: 'Validated findings', v: fmt(S.cur.length), d: rel(S.cur.length, S.prev.length), u: '%', good: 0, sp: S.byDay.map(a => a.length) },
+    { k: 'Open critical and high', v: fmt(DATA.openHi[last]), d: rel(DATA.openHi[last], DATA.openHi[S.d0 - 1]), u: '%', good: -1, sp: DATA.openHi.slice(S.d0) },
+    { k: 'Median time to proof', v: fmin(ttp), d: rel(ttp, ttpP), u: '%', good: -1, sp: S.byDay.map(a => median(a.map(f => f.ttp))) },
+    { k: 'Closed within SLA', v: sla, unit: '%', d: sla - slaP, u: ' pts', good: 1, sp: S.days.map(x => slaRate(fixedOnly(DATA.F.filter(f => f.t1 > (x.d - 6) * 24 && f.t1 <= (x.d + 1) * 24)))) },
+  ];
+  const grid = $('[data-grid="overview"]'); grid.replaceChildren();
+  for (const t of list) {
+    const el = document.createElement('div'); el.className = 'panel tile w3';
+    el.innerHTML = '<div class="k"></div><div class="v"></div><div class="d"><b></b> <span></span></div><pre aria-hidden="true"></pre>';
+    const tone = !t.good || Math.abs(t.d) < .05 ? '' : (t.d > 0) === (t.good > 0) ? 'good' : 'bad';
+    $('.k', el).textContent = t.k; $('.v', el).textContent = t.v; if (t.unit) { const s = document.createElement('small'); s.textContent = t.unit; $('.v', el).append(s); }
+    $('.d b', el).textContent = `${Math.abs(t.d) < .05 ? '■' : t.d > 0 ? '▲' : '▼'} ${sign(t.d)}${t.u}`; if (tone) $('.d b', el).className = tone; $('.d span', el).textContent = `vs the ${S.N} days before`;
+    grid.append(el);
+    /* the sparkline is one character per day; a long range is averaged down to the width of the tile */
+    const cols = measure($('pre', el)).cols, k = Math.ceil(t.sp.length / cols), v = []; for (let i = t.sp.length; i > 0; i -= k) v.unshift(sum(t.sp.slice(Math.max(0, i - k), i)) / Math.min(k, i));
+    const s = spark(v); $('pre', el).innerHTML = esc(s.slice(0, -1)) + '<b>' + s.slice(-1) + '</b>';
+  }
+}
+
+/* ================= trend ================= */
+panel('line', { sec: 'trend', w: 8, title: 'Findings per day', tag: 'line', note: 'Validated findings by scan mode, as two box-drawing lines. One step right is one day, or one bucket of days on a long range.' }, ({ cols, S }) => {
+  const rows = 10, B = fit(S, cols - 6, n => n), n = B.length, cnt = [0, 1].map(m => B.map(b => inB(S.cur, b).filter(f => f.mode === m).length)), rate = cnt.map(c => c.map((v, i) => v / (B[i].to - B[i].from + 1)));
+  const top = Math.max(...rate.flat(), 1), yl = [fmt(top), fmt(top / 2), '0'], yw = Math.max(...yl.map(s => s.length)), width = cols - yw - 1, xs = B.map((_, i) => Math.round(i / Math.max(1, n - 1) * (width - 1)));
+  const axis = []; for (let r = 0; r < rows; r++) axis.push(C('--dim', padL(r === 0 ? yl[0] : r === Math.floor((rows - 1) / 2) ? yl[1] : r === rows - 1 ? yl[2] : '', yw) + '│'));
+  axis.push(C('--dim', sp(yw) + '└' + '─'.repeat(width)), C('--muted', sp(yw + 1) + ruler(width, xl3(B).map(([j, t]) => [j / Math.max(1, n - 1) * (width - 1), t]))));
+  const layer = m => `<pre class="join" style="color:var(${MODEC[m]})">${boxLine(rate[m], top, rows, xs).map(l => sp(yw + 1) + l).join('\n')}</pre>`;
+  return {
+    html: `<div class="stack">${pre(axis, 'join')}${layer(0)}${layer(1)}</div>`, x: { x0: yw + 1, xs },
+    legend: MODE.map((l, m) => ({ c: MODEC[m], glyph: '─', label: l, note: `${fmt(sum(cnt[m]))} in range` })),
+    tips: B.map((b, i) => `${b.label}   native ${cnt[0][i]}   agentic ${cnt[1][i]}   total ${cnt[0][i] + cnt[1][i]}`),
+    table: { head: ['Period', 'Native', 'Agentic', 'Total'], rows: B.map((b, i) => [b.label, cnt[0][i], cnt[1][i], cnt[0][i] + cnt[1][i]]) },
+    read: `native ${fmt(sum(cnt[0]))}, agentic ${fmt(sum(cnt[1]))} over ${S.N} days. y axis: findings per day`,
+  };
+});
+
+panel('area', { sec: 'trend', w: 4, title: 'Open backlog', tag: 'area', note: 'Findings still open at the end of each day. Solid columns with no gaps read as an area.' }, ({ cols, S }) => {
+  const v = DATA.open.slice(S.d0), n = v.length, top = Math.max(...v), yw = fmt(top).length, room = cols - yw - 1;
+  /* one column per character: the series is stretched or squeezed to the width */
+  const at = c => Math.round(c / Math.max(1, room - 1) * (n - 1)), data = Array.from({ length: room }, (_, c) => [v[at(c)]]);
+  const lines = columns(data, cols, { colors: ['--mark'], solid: true, xl: [[0, dl(S.days[0].date)], [room - 1, dl(S.days[n - 1].date)]] });
+  return {
+    html: pre(lines.map(l => l.replace(/data-i="(\d+)"/g, (_, c) => `data-i="${at(+c)}"`)), 'join'),
+    tips: v.map((x, i) => `${dl(S.days[i].date)}   ${fmt(x)} open`),
+    table: { head: ['Day', 'Open findings'], rows: v.map((x, i) => [dl(S.days[i].date), x]) },
+    read: `from ${fmt(v[0])} to ${fmt(v[n - 1])} open findings`,
+  };
+});
+
+panel('cols', { sec: 'trend', w: 4, title: 'Requests fired', tag: 'column', note: 'Payload requests per day. Each column is built from eighth blocks, so nine rows resolve 72 levels.' }, ({ cols, S }) => {
+  const B = fit(S, cols - 7), v = B.map(b => sum(inB(S.days, b).map(x => x.req)) / (b.to - b.from + 1)), k = v.indexOf(Math.max(...v));
+  return {
+    html: pre(columns(v.map(x => [x]), cols, { colors: ['--mark'], ylab: x => x ? freq(Math.round(x)) : '0', xl: xl3(B) }), 'join'),
+    tips: B.map((b, i) => `${b.label}   ${freq(Math.round(v[i]))} requests a day`),
+    table: { head: ['Period', 'Requests a day'], rows: B.map((b, i) => [b.label, fmt(v[i] * 1000)]) },
+    read: `${freq(sum(S.days.map(d => d.req)))} in range, busiest ${B[k].label} at ${freq(Math.round(v[k]))} a day`,
+  };
+});
+
+panel('stack', { sec: 'trend', w: 4, title: 'Findings by severity', tag: 'stacked column', note: 'The same volume split by severity, critical at the baseline. A cell takes the colour of the segment that crosses its middle.' }, ({ cols, S }) => {
+  const B = fit(S, cols - 5, n => n), vals = B.map(b => tally(inB(S.cur, b), f => f.sev, 4));
+  return {
+    html: pre(columns(vals, cols, { colors: SEVC, xl: xl3(B) }), 'join'), legend: SEV.map((l, k) => ({ c: SEVC[k], label: l.toLowerCase() })),
+    tips: B.map((b, i) => `${b.label}   ` + SEV.map((l, k) => `${l.toLowerCase()} ${vals[i][k]}`).join('   ') + `   total ${sum(vals[i])}`),
+    table: { head: ['Period', ...SEV, 'Total'], rows: B.map((b, i) => [b.label, ...vals[i], sum(vals[i])]) },
+    read: `${fmt(S.cur.length)} findings in ${B.length} columns`,
+  };
+});
+
+panel('share', { sec: 'trend', w: 4, title: 'Mix by class', tag: 'stacked column · 100%', note: 'Each class as a share of its period. Every column is full height, so only the proportions move.' }, ({ cols, S }) => {
+  const B = fit(S, cols - 6, n => 3 * n - 1).length >= 6 ? fit(S, cols - 6, n => 3 * n - 1) : fit(S, cols - 6), raw = B.map(b => tally(inB(S.cur, b), f => f.cls, 4)), sh = raw.map(v => v.map(x => x / (sum(v) || 1) * 100));
+  return {
+    html: pre(columns(sh, cols, { colors: CLSC, ylab: x => Math.round(x) + '%', xl: xl3(B), top: 100 }), 'join'), legend: CLS.map((c, k) => ({ c: CLSC[k], label: c.short.toLowerCase() })),
+    tips: B.map((b, i) => `${b.label}   ` + CLS.map((c, k) => `${c.short.toLowerCase()} ${Math.round(sh[i][k])}%`).join('   ')),
+    table: { head: ['Period', ...CLS.map(c => c.name)], rows: B.map((b, i) => [b.label, ...sh[i].map(x => Math.round(x) + '%')]) },
+    read: `class shares across ${B.length} periods`,
+  };
+});
+
+/* ================= compare ================= */
+panel('group', { sec: 'compare', w: 6, title: 'Class by scan mode', tag: 'grouped bar', note: 'Two bars per class on one scale. Agentic scans find most of the access-control bugs; native scans carry injection and cloud.' }, ({ cols, S }) => {
+  const vals = CLS.map((_, c) => [0, 1].map(m => S.cur.filter(f => f.cls === c && f.mode === m).length)), max = Math.max(...vals.flat(), 1), name = c => cols < 58 ? c.short : c.name;
+  const lab = Math.max(...CLS.map(c => name(c).length)), w = Math.max(6, cols - lab - 1 - 8 - String(max).length - 1), lines = [];
+  vals.forEach((v, c) => v.forEach((x, m) => lines.push(row(c, C('--muted', padL(m ? '' : name(CLS[c]), lab)) + ' ' + C('--dim', padR(MODE[m].toLowerCase(), 7)) + ' ' + C(MODEC[m], blocks(x, max, w)) + ' ' + C('--soft', x)))));
+  return {
+    html: pre(lines), legend: MODE.map((l, m) => ({ c: MODEC[m], label: l.toLowerCase() })),
+    tips: CLS.map((c, i) => `${c.name}   native ${vals[i][0]}   agentic ${vals[i][1]}   total ${sum(vals[i])}`),
+    table: { head: ['Class', ...MODE, 'Total'], rows: CLS.map((c, i) => [c.name, ...vals[i], sum(vals[i])]) },
+    read: 'findings per class, by the scan mode that found them',
+  };
+});
+
+panel('rank', { sec: 'compare', w: 6, title: 'Top modules', tag: 'ranked bar', note: 'The eight modules with the most findings, largest first. A bar takes the colour of the class its module belongs to.' }, ({ cols, S }) => {
+  const all = []; CLS.forEach((c, i) => c.mods.forEach((m, k) => all.push({ name: m, cls: i, v: S.cur.filter(f => f.cls === i && f.mod === k).length })));
+  all.sort((a, b) => b.v - a.v);
+  const top = all.slice(0, 8), max = top[0].v || 1, lab = Math.min(Math.max(...top.map(t => t.name.length)), Math.floor(cols * .4)), w = Math.max(6, cols - lab - 1 - String(max).length - 7);
+  return {
+    html: pre(top.map((t, i) => row(i, C('--muted', padL(cut(t.name, lab), lab)) + ' ' + C(CLSC[t.cls], blocks(t.v, max, w)) + ' ' + C('--soft', t.v) + ' ' + C('--muted', `(${pct(t.v, S.cur.length)}%)`)))),
+    legend: CLS.map((c, k) => ({ c: CLSC[k], label: c.short.toLowerCase() })),
+    tips: top.map(t => `${t.name}   ${t.v} findings   ${pct(t.v, S.cur.length)}% of all   class: ${CLS[t.cls].name}`),
+    table: { head: ['Module', 'Class', 'Findings', 'Share'], rows: all.map(t => [t.name, CLS[t.cls].name, t.v, pct(t.v, S.cur.length) + '%']) },
+    read: `${top[0].name} leads with ${top[0].v} findings`,
+  };
+});
+
+panel('diverge', { sec: 'compare', w: 4, title: 'Change by project', tag: 'diverging bar', note: 'Findings in this period against the one before it. Bars leave the axis in two directions, each with its own colour.' }, ({ cols, S }) => {
+  const rows = PROJ.map((p, i) => { const a = S.cur.filter(f => f.proj === i).length, b = S.prev.filter(f => f.proj === i).length; return { name: p.name, a, b, ch: b ? (a - b) / b * 100 : 0 }; }).sort((x, y) => y.ch - x.ch);
+  const lab = Math.max(...rows.map(r => r.name.length)), w = Math.max(8, cols - lab - 1 - 6), pos = Math.max(0, ...rows.map(r => r.ch)), neg = Math.max(0, ...rows.map(r => -r.ch)), span = pos + neg || 1, z = neg ? Math.max(1, Math.round(neg / span * (w - 1))) : 0;
+  const txt = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Math.round(v)) + '%';
+  return {
+    html: pre(rows.map((r, i) => { const L = r.ch ? Math.max(1, Math.round(Math.abs(r.ch) / span * (w - 1))) : 0; return row(i, C('--muted', padL(r.name, lab)) + ' ' + (r.ch < 0 ? sp(z - L) + C('--m1', '█'.repeat(L)) : sp(z)) + C('--dim', '│') + (r.ch > 0 ? C('--m2', '█'.repeat(L)) : '') + ' ' + C('--soft', txt(r.ch))); })),
+    legend: [{ c: '--m2', label: 'more than before' }, { c: '--m1', label: 'fewer' }],
+    tips: rows.map(r => `${r.name}   ${txt(r.ch)}   now ${r.a}   before ${r.b}`),
+    table: { head: ['Project', 'This period', 'Period before', 'Change'], rows: rows.map(r => [r.name, r.a, r.b, txt(r.ch)]) },
+    read: `change in findings against the ${S.N} days before`,
+  };
+});
+
+panel('dumb', { sec: 'compare', w: 4, title: 'Fix time, before and now', tag: 'dumbbell', note: 'Median days to fix per project: the ring is the period before, the dot is this period. Left is faster.' }, ({ cols, S }) => {
+  const med = (list, i) => median(fixedOnly(list).filter(f => f.proj === i).map(f => f.fix)) / 24, rows = PROJ.map((p, i) => ({ name: p.name, a: med(S.closedPrev, i), b: med(S.closed, i) })).sort((x, y) => x.b - y.b);
+  const top = Math.max(5, Math.ceil(Math.max(...rows.map(r => Math.max(r.a, r.b))) / 5) * 5), lab = Math.max(...rows.map(r => r.name.length)), w = Math.max(8, cols - lab - 1 - 7), at = v => Math.round(v / top * (w - 1));
+  const lines = rows.map((r, i) => {
+    const pa = at(r.a), pb = at(r.b), lo = Math.min(pa, pb), hi = Math.max(pa, pb), link = C('--dim', '─'.repeat(Math.max(0, hi - lo - 1)));
+    return row(i, C('--muted', padL(r.name, lab)) + ' ' + sp(lo) + (pa < pb ? C('--soft', '○') + link + C('--mark', '●') : pa > pb ? C('--mark', '●') + link + C('--soft', '○') : C('--mark', '●')) + sp(w - hi - 1) + ' ' + C('--soft', padL(r.b.toFixed(1) + 'd', 6)));
+  });
+  lines.push(C('--dim', sp(lab + 1) + ruler(w, [[0, '0d'], [(w - 1) / 2, top / 2 + 'd'], [w - 1, top + 'd']])));
+  const ch = r => r.a ? (r.b > r.a ? '+' : '−') + Math.abs(Math.round((r.b - r.a) / r.a * 100)) + '%' : 'n/a';
+  return {
+    html: pre(lines), legend: [{ c: '--soft', glyph: '○', label: 'period before' }, { c: '--mark', glyph: '●', label: 'this period' }],
+    tips: rows.map(r => `${r.name}   now ${r.b.toFixed(1)}d   before ${r.a.toFixed(1)}d   ${ch(r)}`),
+    table: { head: ['Project', 'Period before', 'This period', 'Change'], rows: rows.map(r => [r.name, r.a.toFixed(1) + 'd', r.b.toFixed(1) + 'd', ch(r)]) },
+    read: 'median days from finding to fix',
+  };
+});
+
+panel('meter', { sec: 'compare', w: 4, t: 12, title: 'Closed within SLA', tag: 'meter', note: 'Share of fixes that landed inside the window for their severity, each read against the same mark: the 90% target.' }, ({ cols, S }) => {
+  const fx = fixedOnly(S.closed), rows = SEV.map((l, k) => ({ name: `${l.toLowerCase()} ${SLAL[k]}`, list: fx.filter(f => f.sev === k) })).concat([{ name: 'all', list: fx }]);
+  rows.forEach(r => { r.n = r.list.length; r.k = inSla(r.list); r.v = pct(r.k, r.n); });
+  const lab = Math.max(...rows.map(r => r.name.length)), w = Math.max(10, cols - lab - 1 - 5);
+  return {
+    html: pre(rows.map((r, i) => row(i, C('--muted', padL(r.name, lab)) + ' ' + track(r.v, w) + ' ' + C('--soft', padL(r.n ? r.v + '%' : 'n/a', 4))))), legend: [{ c: '--text', glyph: '┃', label: 'target 90%' }],
+    tips: rows.map(r => `${r.name}   ${r.k} of ${r.n} fixes inside the window   ${r.v}%   target 90%`),
+    table: { head: ['Severity', 'Fixed', 'Inside window', 'Share'], rows: rows.map(r => [r.name, r.n, r.k, r.v + '%']) },
+    read: `${rows[4].v}% of ${fmt(rows[4].n)} fixes landed inside their window`,
+  };
+});
+
+/* ================= distribution ================= */
+panel('hist', { sec: 'distribution', w: 4, title: 'Time to proof', tag: 'histogram', note: 'Minutes from the first signal to a validated proof, in doubling bins. Two humps: native checks, then agentic runs.' }, ({ cols, S }) => {
+  const E = [.5, 1, 2, 4, 8, 16, 32, 64], EL = ['30s', '1m', '2m', '4m', '8m', '16m', '32m', '64m'], nb = E.length + 1, bin = v => { let i = 0; while (i < E.length && v >= E[i]) i++; return i; };
+  const name = i => i === 0 ? 'under 30s' : i === nb - 1 ? 'over 64m' : `${EL[i - 1]} to ${EL[i]}`, c = tally(S.cur, f => bin(f.ttp), nb), med = median(S.cur.map(f => f.ttp));
+  return {
+    html: pre(columns(c.map(v => [v]), cols, { colors: ['--mark'], xl: EL.map((t, i) => [i + .5, t]) }), 'join'),
+    tips: c.map((v, i) => `${name(i)}   ${v} findings   ${pct(v, S.cur.length)}%`),
+    table: { head: ['Time to proof', 'Findings', 'Share'], rows: c.map((v, i) => [name(i), v, pct(v, S.cur.length) + '%']) },
+    read: `median ${fmin(med)}, in the ${name(bin(med))} bin`,
+  };
+});
+
+panel('box', { sec: 'distribution', w: 4, title: 'Hours to fix', tag: 'box plot · log scale', note: 'One row per severity: whiskers reach the 5th and 95th percentile, the shaded run is the middle half, the bar is the median.' }, ({ cols, S }) => {
+  const fx = fixedOnly(S.closed), lab = 8, w = Math.max(12, cols - lab - 1), at = v => Math.round(Math.min(1, Math.log10(Math.max(1, v)) / 3.3) * (w - 1));
+  const st = SEV.map((l, k) => { const v = fx.filter(f => f.sev === k).map(f => f.fix).sort((a, b) => a - b); return { n: v.length, p5: quant(v, .05), q1: quant(v, .25), med: quant(v, .5), q3: quant(v, .75), p95: quant(v, .95) }; });
+  const lines = st.map((s, k) => {
+    if (s.n < 4) return row(k, C('--muted', padL(SEV[k].toLowerCase(), lab)) + ' ' + C('--dim', 'too few fixes'));
+    const a = new Array(w).fill(' '), P = [s.p5, s.q1, s.med, s.q3, s.p95].map(at);
+    for (let i = P[0]; i <= P[4]; i++) a[i] = '─'; for (let i = P[1]; i <= P[3]; i++) a[i] = '▒'; a[P[0]] = '├'; a[P[4]] = '┤';
+    return row(k, C('--muted', padL(SEV[k].toLowerCase(), lab)) + ' ' + C(SEVC[k], a.slice(0, P[2]).join('')) + C('--text', '┃') + C(SEVC[k], a.slice(P[2] + 1).join('')));
+  });
+  lines.push(C('--dim', sp(lab + 1) + ruler(w, [[at(1), '1h'], [at(10), '10h'], [at(100), '100h'], [at(1000), '1000h']])));
+  return {
+    html: pre(lines), legend: [{ c: '--soft', glyph: '├┤', label: 'P5 to P95' }, { c: '--soft', glyph: '▒', label: 'middle half' }, { c: '--text', glyph: '┃', label: 'median' }],
+    tips: st.map((s, k) => `${SEV[k].toLowerCase()}   median ${fh(s.med)}   middle half ${fh(s.q1)} to ${fh(s.q3)}   P5 ${fh(s.p5)}   P95 ${fh(s.p95)}   n ${s.n}`),
+    table: { head: ['Severity', 'Fixed', 'P5', 'Q1', 'Median', 'Q3', 'P95'], rows: st.map((s, k) => [SEV[k], s.n, fh(s.p5), fh(s.q1), fh(s.med), fh(s.q3), fh(s.p95)]) },
+    read: `${fmt(fx.length)} fixes closed in the range`,
+  };
+});
+
+panel('scatter', { sec: 'distribution', w: 4, t: 12, title: 'Score against fix time', tag: 'scatter', note: 'CVSS score across, hours to fix up, on a log scale. A heavier dot means more findings in the cell; its colour is the mode with the most.' }, ({ cols, S }) => {
+  const fx = fixedOnly(S.closed), R = 10, yw = 5, W = Math.max(10, cols - yw - 1), cell = Array.from({ length: R }, () => Array.from({ length: W }, () => [0, 0])), tips = [];
+  fx.forEach(f => { cell[Math.min(R - 1, Math.floor(Math.min(.999, Math.log10(Math.max(1, f.fix)) / 3.3) * R))][Math.min(W - 1, Math.floor(f.cvss / 10 * W))][f.mode]++; });
+  const ylab = { 9: '1000h', 6: '100h', 3: '10h', 0: '1h' }, lines = [];
+  for (let r = R - 1; r >= 0; r--) {
+    let s = C('--dim', padL(ylab[r] || '', yw) + '│');
+    cell[r].forEach((c, x) => { const t = c[0] + c[1]; if (!t) { s += ' '; return; } s += C(MODEC[c[1] > c[0] ? 1 : 0], t >= 4 ? '●' : t >= 2 ? '•' : '·', tips.length); tips.push(`CVSS ${(x / W * 10).toFixed(1)} to ${((x + 1) / W * 10).toFixed(1)}   about ${fh(10 ** ((r + .5) / R * 3.3))} to fix   native ${c[0]}   agentic ${c[1]}`); });
+    lines.push(s);
+  }
+  lines.push(C('--dim', sp(yw) + '└' + '─'.repeat(W)), C('--muted', sp(yw + 1) + ruler(W, [0, 2, 4, 6, 8, 10].map(t => [t / 10 * (W - 1), String(t)]))));
+  const band = k => fx.filter(f => f.sev === k);
+  return {
+    html: pre(lines, 'join'), tips, legend: [{ c: MODEC[0], glyph: '●', label: 'native' }, { c: MODEC[1], glyph: '●', label: 'agentic' }, { c: '--soft', glyph: '· • ●', label: '1, 2 to 3, 4 or more' }],
+    table: { head: ['Severity', 'CVSS', 'Native', 'Agentic', 'Median fix'], rows: SEV.map((l, k) => [l, ['9.0 to 10', '7.0 to 8.9', '4.0 to 6.9', '1.0 to 3.9'][k], band(k).filter(f => !f.mode).length, band(k).filter(f => f.mode).length, fh(median(band(k).map(f => f.fix)))]) },
+    read: `${fmt(fx.length)} fixed findings in ${tips.length} cells`,
+  };
+});
+
+panel('heat', { sec: 'distribution', w: 12, title: 'When findings land', tag: 'heat grid · 7 × 24', note: 'Findings by weekday and hour, in UTC, in four shades. Native findings follow pushes through the working day; agentic runs are scheduled overnight.' }, ({ cols, S }) => {
+  const DN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], g = DN.map(() => new Array(24).fill(0)), p2 = h => String(h).padStart(2, '0'); S.cur.forEach(f => g[f.dow][f.hour]++);
+  const max = Math.max(1, ...g.flat()), cw = Math.max(1, Math.min(8, Math.floor((cols - 4) / 24))), G = ['·', '░', '▒', '▓', '█'];
+  const lines = g.map((r, d) => C('--muted', DN[d] + ' ') + r.map((v, h) => { const l = v ? Math.max(1, Math.ceil(v / max * 4)) : 0; return C(l ? '--mark' : '--dim', l ? G[l].repeat(cw) : padR('·', cw), d * 24 + h); }).join(''));
+  lines.push(C('--muted', sp(4) + ruler(24 * cw, Array.from({ length: cw > 1 ? 24 : 8 }, (_, i) => { const h = cw > 1 ? i : i * 3; return [h * cw + Math.min(cw, 2) / 2, p2(h)]; }))));
+  return {
+    html: pre(lines, 'join'), legend: [{ label: 'fewer' }, { c: '--mark', glyph: '░ ▒ ▓ █', label: 'more' }, { note: `most in one hour: ${max}` }],
+    tips: g.flatMap((r, d) => r.map((v, h) => `${DN[d]} ${p2(h)}:00 to ${p2((h + 1) % 24)}:00   ${v} findings`)),
+    table: { head: ['Day', ...Array.from({ length: 24 }, (_, h) => p2(h))], rows: g.map((r, d) => [DN[d], ...r]) },
+    read: `${fmt(S.cur.length)} findings by weekday and hour`,
+  };
+});
+
+/* ================= composition ================= */
+panel('donut', { sec: 'composition', w: 4, t: 12, title: 'Where findings come from', tag: 'donut', note: 'Four sources and one total. The ring is the one drawn shape on the page; the bars beside it carry the figures.' }, ({ cols, S }) => {
+  const v = tally(S.cur, f => f.src, 4), tot = sum(v) || 1, max = Math.max(...v, 1), R = 36, L = 2 * Math.PI * R; let acc = 0;
+  const segs = v.map((x, k) => { const len = x / tot * L, s = `<circle data-i="${k}" cx="50" cy="50" r="${R}" fill="none" stroke="var(${CLSC[k]})" stroke-width="16" stroke-dasharray="${len.toFixed(2)} ${L.toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}" transform="rotate(-90 50 50)"/>`; acc += len; return s; }).join('');
+  const lab = Math.max(...SRC.map(s => s.length)), w = Math.max(4, Math.min(16, cols - 15 - lab - 12));
+  return {
+    html: `<div class="donutwrap"><svg class="donut" width="112" height="112" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="${R}" fill="none" stroke="var(--border)" stroke-width="16" opacity=".5"/>${segs}<text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="700" fill="var(--text)">${fmt(sum(v))}</text></svg>` +
+      pre(SRC.map((s, k) => row(k, C('--muted', padL(s.toLowerCase(), lab)) + ' ' + C(CLSC[k], padR(blocks(v[k], max, w), w)) + ' ' + C('--soft', padL(v[k], 4)) + ' ' + C('--muted', `(${pct(v[k], tot)}%)`)))) + '</div>',
+    tips: SRC.map((s, k) => `${s}   ${fmt(v[k])} findings   ${pct(v[k], tot)}%`),
+    table: { head: ['Source', 'Findings', 'Share'], rows: SRC.map((s, k) => [s, v[k], pct(v[k], tot) + '%']) },
+    read: `${fmt(sum(v))} findings from four sources`,
+  };
+});
+
+panel('tree', { sec: 'composition', w: 8, title: 'Findings by class and module', tag: 'tree', note: 'The hierarchy as an indented tree: four classes, then their modules, each with its count and a bar on one shared scale.' }, ({ cols, S }) => {
+  const tips = [], lines = [], cls = CLS.map((c, i) => ({ c, i, v: S.cur.filter(f => f.cls === i).length, kids: c.mods.map((m, k) => ({ name: m, v: S.cur.filter(f => f.cls === i && f.mod === k).length })).sort((a, b) => b.v - a.v) })).sort((a, b) => b.v - a.v);
+  const lab = Math.min(Math.max(...CLS.flatMap(c => [c.name.length + 3, ...c.mods.map(m => m.length + 6)])), Math.max(14, cols - 19)), max = cls[0].v || 1, w = Math.max(6, cols - lab - 1 - 5 - 1 - 6);
+  const line = (prefix, name, v, c, bold) => { lines.push(row(tips.length, C('--dim', prefix) + C(bold ? '--text' : '--muted', padR(cut(name, lab - prefix.length), lab - prefix.length)) + ' ' + C('--soft', padL(v, 5)) + ' ' + C(c, padR(blocks(v, max, w), w)) + ' ' + C('--muted', padL(pct(v, S.cur.length) + '%', 4)))); tips.push(`${name}   ${v} findings   ${pct(v, S.cur.length)}% of all`); };
+  lines.push(C('--text', padR('findings', lab)) + ' ' + C('--text', padL(fmt(S.cur.length), 5)));
+  cls.forEach((g, a) => { const end = a === cls.length - 1; line(end ? '└─ ' : '├─ ', g.c.name, g.v, CLSC[g.i], true); g.kids.forEach((k, b) => line((end ? '   ' : '│  ') + (b === g.kids.length - 1 ? '└─ ' : '├─ '), k.name, k.v, CLSC[g.i])); });
+  return {
+    html: pre(lines, 'join'), tips, legend: CLS.map((c, k) => ({ c: CLSC[k], label: c.short.toLowerCase() })),
+    table: { head: ['Class', 'Module', 'Findings', 'Share'], rows: cls.flatMap(g => g.kids.map(k => [g.c.name, k.name, k.v, pct(k.v, S.cur.length) + '%'])) },
+    read: `${cls[0].c.name} is the largest class with ${cls[0].v} findings`,
+  };
+});
+
+panel('fall', { sec: 'composition', w: 5, title: 'Backlog bridge', tag: 'waterfall', note: 'How the open backlog got from the start of the range to the end. Each bar starts where the one above it stopped.' }, ({ cols, S }) => {
+  const start = DATA.open[S.d0 - 1], added = S.cur.length, fixed = fixedOnly(S.closed).length, acc = S.closed.length - fixed, end = DATA.open[DATA.DAYS - 1], max = start + added;
+  const st = [['open at start', 0, start, '--muted', fmt(start)], ['new', start, start + added, '--tertiary', '+' + fmt(added)], ['fixed', start + added - fixed, start + added, '--success', '−' + fmt(fixed)], ['accepted risk', end, end + acc, '--secondary', '−' + fmt(acc)], ['open at end', 0, end, '--muted', fmt(end)]];
+  const lab = 13, w = Math.max(8, cols - lab - 1 - 7), at = v => Math.round(v / max * w);
+  return {
+    html: pre(st.map(([l, lo, hi, c, t], i) => { const a = at(lo), b = Math.max(a + 1, at(hi)); return row(i, C('--muted', padL(l, lab)) + ' ' + sp(a) + C(c, '█'.repeat(b - a)) + ' ' + C('--soft', t)); })),
+    tips: st.map(([l, lo, hi, , t], i) => `${l}   ${t}` + (i % 4 ? `   backlog after: ${fmt(i === 1 ? hi : lo)}` : '')),
+    table: { head: ['Step', 'Findings', 'Backlog after'], rows: st.map(([l, lo, hi, , t], i) => [l, t, fmt(i === 1 || i % 4 === 0 ? hi : lo)]) },
+    read: `${fmt(start)} open, plus ${fmt(added)} new, minus ${fmt(fixed + acc)} closed, leaves ${fmt(end)}`,
+  };
+});
+
+panel('seg', { sec: 'composition', w: 4, title: 'Severity split', tag: 'segmented bar · 100%', note: 'Three wholes on one scale, every row exactly as wide as the others. The line under each bar gives the shares.' }, ({ cols, S }) => {
+  const rows = [['all', S.cur], ['native', S.cur.filter(f => !f.mode)], ['agentic', S.cur.filter(f => f.mode)]].map(([name, list]) => ({ name, n: list.length, v: tally(list, f => f.sev, 4) }));
+  const lab = 7, w = Math.max(10, cols - lab - 1 - 5), tips = [], lines = [], short = ['crit', 'high', 'med', 'low'];
+  rows.forEach(r => {
+    lines.push(C('--muted', padL(r.name, lab)) + ' ' + share(r.v, w).map((n, k) => { tips.push(`${r.name}   ${SEV[k].toLowerCase()} ${r.v[k]} of ${r.n}   ${pct(r.v[k], r.n)}%`); return C(SEVC[k], '█'.repeat(n), tips.length - 1); }).join('') + ' ' + C('--soft', padL(fmt(r.n), 4)));
+    lines.push(sp(lab + 1) + C('--dim', cut(r.v.map((x, k) => `${pct(x, r.n)}% ${short[k]}`).join(' · '), w)));
+  });
+  return {
+    html: pre(lines), tips, legend: SEV.map((l, k) => ({ c: SEVC[k], label: l.toLowerCase() })),
+    table: { head: ['Scan mode', ...SEV, 'Total'], rows: rows.map(r => [r.name, ...r.v.map(x => `${x} (${pct(x, r.n)}%)`), r.n]) },
+    read: 'severity shares for all findings and for each scan mode',
+  };
+});
+
+panel('gauge', { sec: 'composition', w: 3, t: 12, title: 'SLA attainment', tag: 'gauge', note: 'One ratio against one limit, the full width of the panel.' }, ({ cols, S }) => {
+  const fx = fixedOnly(S.closed), k = inSla(fx), v = pct(k, fx.length), w = cols, t = at90(w), bar = track(v, w);
+  return {
+    html: `<div class="bigv" data-i="0">${v}%<small>inside the window</small></div>` + pre([`<span data-i="0">${bar}</span>`, `<span data-i="0">${bar}</span>`, C('--muted', ruler(w, [[0, '0'], [t - 1, '90%']]))], 'join'),
+    tips: [`${fmt(k)} of ${fmt(fx.length)} fixes inside their window   ${v}%   target 90%`], legend: [{ c: '--text', glyph: '┃', label: 'target 90%' }],
+    table: { head: ['Measure', 'Value'], rows: [['Fixed in the range', fx.length], ['Inside the window', k], ['Share', v + '%'], ['Target', '90%']] },
+    read: `${fmt(k)} of ${fmt(fx.length)} fixes inside their window`,
+  };
+});
+
+/* ================= flow ================= */
+panel('funnel', { sec: 'flow', w: 5, t: 12, title: 'Signal to fix', tag: 'funnel', note: 'What survives each stage, from raw signals to findings that are already fixed. Bars are centred, so the shape narrows on both sides.' }, ({ cols, S }) => {
+  const st = [['raw signals', sum(S.days.map(d => d.sig))], ['candidates', sum(S.days.map(d => d.cand))], ['payloads fired', sum(S.days.map(d => d.fired))], ['validated', S.cur.length], ['fixed', S.cur.filter(f => !f.accepted && f.t1 <= S.T1).length]];
+  const lab = 14, w = Math.max(8, cols - lab - 1 - 13), v0 = st[0][1] || 1;
+  return {
+    html: pre(st.map(([l, v], i) => { const b = Math.max(1, Math.round(v / v0 * w)), a = Math.floor((w - b) / 2); return row(i, C('--muted', padL(l, lab)) + ' ' + sp(a) + C('--mark', '█'.repeat(b)) + sp(w - a - b) + ' ' + C('--soft', padL(fmt(v), 6)) + ' ' + C('--muted', padL(i ? pct(v, st[i - 1][1]) + '%' : '', 4))); })),
+    tips: st.map(([l, v], i) => `${l}   ${fmt(v)}` + (i ? `   ${pct(v, st[i - 1][1])}% kept from the stage before` : '') + `   ${(v / v0 * 100).toFixed(1)}% of raw signals`),
+    table: { head: ['Stage', 'Count', 'Kept', 'Of raw signals'], rows: st.map(([l, v], i) => [l, fmt(v), i ? pct(v, st[i - 1][1]) + '%' : '', (v / v0 * 100).toFixed(1) + '%']) },
+    read: `${fmt(st[0][1])} raw signals became ${fmt(st[3][1])} validated findings`,
+  };
+});
+
+panel('gantt', { sec: 'flow', w: 7, title: 'One agentic scan', tag: 'gantt', note: 'Phases of the longest agentic run in the range, in minutes from its start. Writing, firing and validating overlap because agents work in parallel.' }, ({ cols, S }) => {
+  const run = S.cur.filter(f => f.mode === 1).reduce((a, f) => !a || f.ttp > a.ttp ? f : a, null), total = Math.max(24, Math.min(120, run ? run.ttp : 40)), top = Math.ceil(total / 20) * 20;
+  const PH = [['recon', 0, .14], ['plan', .11, .22], ['write exploits', .2, .55], ['fire payloads', .27, .82], ['validate', .45, .93], ['report', .91, 1]].map(([name, a, b]) => ({ name, a: a * total, b: b * total }));
+  const lab = 14, w = Math.max(10, cols - lab - 1 - 6), at = v => Math.round(v / top * w);
+  const lines = PH.map((p, i) => { const a = at(p.a), b = Math.max(a + 1, at(p.b)); return row(i, C('--muted', padL(p.name, lab)) + ' ' + C('--dim', '·'.repeat(a)) + C('--mark', '█'.repeat(b - a)) + ' ' + C('--soft', fmin(p.b - p.a))); });
+  lines.push(C('--muted', sp(lab + 1) + ruler(w + 1, [0, 1, 2, 3, 4].map(q => [q / 4 * w, top * q / 4 + 'm']))));
+  return {
+    html: pre(lines), tips: PH.map(p => `${p.name}   starts ${fmin(p.a)}   ends ${fmin(p.b)}   lasts ${fmin(p.b - p.a)}`),
+    table: { head: ['Phase', 'Starts at', 'Ends at', 'Lasts'], rows: PH.map(p => [p.name, fmin(p.a), fmin(p.b), fmin(p.b - p.a)]) },
+    read: run ? `${fmin(total)} from start to report, on ${PROJ[run.proj].name}` : '',
+  };
+});
+
+panel('ptable', { sec: 'flow', w: 12, custom: true, title: 'Projects', tag: 'table · sparklines', note: 'When more than a handful of rows all matter, the table is the chart. The mix and the trend are drawn in the cells, twelve and up to thirty characters wide.' }, ({ S }) => {
+  const B = fit(S, 30, n => n);
+  const rows = PROJ.map((p, i) => { const list = S.cur.filter(f => f.proj === i); return { name: p.name, n: list.length, open: S.openNow.filter(f => f.proj === i).length, sev: tally(list, f => f.sev, 4), sp: B.map(b => inB(list, b).length), fix: median(fixedOnly(S.closed).filter(f => f.proj === i).map(f => f.fix)) }; }).sort((a, b) => b.n - a.n);
+  const wrap = mk('div', null, 'ptab'), table = mk('table'), head = mk('thead'), body = mk('tbody'), hr = mk('tr');
+  [['Project'], ['Findings'], ['Open now'], ['Critical'], ['Severity mix', 'l'], ['Trend', 'l'], ['Median fix']].forEach(([t, c]) => hr.append(mk('th', t, c))); head.append(hr);
+  rows.forEach(r => {
+    const tr = mk('tr'), mix = mk('td', null, 'l'), tr2 = mk('td', null, 'l'), s = spark(r.sp);
+    mix.innerHTML = share(r.sev, 12).map((n, k) => C(SEVC[k], '█'.repeat(n))).join(''); mix.setAttribute('aria-label', SEV.map((l, k) => `${r.sev[k]} ${l.toLowerCase()}`).join(', '));
+    tr2.innerHTML = C('--muted', s.slice(0, -1)) + C('--accent', s.slice(-1)); tr2.setAttribute('aria-label', 'Trend, ' + r.sp.join(', '));
+    tr.append(mk('td', r.name), mk('td', fmt(r.n)), mk('td', fmt(r.open)), mk('td', r.sev[0]), mix, tr2, mk('td', fh(r.fix))); body.append(tr);
+  });
+  table.append(head, body); wrap.append(table);
+  return { node: wrap, legend: SEV.map((l, k) => ({ c: SEVC[k], label: l.toLowerCase() })) };
+});
+
+/* ================= records table: recordsTable(root, options) =================
+   One table with a search box, a segmented filter, choosers, sortable columns and pages. It only writes markup and rt-* classes: the look is the page's CSS.
+   options  rows      the records, plain objects
+            columns   [{ key, label, num, cls, cell(row), sort(row) }]  cell returns the cell's HTML and sort what to order by; both default to row[key]. sort: false leaves a column unsortable
+            search    the keys the search box reads
+            seg       { key, label, options }  one filter as a row of switches, each with its count
+            picks     [{ key, label, options }]  filters as choosers; without options they list the values found in the rows
+            sort      { key, dir }   size, sizes  rows a page   noun  ['finding', 'findings']   glyph  { search, prev, next } as HTML
+            cls       { search, seg, pick, reset, table, step }  class names to add, so a part can wear a control the page already has
+   Returns { rows(next) }: swap the records, keep the filters and the sort, and go back to the first page. */
+function recordsTable(root, o) {
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const cols = o.columns, picks = o.picks || [], noun = o.noun || ['row', 'rows'], sizes = o.sizes || [10, 25, 50], id = 'rt' + (recordsTable.n = (recordsTable.n || 0) + 1);
+  const G = Object.assign({ search: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3.5 3.5"/></svg>', prev: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.500"/></svg>', next: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.500 4.500 4.500-4.500 4.500"/></svg>' }, o.glyph);
+  const K = o.cls || {}, cl = k => 'rt-' + k + (K[k] ? ' ' + K[k] : '');
+  const st = { q: '', seg: '', pick: {}, sort: o.sort ? { ...o.sort } : null, page: 0, size: o.size || sizes[0] };
+  let rows = o.rows;
+  const found = k => Array.from(new Set(rows.map(r => String(r[k])))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  /* does a row pass every filter, leaving out the one whose options are being counted */
+  const pass = (r, skip) => (!st.q || o.search.some(k => String(r[k]).toLowerCase().includes(st.q)))
+    && (!o.seg || skip === o.seg.key || !st.seg || String(r[o.seg.key]) === st.seg)
+    && picks.every(p => skip === p.key || !st.pick[p.key] || String(r[p.key]) === st.pick[p.key]);
+  const tally = k => { const n = { '': 0 }; for (const r of rows) if (pass(r, k)) { n[r[k]] = (n[r[k]] || 0) + 1; n['']++; } return n; };
+  const pick = (k, label) => `<button type="button" class="${cl('pick')}" data-k="${k}" aria-haspopup="listbox" aria-expanded="false"><span>${esc(label)}</span><b></b><i aria-hidden="true"></i></button>`;
+  const nf = n => (n || 0).toLocaleString('en-US');
+  const tdc = c => [c.num ? 'num' : '', c.cls || ''].join(' ').trim();
+
+  root.classList.add('rt');
+  root.innerHTML = `<div class="rt-bar"><label class="${cl('search')}">${G.search}<input type="search" placeholder="${esc(o.placeholder || 'Filter ' + noun[1])}" aria-label="${esc(o.placeholder || 'Filter ' + noun[1])}" spellcheck="false" autocomplete="off"></label>`
+    + (o.seg ? `<div class="${cl('seg')}" role="group" aria-label="${esc(o.seg.label)}">${[''].concat(o.seg.options || found(o.seg.key)).map(v => `<button type="button" data-v="${esc(v)}" aria-pressed="${!v}">${esc(v || 'All')}<b></b></button>`).join('')}</div>` : '')
+    + picks.map(p => pick(p.key, p.label)).join('') + `<button type="button" class="${cl('reset')}" hidden>Reset</button></div>`
+    + `<div class="rt-scroll"><table class="${cl('table')}" aria-label="${esc(o.label || noun[1])}"><thead><tr>${cols.map(c => `<th scope="col"${tdc(c) ? ` class="${tdc(c)}"` : ''}${c.sort === false ? `>${esc(c.label)}` : ` aria-sort="none"><button type="button" data-k="${c.key}">${esc(c.label)}<i aria-hidden="true"></i></button>`}</th>`).join('')}</tr></thead><tbody></tbody></table></div>`
+    + `<div class="rt-foot"><span class="rt-count" role="status"></span><span class="rt-pager">${pick('#size', 'Rows')}<button type="button" class="${cl('step')}" data-d="-1" aria-label="Previous page">${G.prev}</button><span class="rt-page"></span><button type="button" class="${cl('step')}" data-d="1" aria-label="Next page">${G.next}</button></span></div>`;
+  const $ = s => root.querySelector(s), input = $('input'), body = $('tbody'), steps = root.querySelectorAll('.rt-step');
+
+  function draw() {
+    const c = st.sort && cols.find(c => c.key === st.sort.key), dir = st.sort && st.sort.dir === 'desc' ? -1 : 1, by = r => typeof c.sort === 'function' ? c.sort(r) : r[c.key];
+    const all = rows.filter(r => pass(r));
+    if (c) all.sort((a, b) => { const x = by(a), y = by(b); return dir * (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })); });
+    const pages = Math.max(1, Math.ceil(all.length / st.size)); st.page = Math.max(0, Math.min(st.page, pages - 1));
+    const from = st.page * st.size, part = all.slice(from, from + st.size);
+    body.innerHTML = part.length ? part.map(r => '<tr>' + cols.map(c => `<td${tdc(c) ? ` class="${tdc(c)}"` : ''}>${c.cell ? c.cell(r) : esc(r[c.key])}</td>`).join('') + '</tr>').join('')
+      : `<tr class="rt-none"><td colspan="${cols.length}">No ${esc(noun[1])} match these filters. <button type="button" class="rt-clear">Clear filters</button></td></tr>`;
+    $('.rt-count').textContent = (all.length ? `${from + 1}–${from + part.length} of ${nf(all.length)}` : '0') + ' ' + noun[all.length === 1 ? 0 : 1] + (all.length < rows.length ? `, filtered from ${nf(rows.length)}` : '');
+    $('.rt-page').textContent = `${st.page + 1} / ${pages}`; steps[0].disabled = st.page === 0; steps[1].disabled = st.page >= pages - 1;
+    if (o.seg) { const n = tally(o.seg.key); root.querySelectorAll('.rt-seg button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.v === st.seg); b.lastElementChild.textContent = nf(n[b.dataset.v]); }); }
+    root.querySelectorAll('.rt-pick').forEach(b => { const k = b.dataset.k; b.querySelector('b').textContent = k === '#size' ? st.size : st.pick[k] || 'All'; b.classList.toggle('on', k !== '#size' && !!st.pick[k]); });
+    root.querySelectorAll('th[aria-sort]').forEach(th => th.setAttribute('aria-sort', c && th.firstElementChild.dataset.k === c.key ? (dir > 0 ? 'ascending' : 'descending') : 'none'));
+    $('.rt-reset').hidden = !(st.q || st.seg || picks.some(p => st.pick[p.key]));
+  }
+
+  /* a chooser's list: a listbox the page draws, so it wears the theme and never the system's popup. Arrow keys, Home/End, typing a name, Enter, Escape */
+  const menu = document.createElement('div'); menu.className = 'rt-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1; menu.hidden = true; document.body.append(menu);
+  let forBtn = null, opts = [], at = -1, typed = '', typedAt = 0;
+  const setAt = (i, quiet) => { at = i; opts.forEach((el, n) => el.classList.toggle('act', n === i)); const el = opts[i]; if (!el) return; menu.setAttribute('aria-activedescendant', el.id); if (!quiet) el.scrollIntoView({ block: 'nearest' }); };
+  function open(btn) {
+    close(); const k = btn.dataset.k, p = picks.find(p => p.key === k), n = p && tally(k), cur = p ? st.pick[k] || '' : String(st.size);
+    const list = p ? [['', 'All']].concat((p.options || found(k)).map(v => [v, v])) : sizes.map(v => [String(v), v + ' rows']);
+    menu.innerHTML = list.map(([v, label], i) => `<div role="option" id="${id}-${i}" data-v="${esc(v)}" aria-selected="${v === cur}"><span>${esc(label)}</span>${n ? `<b>${nf(n[v])}</b>` : ''}</div>`).join('');
+    opts = Array.from(menu.children); forBtn = btn; typed = ''; btn.setAttribute('aria-expanded', 'true'); menu.setAttribute('aria-label', p ? p.label : 'Rows a page'); menu.hidden = false; menu.scrollTop = 0;
+    const r = btn.getBoundingClientRect(), below = innerHeight - r.bottom, up = below < 200 && r.top > below; /* above the control only when there is no room under it */
+    menu.style.minWidth = Math.round(r.width) + 'px'; menu.style.maxHeight = Math.max(120, Math.min(340, (up ? r.top : below) - 12)) + 'px';
+    menu.style.left = Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, r.left)) + 'px';
+    menu.style.top = up ? 'auto' : r.bottom + 4 + 'px'; menu.style.bottom = up ? innerHeight - r.top + 4 + 'px' : 'auto';
+    setAt(Math.max(0, opts.findIndex(el => el.getAttribute('aria-selected') === 'true'))); menu.focus({ preventScroll: true });
+  }
+  function close(refocus) { if (!forBtn) return; const b = forBtn; forBtn = null; menu.hidden = true; b.setAttribute('aria-expanded', 'false'); if (refocus) b.focus({ preventScroll: true }); }
+  function choose(i) { const b = forBtn, el = opts[i]; close(true); if (!b || !el) return; if (b.dataset.k === '#size') st.size = +el.dataset.v; else st.pick[b.dataset.k] = el.dataset.v; st.page = 0; draw(); }
+  menu.addEventListener('keydown', e => {
+    const n = opts.length, k = e.key;
+    if (k === 'ArrowDown') setAt((at + 1) % n); else if (k === 'ArrowUp') setAt((at - 1 + n) % n);
+    else if (k === 'Home' || k === 'PageUp') setAt(0); else if (k === 'End' || k === 'PageDown') setAt(n - 1);
+    else if (k === 'Enter' || k === ' ') choose(at); else if (k === 'Escape') close(true);
+    else if (k === 'Tab') { close(true); return; } /* focus is back on the control, so Tab moves on from there */
+    else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) { /* type a name to jump to it */
+      const t = Date.now(); typed = (t - typedAt > 700 ? '' : typed) + k.toLowerCase(); typedAt = t;
+      for (let j = 0, from = typed.length > 1 ? at : at + 1; j < n; j++) { const i = (from + j) % n; if (opts[i].textContent.trim().toLowerCase().startsWith(typed)) { setAt(i); break; } }
+    } else return;
+    e.preventDefault(); e.stopPropagation();
+  });
+  menu.addEventListener('click', e => { const el = e.target.closest('[role="option"]'); if (el) choose(opts.indexOf(el)); });
+  menu.addEventListener('pointermove', e => { const i = opts.indexOf(e.target.closest('[role="option"]')); if (i >= 0 && i !== at) setAt(i, true); });
+  menu.addEventListener('focusout', e => { if (forBtn && e.relatedTarget !== forBtn && !menu.contains(e.relatedTarget)) close(); });
+  document.addEventListener('pointerdown', e => { if (forBtn && !menu.contains(e.target) && !forBtn.contains(e.target)) close(); }, true);
+  addEventListener('resize', () => close()); addEventListener('scroll', e => { if (e.target !== menu) close(); }, true);
+
+  root.addEventListener('keydown', e => { const b = e.target.closest('.rt-pick'); if (b && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); open(b); } });
+  root.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.classList.contains('rt-pick')) return forBtn === b ? close(true) : open(b);
+    if (b.classList.contains('rt-step')) st.page += +b.dataset.d;
+    else {
+      if (b.closest('.rt-seg')) st.seg = b.dataset.v;
+      else if (b.closest('thead')) { const k = b.dataset.k, same = st.sort && st.sort.key === k; st.sort = { key: k, dir: same ? (st.sort.dir === 'asc' ? 'desc' : 'asc') : cols.find(c => c.key === k).num ? 'desc' : 'asc' }; } /* numbers start from the largest */
+      else if (b.matches('.rt-reset, .rt-clear')) { st.q = input.value = ''; st.seg = ''; st.pick = {}; input.focus({ preventScroll: true }); } /* the button is about to go */
+      else return;
+      st.page = 0;
+    }
+    draw();
+  });
+  input.addEventListener('input', () => { st.q = input.value.trim().toLowerCase(); st.page = 0; draw(); });
+  draw();
+  return { rows(next) { rows = next; st.page = 0; draw(); } };
+}
+
+/* the records section: one row per finding in the range. It keeps its filters when the range changes */
+let recs;
+const FID = new Map(DATA.F.map((f, i) => [f, 'F-' + String(i + 1).padStart(4, '0')]));
+function records() {
+  const rows = S.cur.map(f => ({ id: FID.get(f), mod: CLS[f.cls].mods[f.mod], sev: SEV[f.sev], rank: f.sev, cls: CLS[f.cls].name, proj: PROJ[f.proj].name, mode: MODE[f.mode], cvss: f.cvss,
+    t0: f.t0, found: dl(DATA.day[f.d].date), age: Math.min(f.t1, S.T1) - f.t0, status: f.t1 > S.T1 ? 'Open' : f.accepted ? 'Accepted' : 'Fixed' }));
+  if (recs) return recs.rows(rows);
+  const bar = r => { const n = Math.round(r.cvss / 10 * 8); return C(SEVC[r.rank], '█'.repeat(n)) + C('--dim', '░'.repeat(8 - n)); }; /* a score out of ten, eight characters wide */
+  recs = recordsTable($('#records-table'), {
+    rows, noun: ['finding', 'findings'], label: 'All findings in the range', placeholder: 'id, module, project or class', search: ['id', 'mod', 'proj', 'cls'], size: 12, sizes: [12, 24, 48], sort: { key: 't0', dir: 'desc' },
+    glyph: { search: '<span aria-hidden="true">filter:</span>', prev: '&lt;', next: '&gt;' },
+    seg: { key: 'sev', label: 'Severity', options: SEV },
+    picks: [{ key: 'cls', label: 'Class', options: CLS.map(c => c.name) }, { key: 'proj', label: 'Project' }, { key: 'status', label: 'Status', options: ['Open', 'Fixed', 'Accepted'] }],
+    columns: [
+      { key: 'id', label: 'Finding', cell: r => `<b>${r.id}</b><small>${esc(r.mod)}</small>` },
+      { key: 'sev', label: 'Severity', sort: r => r.rank, cell: r => C(SEVC[r.rank], '■') + ' ' + r.sev.toLowerCase() },
+      { key: 'cls', label: 'Class' }, { key: 'proj', label: 'Project' }, { key: 'mode', label: 'Mode', cell: r => r.mode.toLowerCase() },
+      { key: 'cvss', label: 'CVSS', num: true, cell: r => r.cvss.toFixed(1) + ' ' + bar(r) },
+      { key: 't0', label: 'Found', num: true, cell: r => r.found },
+      { key: 'age', label: 'Open for', num: true, cell: r => fh(r.age) },
+      { key: 'status', label: 'Status', cell: r => `<span class="rt-st ${r.status.toLowerCase()}">${r.status}</span>` },
+    ],
+  });
+}
+
+/* ================= boot ================= */
+const root = document.documentElement;
+function renderAll() { strip(); tiles(); panels.forEach(render); }
+function setRange(n) {
+  N = n; S = slice(N);
+  document.querySelectorAll('#range button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === N)));
+  renderAll(); records();
+}
+mount(); setRange(30);
+$('#range').addEventListener('click', e => { const b = e.target.closest('button[data-n]'); if (b) setRange(+b.dataset.n); });
+$('#themeBtn').addEventListener('click', () => { const t = root.dataset.theme === 'dark' ? 'light' : 'dark'; if (window.Tweaks) Tweaks.set({ mode: t }); else { root.dataset.theme = t; try { localStorage.setItem('vg-theme', t); } catch (e) {} } }); /* the tweak dock owns the scheme when it is on the page */
+let resizeTimer; addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderAll, 120); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(faces => { if (faces.size) renderAll(); }); /* no web fonts of its own: draw again only when the dock brought one */
+/* the nav names the section that is on screen */
+const links = [...document.querySelectorAll('#nav a')], spy = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + e.target.id)); }), { rootMargin: '-30% 0px -60% 0px' });
+document.querySelectorAll('main section').forEach(s => spy.observe(s));
+</script>
+</body>
+</html>

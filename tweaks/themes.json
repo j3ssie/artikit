@@ -1,28 +1,28 @@
 {
  "dark": {
-  "Copperplate": "14100b 1a150e 241d14 100c08 2c2418 332917 54432a ead9c0 b59c7a 77664c a4c26f e0705a d8a24a 8aa8bd c98da4 cf8236",
-  "Midnight": "0d0d13 16161e 1d1d28 12121a 232330 2a2a38 383848 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f",
-  "Graphite": "101012 151517 1c1c1f 0c0c0e 232326 2a2a2e 3a3a40 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f",
-  "Phosphor": "060a06 0a120a 101a10 050905 152415 1c301c 2a462a b8e0b0 7aa874 4a6a46 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f",
-  "Dracula": "1e1f29 282a36 343746 21222c 3c3f52 3a3d4f 4d5069 f8f8f2 a8abc7 6272a4 50fa7b ff5555 f1fa8c 8be9fd ff79c6 ffb86c",
-  "Nord": "242933 2e3440 3b4252 272c37 434c5e 3b4252 4c566a e5e9f0 aeb8cc 616e88 a3be8c bf616a ebcb8b 81a1c1 b48ead d08770",
-  "Solarized Dark": "00212b 002b36 073642 001f27 0a4050 073642 586e75 93a1a1 839496 586e75 859900 dc322f b58900 268bd2 d33682 cb4b16",
-  "Tidewatch": "0a1220 0e1728 16233a 091020 1c2c47 1e2f4a 2e4368 d7e3f2 93a8c4 54688a 4fd6be ff6b7f e5c07b 56b3fa c792ea e5a45b",
-  "Iris": "14121f 191627 221e35 110f1c 2a2542 2b2545 413866 e6e1f5 a79fc7 675f8a 72e0a5 ff6b9d f0c674 82aaff c792ea f0a35e",
-  "Emberline": "0c1210 101915 18241e 0a0f0d 1f2e26 22332a 35503f d8e6dc 96ad9d 587263 7fce6f f26d4f f0a848 6db2c9 d78ab0 f08c3a",
-  "Oceanic": "0b141f 0f1a29 172538 0a111c 1d3049 203450 31507a d9e6f5 8ea9c4 526b88 5fd39b f2708a e8c268 58a6ff bc8cff e09a4e",
-  "Grove": "0d130c 121a10 1a2618 0b100a 21301e 263a22 3b5a35 dde8d6 a2b797 647a5a 9ccb72 e06c5f d9b656 72aec4 c194bd d19042",
-  "Rosewire": "170f14 1e1319 291b23 130c10 32212b 36242e 523847 f0dfe8 bd9cab 7c6070 7fd2a0 ff5c8a e8b465 7ba6e0 e56ba8 e0955a",
-  "Halide": "0c0c0c 111111 1a1a1a 080808 222222 262626 3d3d3d e8e8e8 a0a0a0 606060 a9c4a9 cf9a9a c9bd9a 9ab1c4 bda4b8 c4ad8f"
+  "Copperplate": "14100b 1a150e 241d14 100c08 2c2418 332917 54432a ead9c0 b59c7a 77664c a4c26f e0705a d8a24a 8aa8bd c98da4 cf8236 cf8236",
+  "Midnight": "0d0d13 16161e 1d1d28 12121a 232330 2a2a38 383848 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f 6f9ef1",
+  "Graphite": "101012 151517 1c1c1f 0c0c0e 232326 2a2a2e 3a3a40 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f b9c0d0",
+  "Phosphor": "060a06 0a120a 101a10 050905 152415 1c301c 2a462a b8e0b0 7aa874 4a6a46 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f 78d670",
+  "Dracula": "1e1f29 282a36 343746 21222c 3c3f52 3a3d4f 4d5069 f8f8f2 a8abc7 6272a4 50fa7b ff5555 f1fa8c 8be9fd ff79c6 ffb86c bd93f9",
+  "Nord": "242933 2e3440 3b4252 272c37 434c5e 3b4252 4c566a e5e9f0 aeb8cc 616e88 a3be8c bf616a ebcb8b 81a1c1 b48ead d08770 88c0d0",
+  "Solarized Dark": "00212b 002b36 073642 001f27 0a4050 073642 586e75 93a1a1 839496 586e75 859900 dc322f b58900 268bd2 d33682 cb4b16 2aa198",
+  "Tidewatch": "0a1220 0e1728 16233a 091020 1c2c47 1e2f4a 2e4368 d7e3f2 93a8c4 54688a 4fd6be ff6b7f e5c07b 56b3fa c792ea e5a45b 4fd6be",
+  "Iris": "14121f 191627 221e35 110f1c 2a2542 2b2545 413866 e6e1f5 a79fc7 675f8a 72e0a5 ff6b9d f0c674 82aaff c792ea f0a35e a99cf5",
+  "Emberline": "0c1210 101915 18241e 0a0f0d 1f2e26 22332a 35503f d8e6dc 96ad9d 587263 7fce6f f26d4f f0a848 6db2c9 d78ab0 f08c3a f08c3a",
+  "Oceanic": "0b141f 0f1a29 172538 0a111c 1d3049 203450 31507a d9e6f5 8ea9c4 526b88 5fd39b f2708a e8c268 58a6ff bc8cff e09a4e 58a6ff",
+  "Grove": "0d130c 121a10 1a2618 0b100a 21301e 263a22 3b5a35 dde8d6 a2b797 647a5a 9ccb72 e06c5f d9b656 72aec4 c194bd d19042 9ccb72",
+  "Rosewire": "170f14 1e1319 291b23 130c10 32212b 36242e 523847 f0dfe8 bd9cab 7c6070 7fd2a0 ff5c8a e8b465 7ba6e0 e56ba8 e0955a ef6fa0",
+  "Halide": "0c0c0c 111111 1a1a1a 080808 222222 262626 3d3d3d e8e8e8 a0a0a0 606060 a9c4a9 cf9a9a c9bd9a 9ab1c4 bda4b8 c4ad8f c4ad8f"
  },
  "light": {
-  "Porcelain": "efece8 fbf9f6 ffffff f4f1ec e9e5df ddd8d0 c2bab0 33302b 6b655c a39c90 3d8b3d c53a3a a37414 3565c0 ad3d8d bb6a1e",
-  "Paper": "eceff1 fafbfc ffffff f0f2f4 e4e8ec d5dade b8c0c8 2a3138 5a656e 9aa4ac 188038 c5221f a86a00 1a63d0 b8207e c26401",
-  "Solarized Light": "eee8d5 fdf6e3 ffffff f3edda e8e1cc ddd6c1 c0b99f 586e75 657b83 93a1a1 859900 dc322f b58900 268bd2 d33682 cb4b16",
-  "Frost": "e8edf3 f6f9fc ffffff eef2f7 dfe7ef d0dae4 aabccd 26313c 54687a 93a5b5 2e9440 d13b45 ad7a12 3a6ec4 b8459a c47222",
-  "Dawn": "f2eae8 fcf7f5 ffffff f5edeb ecdfdc e2d3cf c8b1ab 3a2d2a 75605b ab948e 2c8a44 cc3344 a86e10 3565c0 c03a7e bd6420",
-  "Linen": "efe9dd faf6ec fffdf6 f3eee1 e8e1d0 ded5c1 bfb298 38321f 6e6650 a49a80 4c7f22 bd3e2e 976a08 2e6a9e a5498a af6a12",
-  "Sage": "e9eee6 f6f9f3 ffffff eef3ea dfe7da d2ddcb adbfa3 2b352a 5c6c58 93a58c 347a34 c04040 9c7212 33689e 9c4a8a b06a1c",
-  "Lavender": "edeaf3 f9f7fc ffffff f2eff7 e4dfee d9d3e4 b5aacb 312b3d 655c78 a096b3 2f8a48 cc3550 a06d10 4a5ecc a63cae bb681e"
+  "Porcelain": "efece8 fbf9f6 ffffff f4f1ec e9e5df ddd8d0 c2bab0 33302b 6b655c a39c90 3d8b3d c53a3a a37414 3565c0 ad3d8d bb6a1e 3565c0",
+  "Paper": "eceff1 fafbfc ffffff f0f2f4 e4e8ec d5dade b8c0c8 2a3138 5a656e 9aa4ac 188038 c5221f a86a00 1a63d0 b8207e c26401 1a63d0",
+  "Solarized Light": "eee8d5 fdf6e3 ffffff f3edda e8e1cc ddd6c1 c0b99f 586e75 657b83 93a1a1 859900 dc322f b58900 268bd2 d33682 cb4b16 1b817a",
+  "Frost": "e8edf3 f6f9fc ffffff eef2f7 dfe7ef d0dae4 aabccd 26313c 54687a 93a5b5 2e9440 d13b45 ad7a12 3a6ec4 b8459a c47222 2b7a9e",
+  "Dawn": "f2eae8 fcf7f5 ffffff f5edeb ecdfdc e2d3cf c8b1ab 3a2d2a 75605b ab948e 2c8a44 cc3344 a86e10 3565c0 c03a7e bd6420 c2456b",
+  "Linen": "efe9dd faf6ec fffdf6 f3eee1 e8e1d0 ded5c1 bfb298 38321f 6e6650 a49a80 4c7f22 bd3e2e 976a08 2e6a9e a5498a af6a12 a4532a",
+  "Sage": "e9eee6 f6f9f3 ffffff eef3ea dfe7da d2ddcb adbfa3 2b352a 5c6c58 93a58c 347a34 c04040 9c7212 33689e 9c4a8a b06a1c 347a34",
+  "Lavender": "edeaf3 f9f7fc ffffff f2eff7 e4dfee d9d3e4 b5aacb 312b3d 655c78 a096b3 2f8a48 cc3550 a06d10 4a5ecc a63cae bb681e 6d55c9"
  }
 }

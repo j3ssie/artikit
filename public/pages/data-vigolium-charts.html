@@ -1,0 +1,1557 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vigolium · Charts</title>
+<meta name="description" content="Sample data page in the Vigolium theme: twenty-five chart forms drawn from one seeded dataset of scan findings, scoped by a range switch.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' fill='%231c1b19'/%3E%3Ccircle cx='14' cy='14' r='6.5' fill='none' stroke='%23ff9447' stroke-width='2.2'/%3E%3Cpath d='M14 14h6.5A6.5 6.5 0 0 0 14 7.5z' fill='%23ff9447'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  Vigolium · Charts: a data page in the theme of vigolium.com.
+  Tokens are in :root. Corners are square: --r is 0 until the tweak dock's corners control is set to "round".
+  Every figure is drawn by one card(id, options, draw) call in the script, from one seeded dataset (see DATA).
+  Series colours were checked as a set on the figure surface (#191816):
+    categorical  --s1..--s4   orange, blue, green, violet (the brand hues stepped into the dark lightness band)
+    severity     --sev1..4    critical, high, medium, low
+    ordinal      --o1..--o5   one orange hue, dim to bright
+-->
+<style>
+:root{
+  color-scheme:dark;
+  --sans:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  /* surfaces */
+  --bg:#1c1b19; --card:rgba(252,232,195,.026); --card-2:rgba(252,232,195,.008); --fig:rgba(0,0,0,.22); --fig-solid:#191816; --pop:#262420;
+  /* lines */
+  --line:rgba(252,232,195,.08); --line-2:rgba(252,232,195,.2); --hair:rgba(252,232,195,.05);
+  --grid:rgba(252,232,195,.06); --axis:rgba(252,232,195,.2);
+  /* text */
+  --ink:#fce8c3; --body:#c4b291; --muted:#918175; --faint:#6b6258; --on-fill:#16130f;
+  /* brand accents: small marks, focus and the backdrop only */
+  --accent:#ff9447; --neon:#50fa7b; --sky:#53bdfa; --rule:#f75341; --focus:var(--neon);
+  --good:#50fa7b; --bad:#f75341;
+  /* chart series */
+  --s1:#dc741f; --s2:#2e9ed9; --s3:#04b247; --s4:#a57bdf;
+  --sev1:#d9412f; --sev2:#ee8a3a; --sev3:#f6c95a; --sev4:#857868;
+  --o1:#884202; --o2:#a95403; --o3:#cb6605; --o4:#e87f2e; --o5:#fe9b57;
+  /* backdrop */
+  --glow-a:color-mix(in srgb,var(--accent) 11%,transparent); --glow-b:color-mix(in srgb,var(--sky) 5%,transparent); --glow-c:color-mix(in srgb,var(--neon) 3%,transparent);
+  /* corners: square by default. The dock's "round" (--tw-r above 1) is the only thing that turns them on */
+  --r:calc(8px * max(0, var(--tw-r, 1) - 1));
+  --mr:calc(3px * max(0, var(--tw-r, 1) - 1));
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{background:var(--bg);scroll-behavior:smooth;scroll-padding-top:72px;-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:transparent;color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+/* the hint of gradient: three soft glows and a grain, fixed behind everything */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .99 0 0 0 0 .91 0 0 0 0 .76 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+  radial-gradient(760px 520px at 92% -6%,var(--glow-a),transparent 68%),
+  radial-gradient(820px 620px at -8% 42%,var(--glow-b),transparent 66%),
+  radial-gradient(900px 640px at 64% 108%,var(--glow-c),transparent 64%)}
+a{color:inherit}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
+.wrap{width:100%;max-width:75rem;margin-inline:auto;padding-inline:24px}
+
+/* ---------- top bar ---------- */
+.top{position:sticky;top:0;z-index:40;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--bg) 84%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.top-in{display:flex;align-items:center;gap:20px;min-height:56px}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none;margin-right:auto}
+/* a placeholder mark: swap the svg for your own */
+.brand svg{display:block;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 60%,transparent);border-radius:var(--r)}
+.brand span{font-size:13.6px;font-weight:700;letter-spacing:.15em;text-transform:uppercase}
+.brand em{font-family:var(--mono);font-style:normal;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding-left:12px;border-left:1px solid var(--line-2)}
+.nav{display:flex;gap:6px}
+.nav a{font-family:var(--mono);font-size:11.2px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;color:var(--muted);padding:3px 8px;border:1px solid color-mix(in srgb,var(--muted) 30%,transparent);border-radius:var(--r);transition:color .2s,border-color .2s}
+.nav a:hover{color:var(--ink);border-color:var(--line-2)}
+.seg{display:flex;border:1px solid var(--line-2);border-radius:var(--r)}
+.seg button{all:unset;box-sizing:border-box;cursor:pointer;font-family:var(--mono);font-size:11.2px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:5px 11px;transition:color .2s,background-color .2s}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{color:var(--ink);background:color-mix(in srgb,var(--accent) 16%,transparent);box-shadow:inset 0 -1px 0 var(--accent)}
+.seg button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* ---------- type ---------- */
+.eyebrow{margin:0;color:color-mix(in srgb,var(--body) 72%,transparent);font-size:13.6px;font-style:italic;font-weight:300}
+.eyebrow::before{content:"// "}
+h1,h2,h3{margin:0;font-family:var(--sans);font-weight:700;text-transform:uppercase;color:var(--ink)}
+h1{margin-top:14px;font-size:clamp(30px,4.6vw,48px);line-height:1.08;letter-spacing:.08em;text-wrap:balance}
+h2{margin-top:10px;font-size:clamp(24px,3.2vw,32px);line-height:1.2;letter-spacing:.08em}
+h3{font-size:15.2px;line-height:1.45;letter-spacing:.1em}
+.rule{width:48px;height:1px;margin-top:12px;background:var(--rule)}
+.lede{margin:18px 0 0;max-width:44rem;color:var(--body);font-size:17px;line-height:1.7;text-wrap:pretty}
+.lede b{color:var(--ink);font-weight:500}
+
+/* ---------- hero ---------- */
+.hero{padding:56px 0 36px}
+.hero-top{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:40px;align-items:end}
+.hero h1{padding-bottom:18px;border-bottom:1px solid var(--line)}
+.scope{padding:16px 18px;border:1px solid var(--line);border-radius:var(--r);background:linear-gradient(180deg,var(--card),var(--card-2))}
+.scope-k{margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.scope dl{display:flex;flex-wrap:wrap;gap:6px 22px;margin:10px 0 0}
+.scope dl div{display:flex;align-items:baseline;gap:6px}
+.scope dd{margin:0;font-size:20px;font-weight:600;letter-spacing:-.02em;color:var(--ink)}
+.scope dt{order:2;font-size:13px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding-inline:8px;border:1px solid var(--line);border-radius:var(--r);background:rgba(252,232,195,.03);font-family:var(--mono);font-size:11px;color:var(--muted)}
+.chip i{width:6px;height:6px;border-radius:50%}
+.chip b{font-weight:400;color:var(--ink)}
+
+/* ---------- stat tiles ---------- */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:32px}
+.kpi{min-width:0;padding:16px 16px 12px;border:1px solid var(--line);border-radius:var(--r);background:linear-gradient(180deg,var(--card),var(--card-2));transition:border-color .25s}
+.kpi:hover{border-color:rgba(252,232,195,.18)}
+.kl{margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.kv{margin:8px 0 0;font-size:34px;font-weight:600;line-height:1.1;letter-spacing:-.02em;color:var(--ink)}
+.kv small{margin-left:3px;font-size:17px;font-weight:500;color:var(--body);letter-spacing:0}
+.kd{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:8px 0 0;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.kd b{font-weight:500;color:var(--body)}
+.kd b.good{color:var(--good)} .kd b.bad{color:var(--bad)}
+.kpi svg{display:block;margin:12px 0 0;overflow:visible}
+.sp-l{fill:none;stroke:var(--muted);stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
+.sp-e{fill:var(--accent);stroke:var(--bg);stroke-width:2}
+
+/* ---------- sections and cards ---------- */
+.sec{padding:44px 0 52px;border-top:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px;margin-top:28px}
+.card{display:flex;flex-direction:column;min-width:0;padding:16px;border:1px solid var(--line);border-radius:var(--r);background:linear-gradient(180deg,var(--card),var(--card-2));transition:border-color .25s}
+.card:hover{border-color:rgba(252,232,195,.18)}
+.s3{grid-column:span 3}.s4{grid-column:span 4}.s5{grid-column:span 5}.s6{grid-column:span 6}.s7{grid-column:span 7}.s8{grid-column:span 8}.s12{grid-column:span 12}
+.ch{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.ch h3{display:flex;align-items:baseline;gap:10px}
+.dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--accent);transform:translateY(-1px)}
+.form{margin:4px 0 0 17px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.tb{all:unset;box-sizing:border-box;flex:none;cursor:pointer;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:4px 8px;border:1px solid var(--line);border-radius:var(--r);transition:color .2s,border-color .2s,background-color .2s}
+.tb:hover{color:var(--ink);border-color:var(--line-2)}
+.tb[aria-pressed="true"]{color:var(--ink);border-color:var(--line-2);background:rgba(252,232,195,.07)}
+.tb:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.cap{margin:10px 0 0;color:var(--body);font-size:14.5px;line-height:1.55;text-wrap:pretty}
+.lg{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--body)}
+.lg:empty{display:none}
+.lg span{display:inline-flex;align-items:center;gap:7px}
+.lg b{font-weight:400;color:var(--muted)}
+.sw{flex:none;width:9px;height:9px;border-radius:var(--mr);background:var(--c)}
+.sw.l{width:14px;height:2px}
+.sw.d{transform:rotate(45deg) scale(.86)}
+.sw.o{background:transparent;box-shadow:inset 0 0 0 1.5px var(--c)}
+.sw.t{width:2px;height:11px}
+
+/* ---------- figure panel ---------- */
+.fig{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;margin-top:14px;padding:14px 14px 10px;border:1px solid var(--hair);border-radius:var(--r);background:var(--fig);cursor:default}
+.fig:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.fig[hidden]{display:none}
+.plot{min-width:0}
+.fig svg{display:block;overflow:visible}
+.fig text{font-family:var(--mono);font-size:10.5px;fill:var(--muted);font-variant-numeric:tabular-nums}
+.fig .lb{fill:var(--body)}
+.fig .vl{fill:var(--ink)}
+.fig .in{fill:var(--on-fill);font-weight:500}
+.fig .big{font-family:var(--sans);font-size:30px;font-weight:600;letter-spacing:-.02em;fill:var(--ink);font-variant-numeric:normal}
+.fig .grid-l{stroke:var(--grid);stroke-width:1;shape-rendering:crispEdges}
+.fig .axis{stroke:var(--axis);stroke-width:1;shape-rendering:crispEdges}
+.fig .ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.fig .hair{fill:none;stroke:var(--line-2);stroke-width:1}
+.fig .bar,.fig .cell{rx:var(--mr)}
+.fig .gap{stroke:var(--fig-solid);stroke-width:2}
+.fig .soft{fill-opacity:.84}
+.fig .ring{stroke:var(--fig-solid);stroke-width:2;paint-order:stroke}
+.fig .hit{fill:transparent;stroke:none}
+.fig [data-i]{transition:opacity .15s,filter .15s}
+.fig .on{filter:brightness(1.22) saturate(1.08)}
+.fig.dim [data-i]:not(.on):not(.hit){opacity:.38}
+.fig .xh{stroke:var(--line-2);stroke-width:1;shape-rendering:crispEdges}
+.fig .mk{stroke:var(--fig-solid);stroke-width:2}
+.fig .hov{pointer-events:none}
+.fig .halo{paint-order:stroke;stroke:var(--fig-solid);stroke-width:3px;stroke-linejoin:round}
+.fig .band{fill-opacity:.34;transition:fill-opacity .15s,opacity .15s}
+.fig .band.on{fill-opacity:.72;filter:none}
+
+/* ---------- table view ---------- */
+.tv{flex:1;margin-top:14px;border:1px solid var(--hair);border-radius:var(--r);background:var(--fig);overflow:auto}
+.tv[hidden]{display:none}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--hair)}
+th:first-child,td:first-child{text-align:left}
+thead th{position:sticky;top:0;z-index:1;background:var(--pop);color:var(--muted);font-weight:400;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase}
+tbody td{color:var(--body)}
+tbody td:first-child{color:var(--ink)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:rgba(252,232,195,.03)}
+/* the projects table: a table with small charts in its cells */
+.ptab th,.ptab td{padding:10px 14px}
+.ptab td.c{text-align:left}
+.ptab th.c{text-align:left}
+.ptab svg{display:block;overflow:visible}
+.mix{display:flex;gap:2px;width:100%;min-width:120px;height:8px}
+.mix i{display:block;height:100%;background:var(--c);border-radius:var(--mr)}
+
+/* ---------- records table: search, a segmented filter, choosers, sortable columns, pages (see recordsTable in the script) ---------- */
+.rt{margin-top:14px}
+.rt-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}
+.rt-search{display:flex;align-items:center;gap:8px;flex:1 1 200px;max-width:280px;height:30px;padding:0 10px;border:1px solid var(--line-2);border-radius:var(--r);color:var(--muted);cursor:text;transition:color .2s,border-color .2s}
+.rt-search:hover{border-color:color-mix(in srgb,var(--ink) 36%,transparent)}
+.rt-search:focus-within{border-color:var(--accent);color:var(--ink)}
+.rt-search svg{flex:none;width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
+.rt-search input{all:unset;flex:1;min-width:0;font-family:var(--mono);font-size:11.5px;color:var(--ink)}
+.rt-search input::placeholder{color:var(--muted);font-size:11.2px;letter-spacing:.1em;text-transform:uppercase}
+.rt-search input::-webkit-search-cancel-button{display:none}
+.rt-seg{max-width:100%;overflow-x:auto;scrollbar-width:none}
+.rt-seg button{flex:none}
+.rt-seg b{margin-left:7px;font-weight:400;font-variant-numeric:tabular-nums;color:var(--faint)}
+.rt-seg button[aria-pressed="true"] b{color:var(--body)}
+.rt-pick{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 10px;border:1px solid var(--line-2);border-radius:var(--r);font-family:var(--mono);font-size:11.2px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;color:var(--muted);transition:color .2s,border-color .2s,background-color .2s}
+.rt-pick b{max-width:18ch;overflow:hidden;text-overflow:ellipsis;font-weight:400;color:var(--ink)}
+.rt-pick i{width:0;height:0;margin-top:1px;border:3.5px solid transparent;border-top:4px solid currentColor;border-bottom:0}
+.rt-pick:hover,.rt-pick[aria-expanded="true"]{border-color:color-mix(in srgb,var(--ink) 36%,transparent);color:var(--ink)}
+.rt-pick.on{background:color-mix(in srgb,var(--accent) 16%,transparent);box-shadow:inset 0 -1px 0 var(--accent)}
+.rt-reset{margin-left:auto;padding:5px 9px}
+.rt-reset[hidden]{display:none}
+.rt-scroll{margin-top:12px;border:1px solid var(--hair);border-radius:var(--r);background:var(--fig);overflow-x:auto}
+.rt-table th,.rt-table td{padding:9px 14px;text-align:left}
+.rt-table .num{text-align:right}
+.rt-table th button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:color .2s}
+.rt-table th.num button{flex-direction:row-reverse}
+.rt-table th button:hover,.rt-table th[aria-sort$="ending"] button{color:var(--ink)}
+.rt-table th i{width:0;height:0;border:3.5px solid transparent;border-bottom:4.5px solid currentColor;border-top:0;opacity:0;transition:opacity .15s}
+.rt-table th button:hover i{opacity:.45}
+.rt-table th[aria-sort$="ending"] i{opacity:1}
+.rt-table th[aria-sort="descending"] i{transform:rotate(180deg)}
+.rt-table td b{font-weight:500;color:var(--ink)}
+.rt-table td small{margin-left:9px;font-size:inherit;color:var(--muted)}
+.rt-sev{display:inline-flex;align-items:center;gap:8px;color:var(--ink)}
+.rt-sev i{flex:none;width:7px;height:7px;border-radius:50%;background:var(--c)}
+.rt-cvss{display:inline-flex;align-items:center;gap:10px}
+.rt-cvss i{display:block;width:46px;height:4px;border-radius:var(--mr);background:linear-gradient(90deg,var(--c) var(--v),color-mix(in srgb,var(--ink) 10%,transparent) 0)}
+.rt-st{display:inline-flex;align-items:center;gap:7px;padding:0 7px;border:1px solid var(--line);border-radius:var(--r);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--body)}
+.rt-st::before{content:"";width:5px;height:5px;border-radius:var(--mr);background:var(--c)}
+.rt-st.open{--c:var(--accent);color:var(--ink)} .rt-st.fixed{--c:var(--good)} .rt-st.accepted{--c:var(--faint);color:var(--muted)}
+.rt-none td{padding:32px 14px;text-align:center;color:var(--muted)}
+.rt-none:hover td{background:none}
+.rt-clear{all:unset;cursor:pointer;margin-left:6px;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.rt-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.rt-pager{display:flex;align-items:center;gap:8px}
+.rt-page{min-width:6ch;text-align:center;font-variant-numeric:tabular-nums;color:var(--body)}
+.rt-step{all:unset;box-sizing:border-box;cursor:pointer;display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--line-2);border-radius:var(--r);color:var(--muted);transition:color .2s,border-color .2s}
+.rt-step svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.rt-step:hover{color:var(--ink);border-color:color-mix(in srgb,var(--ink) 36%,transparent)}
+.rt-step:disabled{opacity:.35;pointer-events:none}
+.rt :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.rt-search input:focus-visible{outline:0}
+.rt-menu{position:fixed;z-index:70;box-sizing:border-box;min-width:150px;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain;padding:4px;border:1px solid var(--line-2);border-radius:var(--r);background:var(--pop);box-shadow:0 14px 32px -12px rgba(0,0,0,.6);font-family:var(--mono);font-size:11.5px;color:var(--body);outline:0;scrollbar-width:thin;-webkit-user-select:none;user-select:none}
+.rt-menu[hidden]{display:none}
+.rt-menu [role="option"]{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:6px 9px;border-radius:var(--mr);white-space:nowrap;cursor:pointer}
+.rt-menu [role="option"].act{background:color-mix(in srgb,var(--ink) 9%,transparent);color:var(--ink)}
+.rt-menu [role="option"][aria-selected="true"]{color:var(--accent)}
+.rt-menu b{font-weight:400;font-variant-numeric:tabular-nums;color:var(--muted)}
+
+/* ---------- tooltip ---------- */
+.tip{position:fixed;left:0;top:0;z-index:60;min-width:132px;max-width:280px;padding:9px 11px;border:1px solid var(--line-2);border-radius:var(--r);background:var(--pop);box-shadow:0 14px 32px -12px rgba(0,0,0,.6);font-family:var(--mono);font-size:11.5px;line-height:1.4;color:var(--body);pointer-events:none;opacity:0;transition:opacity .12s}
+.tip.show{opacity:1}
+.tip-t{margin:0 0 6px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tip-r{display:flex;align-items:center;gap:8px}
+.tip-r+.tip-r{margin-top:3px}
+.tip-r i{flex:none;width:10px;height:2px;background:var(--c)}
+.tip-r i.none{background:transparent}
+.tip-r b{order:2;margin-left:auto;padding-left:14px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* ---------- footer ---------- */
+.foot{padding:28px 0 40px;border-top:1px solid var(--line);color:var(--muted);font-size:13.5px}
+.foot .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px}
+.foot b{font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--ink);font-size:12.5px}
+.foot code{font-family:var(--mono);font-size:12px;color:var(--body)}
+
+/* ---------- derived light themes (tweak dock) ---------- */
+html[data-tw-mode="light"] .card:hover,html[data-tw-mode="light"] .kpi:hover{border-color:var(--line-2)}
+html[data-tw-mode="light"] :is(.tip,.rt-menu){box-shadow:0 14px 32px -14px rgba(0,0,0,.28)}
+html[data-tw-mode="light"] .fig .on{filter:brightness(.9) saturate(1.1)}
+
+@media (max-width:1080px){
+  .s3,.s4,.s5{grid-column:span 6}.s7,.s8{grid-column:span 12}
+  .t6{grid-column:span 6}.t12{grid-column:span 12}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .nav{display:none}
+}
+@media (max-width:720px){
+  .wrap{padding-inline:16px}
+  .hero{padding:36px 0 28px}
+  .hero-top{grid-template-columns:1fr;gap:24px}
+  .s3,.s4,.s5,.s6,.t6{grid-column:span 12}
+  .brand em{display:none}
+  .rt-search{flex-basis:100%;max-width:none}
+  .kv{font-size:28px}
+  .sec{padding:36px 0 40px}
+}
+@media (max-width:420px){.kpis{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;scroll-behavior:auto!important}}
+@media print{.top{position:static}.tb,.seg,.rt-bar,.rt-pager{display:none}body::before{display:none}}
+</style>
+<!-- tweaks:start -->
+<script>
+/* how this page's tokens line up with the shared tweak palettes.
+   The page ships a dark palette only, so every light theme comes from map(). */
+window.TWEAK_PAGE = {
+  key: 'vigolium-charts',
+  modes: ['dark'],
+  getMode: () => 'dark',
+  setMode: () => {},
+  sans: '--sans', mono: '--mono',
+  /* no scale.r: the page's --r and --mr read the dock's --tw-r themselves, so corners stay square on "default" and "sharp" and only "round" turns them on */
+  chrome: { bg: 'var(--pop)', fg: 'var(--ink)', dim: 'var(--muted)', line: 'var(--line-2)', hover: 'color-mix(in srgb, var(--ink) 9%, transparent)', accent: 'var(--accent)' },
+  accentOwn: { dark: '#ff9447' },
+  /* the page's own colours in palette order (app surf raised inset hover line line2 text text2 dim green red yellow blue magenta warn); used for glass */
+  own: { dark: '1c1b19 201f1c 262420 181715 2b2925 2f2c27 4a453c fce8c3 c4b291 6b6258 50fa7b f75341 fbb829 53bdfa bd93f9 ff9447' },
+  map: (p, mix) => {
+    const light = p.mode === 'light';
+    const out = {
+      '--bg': p.app, '--card': p.surf, '--card-2': p.surf, '--fig': p.inset, '--fig-solid': p.glass ? p.app : p.inset, '--pop': p.glass ? mix(p.solid, 90) : p.raised,
+      '--line': mix(p.text, light ? 11 : 9), '--line-2': mix(p.text, light ? 24 : 20), '--hair': mix(p.text, light ? 8 : 6),
+      '--grid': mix(p.text, light ? 9 : 7), '--axis': mix(p.text, light ? 26 : 20),
+      '--ink': p.text, '--body': p.text2, '--muted': mix(p.text2, 72, p.dim), '--faint': p.dim,
+      '--neon': p.green, '--sky': p.blue, '--rule': p.red, '--good': p.green, '--bad': p.red,
+    };
+    /* the series were checked as sets: the dark set is the page's own, this one is the same hues stepped for a pale surface */
+    if (light) Object.assign(out, {
+      '--s1': '#c36101', '--s2': '#058ac4', '--s3': '#009b3d', '--s4': '#9167c9',
+      '--sev1': '#c8321f', '--sev2': '#e67f2a', '--sev3': '#f2c744', '--sev4': '#8f877c',
+      '--o1': '#f68b3d', '--o2': '#da721c', '--o3': '#ba5d04', '--o4': '#984b03', '--o5': '#783a02',
+    });
+    return out;
+  },
+  /* the accent is chrome only (range switch, dots, the brand frame, the backdrop glow): the chart series keep their checked colours */
+  accent: c => ({ '--accent': c }),
+  gutter: { own: 'boxed', css: 'html[data-tw-gutter="full-width"] .wrap{max-width:none}' },
+  glass: '.tip, .top, .rt-menu', /* only boxes that float over other content */
+};
+</script>
+<style id="tw-css">
+/* tweak dock: same controls as the terminal design system's config bar. Colours come from --tw-* so it follows whatever theme is active. */
+.tw{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:900;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px 10px;width:max-content;max-width:calc(100vw - 24px);padding:4px 6px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-dim);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+html[data-tw-surface="glass"] .tw{-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}
+.tw[hidden],.tw-chip[hidden]{display:none}
+.tw-ctl{display:flex;align-items:center;gap:6px;height:24px;padding:0 4px;white-space:nowrap}
+.tw button,.tw-chip{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* a chooser is a button showing its value; its list is .tw-menu below, drawn by the page, never the system's popup */
+.tw button.tw-val{display:inline-block;vertical-align:middle;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tw-fg);padding:4px 14px 4px 0;background:linear-gradient(45deg,transparent 50%,var(--tw-dim) 50%) calc(100% - 4px) 55%/4px 4px no-repeat,linear-gradient(135deg,var(--tw-dim) 50%,transparent 50%) 100% 55%/4px 4px no-repeat}
+.tw button.tw-val:hover,.tw button.tw-val[aria-expanded="true"]{color:var(--tw-acc)}
+.tw-seg{display:flex;gap:2px}
+.tw-seg button{padding:4px 7px;border-radius:4px;color:var(--tw-fg);opacity:.72}
+.tw-seg button:hover{background:var(--tw-hover);opacity:1}
+.tw-seg button[aria-pressed="true"]{background:var(--tw-hover);color:var(--tw-acc);font-weight:700;opacity:1}
+.tw-sws{display:flex;align-items:center;gap:8px}
+.tw button.tw-sw{width:11px;height:11px;border-radius:50%;background:var(--c);outline:1px solid transparent;outline-offset:2px}
+.tw button.tw-sw[aria-pressed="true"]{outline-color:var(--tw-fg)}
+.tw button.tw-x{margin-left:2px;padding:4px 7px;border-radius:4px;color:var(--tw-dim)}
+.tw button.tw-x:hover{background:var(--tw-hover);color:var(--tw-fg)}
+.tw button:focus-visible,.tw-chip:focus-visible{outline:2px solid var(--tw-acc);outline-offset:2px}
+.tw-chip{position:fixed;right:12px;bottom:12px;z-index:900;padding:7px 10px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+.tw-chip:hover{color:var(--tw-acc)}
+.tw-space{height:56px}
+.tw-menu{position:fixed;z-index:901;box-sizing:border-box;min-width:132px;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain;padding:4px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-menu);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;text-align:left;box-shadow:0 16px 40px -14px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.14);outline:0;scrollbar-width:thin;scrollbar-color:var(--tw-dim) transparent;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.tw-menu[hidden]{display:none}
+.tw-menu [role="option"]{display:flex;align-items:center;gap:8px;padding:7px 12px 7px 8px;border-radius:4px;white-space:nowrap;cursor:pointer}
+.tw-menu [role="option"].act{background:var(--tw-hover)}
+.tw-menu [role="option"][aria-selected="true"]{color:var(--tw-acc);font-weight:700}
+.tw-menu .tw-grp{padding:9px 8px 5px;color:var(--tw-dim);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.tw-dot{flex:none;width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--a) 50%,var(--b) 50%);box-shadow:0 0 0 1px var(--tw-line)} /* a theme's surface and primary */
+@media (max-width:720px){.tw{left:8px;right:8px;bottom:8px;transform:none;width:auto;max-width:none;justify-content:flex-start}.tw-ctl{height:30px}.tw-space{height:150px}.tw-menu [role="option"]{padding-block:10px}}
+@media print{.tw,.tw-chip,.tw-space,.tw-menu{display:none}}
+/* glass surface: a soft backdrop behind translucent panels */
+html[data-tw-surface="glass"]{background:var(--tw-app)!important}
+html[data-tw-surface="glass"] body{background:transparent!important}
+html[data-tw-surface="glass"]::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 50% at 18% 0%,color-mix(in srgb,var(--tw-acc) 16%,transparent),transparent 70%),radial-gradient(50% 45% at 100% 100%,color-mix(in srgb,var(--tw-warn) 13%,transparent),transparent 70%)}
+</style>
+<script id="tw-js">
+/* Tweaks: mode / theme / surface / font / size / corners / density / gutter / accent. All but gutter are the terminal design system page's controls.
+   Each page describes itself in window.TWEAK_PAGE (which of its tokens mean what); everything else here is shared.
+   With every control on its default the page's own CSS is untouched.
+   The look is also written to the address as ?mode=&theme=&surface=&font=&size=&corners=&density=&gutter=&accent=, and read back from it, so a link carries it. */
+(function(){
+'use strict';
+const P = window.TWEAK_PAGE, root = document.documentElement, KEY = 'artikit-tweaks:' + P.key;
+/* palettes, in this order: */
+const ROLES = ['app','surf','raised','inset','hover','line','line2','text','text2','dim','green','red','yellow','blue','magenta','warn','primary']; /* primary: the hue a theme is known by. It is the theme's accent until the accent control picks another */
+const THEMES = {
+ "dark": {
+  "Copperplate": "14100b 1a150e 241d14 100c08 2c2418 332917 54432a ead9c0 b59c7a 77664c a4c26f e0705a d8a24a 8aa8bd c98da4 cf8236 cf8236",
+  "Midnight": "0d0d13 16161e 1d1d28 12121a 232330 2a2a38 383848 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f 6f9ef1",
+  "Graphite": "101012 151517 1c1c1f 0c0c0e 232326 2a2a2e 3a3a40 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f b9c0d0",
+  "Phosphor": "060a06 0a120a 101a10 050905 152415 1c301c 2a462a b8e0b0 7aa874 4a6a46 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f 78d670",
+  "Dracula": "1e1f29 282a36 343746 21222c 3c3f52 3a3d4f 4d5069 f8f8f2 a8abc7 6272a4 50fa7b ff5555 f1fa8c 8be9fd ff79c6 ffb86c bd93f9",
+  "Nord": "242933 2e3440 3b4252 272c37 434c5e 3b4252 4c566a e5e9f0 aeb8cc 616e88 a3be8c bf616a ebcb8b 81a1c1 b48ead d08770 88c0d0",
+  "Solarized Dark": "00212b 002b36 073642 001f27 0a4050 073642 586e75 93a1a1 839496 586e75 859900 dc322f b58900 268bd2 d33682 cb4b16 2aa198",
+  "Tidewatch": "0a1220 0e1728 16233a 091020 1c2c47 1e2f4a 2e4368 d7e3f2 93a8c4 54688a 4fd6be ff6b7f e5c07b 56b3fa c792ea e5a45b 4fd6be",
+  "Iris": "14121f 191627 221e35 110f1c 2a2542 2b2545 413866 e6e1f5 a79fc7 675f8a 72e0a5 ff6b9d f0c674 82aaff c792ea f0a35e a99cf5",
+  "Emberline": "0c1210 101915 18241e 0a0f0d 1f2e26 22332a 35503f d8e6dc 96ad9d 587263 7fce6f f26d4f f0a848 6db2c9 d78ab0 f08c3a f08c3a",
+  "Oceanic": "0b141f 0f1a29 172538 0a111c 1d3049 203450 31507a d9e6f5 8ea9c4 526b88 5fd39b f2708a e8c268 58a6ff bc8cff e09a4e 58a6ff",
+  "Grove": "0d130c 121a10 1a2618 0b100a 21301e 263a22 3b5a35 dde8d6 a2b797 647a5a 9ccb72 e06c5f d9b656 72aec4 c194bd d19042 9ccb72",
+  "Rosewire": "170f14 1e1319 291b23 130c10 32212b 36242e 523847 f0dfe8 bd9cab 7c6070 7fd2a0 ff5c8a e8b465 7ba6e0 e56ba8 e0955a ef6fa0",
+  "Halide": "0c0c0c 111111 1a1a1a 080808 222222 262626 3d3d3d e8e8e8 a0a0a0 606060 a9c4a9 cf9a9a c9bd9a 9ab1c4 bda4b8 c4ad8f c4ad8f"
+ },
+ "light": {
+  "Porcelain": "efece8 fbf9f6 ffffff f4f1ec e9e5df ddd8d0 c2bab0 33302b 6b655c a39c90 3d8b3d c53a3a a37414 3565c0 ad3d8d bb6a1e 3565c0",
+  "Paper": "eceff1 fafbfc ffffff f0f2f4 e4e8ec d5dade b8c0c8 2a3138 5a656e 9aa4ac 188038 c5221f a86a00 1a63d0 b8207e c26401 1a63d0",
+  "Solarized Light": "eee8d5 fdf6e3 ffffff f3edda e8e1cc ddd6c1 c0b99f 586e75 657b83 93a1a1 859900 dc322f b58900 268bd2 d33682 cb4b16 1b817a",
+  "Frost": "e8edf3 f6f9fc ffffff eef2f7 dfe7ef d0dae4 aabccd 26313c 54687a 93a5b5 2e9440 d13b45 ad7a12 3a6ec4 b8459a c47222 2b7a9e",
+  "Dawn": "f2eae8 fcf7f5 ffffff f5edeb ecdfdc e2d3cf c8b1ab 3a2d2a 75605b ab948e 2c8a44 cc3344 a86e10 3565c0 c03a7e bd6420 c2456b",
+  "Linen": "efe9dd faf6ec fffdf6 f3eee1 e8e1d0 ded5c1 bfb298 38321f 6e6650 a49a80 4c7f22 bd3e2e 976a08 2e6a9e a5498a af6a12 a4532a",
+  "Sage": "e9eee6 f6f9f3 ffffff eef3ea dfe7da d2ddcb adbfa3 2b352a 5c6c58 93a58c 347a34 c04040 9c7212 33689e 9c4a8a b06a1c 347a34",
+  "Lavender": "edeaf3 f9f7fc ffffff f2eff7 e4dfee d9d3e4 b5aacb 312b3d 655c78 a096b3 2f8a48 cc3550 a06d10 4a5ecc a63cae bb681e 6d55c9"
+ }
+};
+const ACCENTS = { cyan:['#66c7d6','#1a7f8e'], green:['#78d670','#2f8a3a'], magenta:['#ec6bb4','#b8328a'], blue:['#6f9ef1','#3565c0'], orange:['#e2953f','#b5651a'] };
+const FONTS = { mono:['JetBrains Mono','Fira Code','IBM Plex Mono','Source Code Pro','Space Mono','Inconsolata','Ubuntu Mono','Victor Mono','Red Hat Mono'], sans:['Inter','Geist','IBM Plex Sans','Hanken Grotesk','Figtree','Manrope'] };
+const TWO_WEIGHTS = ['Space Mono','Ubuntu Mono']; /* static families with only regular and bold */
+const GUTTERS = ['boxed', 'full-width'], OWN_GUTTER = P.gutter ? P.gutter.own : null; /* P.gutter: { own: which of the two the page ships, css: rules for the other, keyed on html[data-tw-gutter] } */
+const SIZE = { small:.9, default:1, large:1.12, 'x-large':1.25 }, CORNER = { sharp:0, default:1, round:1.8 }, DENSITY = { compact:.72, default:1, relaxed:1.32 };
+const pal = s => Object.fromEntries(s.split(' ').map((h, i) => [ROLES[i], '#' + h]));
+const mix = (a, pct, b) => `color-mix(in srgb, ${a} ${pct}%, ${b || 'transparent'})`;
+
+/* ---- one pass over the page's own rules: px font sizes, radii and spacing get a multiplier that defaults to 1,
+        so nothing moves until size, corners or density is changed ---- */
+const FAMILY = [[/^font-size$/, 'fs'], [/^border-(top|bottom|start|end)-(left|right|start|end)-radius$/, 'r'], [/^(padding|margin)-(top|right|bottom|left|block-start|block-end|inline-start|inline-end)$|^(row|column)-gap$/, 'd']];
+const PX = /-?\d*\.?\d+px/g, tokens = P.scale || {};
+/* negative margins are left alone: they pull a box out to an edge whose gutter is fixed, so scaling them would overshoot */
+const scaled = (v, k) => v.replace(PX, m => parseFloat(m) > 0 ? `calc(${m}*var(--tw-${k},1))` : m);
+(function walk(rules){
+  for (const r of rules){
+    if (r instanceof CSSKeyframesRule) continue;
+    const st = r.style;
+    if (st) for (const prop of Array.from(st)){
+      const k = prop.startsWith('--') ? Object.keys(tokens).find(k => tokens[k].includes(prop)) : (FAMILY.find(f => f[0].test(prop)) || [])[1];
+      if (!k) continue;
+      const v = st.getPropertyValue(prop);
+      if (v && !v.includes('--tw-') && v.search(PX) >= 0) st.setProperty(prop, scaled(v, k), st.getPropertyPriority(prop));
+    }
+    if (r.cssRules && r.cssRules.length) walk(r.cssRules);
+  }
+})(Array.from(document.styleSheets).flatMap(s => { try { return s.ownerNode && s.ownerNode.id === 'tw-css' ? [] : Array.from(s.cssRules); } catch (e) { return []; } }));
+
+/* ---- state ---- */
+const themesFor = m => (P.modes.includes(m) ? ['page'] : []).concat(Object.keys(THEMES[m]));
+const cfg = { mode: P.getMode(), theme: null, surface: 'solid', font: 'default', size: 'default', corner: 'default', density: 'default', gutter: OWN_GUTTER, accent: 'page', open: null };
+/* one address parameter per control. Values are matched loosely (case, spaces and dashes ignored); "default" means the page's own */
+const QK = { mode: 'mode', theme: 'theme', surface: 'surface', font: 'font', size: 'size', corner: 'corners', density: 'density', gutter: 'gutter', accent: 'accent' };
+const norm = v => String(v).toLowerCase().replace(/[^a-z0-9]+/g, ''), among = (v, list) => list.find(o => norm(o) === norm(v));
+function fromURL(){
+  let q; try { q = new URLSearchParams(location.search); } catch (e) { return null; }
+  if (!Object.values(QK).some(name => q.has(name))) return null;
+  const g = k => q.get(QK[k]) || '', own = v => ['default', 'page', 'pagedefault'].includes(norm(v)), th = g('theme');
+  /* a link is a complete look: anything it leaves out is the default, not what this browser had saved */
+  const out = { mode: among(g('mode'), ['dark', 'light']) || (own(th) ? null : ['dark', 'light'].find(m => among(th, Object.keys(THEMES[m])))) || cfg.mode }; /* ?theme=Nord alone implies dark */
+  out.theme = own(th) ? 'page' : among(th, Object.keys(THEMES[out.mode])) || null;
+  out.surface = among(g('surface'), ['solid', 'glass']) || 'solid';
+  out.font = among(g('font'), FONTS.mono.concat(FONTS.sans)) || 'default';
+  out.size = among(g('size'), Object.keys(SIZE)) || 'default'; out.corner = among(g('corner'), Object.keys(CORNER)) || 'default'; out.density = among(g('density'), Object.keys(DENSITY)) || 'default';
+  out.accent = among(g('accent'), Object.keys(ACCENTS)) || 'page';
+  out.gutter = among(g('gutter'), GUTTERS) || (norm(g('gutter')) === 'full' ? 'full-width' : OWN_GUTTER);
+  return out;
+}
+let inURL = false;
+function toURL(){
+  try {
+    const q = new URLSearchParams(location.search);
+    for (const k in QK) if (cfg[k] != null) q.set(QK[k], cfg[k] === 'page' ? 'default' : cfg[k]);
+    history.replaceState(history.state, '', '?' + q + location.hash); inURL = true; /* the page's own #section stays */
+  } catch (e) {}
+}
+let stored = {}; try { stored = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+const linked = fromURL();
+Object.assign(cfg, linked ? { ...linked, open: stored.open == null ? null : stored.open } : stored);
+function settle(){
+  if (!THEMES[cfg.mode]) cfg.mode = P.getMode();
+  if (!themesFor(cfg.mode).includes(cfg.theme)) cfg.theme = themesFor(cfg.mode)[0];
+  if (cfg.surface !== 'glass') cfg.surface = 'solid';
+  if (cfg.font !== 'default' && !FONTS.mono.concat(FONTS.sans).includes(cfg.font)) cfg.font = 'default';
+  if (!(cfg.size in SIZE)) cfg.size = 'default'; if (!(cfg.corner in CORNER)) cfg.corner = 'default'; if (!(cfg.density in DENSITY)) cfg.density = 'default';
+  if (cfg.accent !== 'page' && !ACCENTS[cfg.accent]) cfg.accent = 'page';
+  cfg.gutter = P.gutter ? (GUTTERS.includes(cfg.gutter) ? cfg.gutter : OWN_GUTTER) : null;
+}
+settle();
+
+/* glass: the page names which boxes are panels (they blur what is behind them) and which wrappers must stop painting an opaque fill.
+   gutter: the page gives the rules for the layout it does not ship (boxed for a full-width page, full-width for a boxed one) */
+if (P.glass || P.clear || P.gutter){
+  const st = document.createElement('style'); st.id = 'tw-dyn';
+  st.textContent = (P.glass ? `html[data-tw-surface="glass"] :is(${P.glass}){-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}` : '') +
+    (P.clear ? `html[data-tw-surface="glass"] :is(${P.clear}){background:transparent!important}` : '') + (P.gutter ? P.gutter.css : '');
+  document.head.append(st);
+}
+const applied = new Set(), loaded = new Set(); let baseAccent;
+function loadFont(name){
+  if (loaded.has(name)) return; loaded.add(name);
+  const l = document.createElement('link'); l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' + name.replace(/ /g, '+') + ':wght@' + (TWO_WEIGHTS.includes(name) ? '400;700' : '400;500;600;700') + '&display=swap';
+  document.head.append(l);
+}
+function apply(){
+  const c = cfg, light = c.mode === 'light', own = c.theme === 'page', glass = c.surface === 'glass';
+  applied.forEach(k => root.style.removeProperty(k)); applied.clear();
+  const put = (k, v) => { if (k && v != null){ root.style.setProperty(k, String(v)); applied.add(k); } }, putAll = o => Object.entries(o).forEach(([k, v]) => put(k, v));
+  P.setMode(c.mode);
+  root.dataset.twMode = c.mode; if (glass) root.dataset.twSurface = 'glass'; else delete root.dataset.twSurface;
+  if (P.gutter && c.gutter !== OWN_GUTTER) root.dataset.twGutter = c.gutter; else delete root.dataset.twGutter;
+  const accent = c.accent === 'page' ? null : ACCENTS[c.accent][light ? 1 : 0];
+  let chrome = P.chrome, warn = 'transparent', app = 'transparent', p = null, tokens = null; /* the palette in force and what map() made of it: both stay null while the page's own look is untouched */
+  baseAccent = P.accentOwn[c.mode] || P.accentOwn[P.modes[0]];
+  if (!own || glass){
+    p = pal(own ? P.own[c.mode] : THEMES[c.mode][c.theme]);
+    if (!p.primary) p.primary = own ? baseAccent : p.blue; /* the page's own palette lists sixteen colours: its primary is its accent */
+    p.solid = p.surf; p.mode = c.mode; p.glass = glass; app = p.app; warn = p.warn;
+    if (glass){ /* same recipe as the terminal kit: translucent surface, tinted raised/hover layers, hairlines from the text colour */
+      const t = p.text;
+      p.surf = mix(p.surf, light ? 64 : 72); p.raised = light ? 'rgba(255,255,255,.6)' : mix(t, 5); p.inset = light ? mix(t, 4) : 'rgba(0,0,0,.18)';
+      p.hover = mix(t, light ? 7 : 9); p.line = mix(t, light ? 10 : 9); p.line2 = mix(t, light ? 18 : 16);
+    }
+    putAll(tokens = P.map(p, mix));
+    put('color-scheme', c.mode);
+    chrome = { bg: glass ? mix(p.solid, 82) : p.raised, fg: p.text, dim: mix(p.text2, 62, p.dim), line: p.line2, hover: p.hover, accent: own ? P.accentOwn[c.mode] : p.primary, menu: p.solid };
+    if (!own) baseAccent = p.primary; /* a shared theme brings its own default accent: its primary */
+  }
+  const hue = accent || (own ? null : p.primary);
+  if (hue) putAll(P.accent(hue, mix, c.mode, p, tokens));
+  put('--tw-bg', chrome.bg); put('--tw-fg', chrome.fg); put('--tw-dim', chrome.dim); put('--tw-line', chrome.line); put('--tw-hover', chrome.hover);
+  put('--tw-acc', accent || chrome.accent); put('--tw-menu', chrome.menu || chrome.bg); put('--tw-app', app); put('--tw-warn', warn);
+  if (P.mono) put('--tw-font', `var(${P.mono})`);
+  if (c.font !== 'default'){
+    const mono = FONTS.mono.includes(c.font), stack = `"${c.font}",` + (mono ? 'ui-monospace,SFMono-Regular,Menlo,monospace' : 'system-ui,-apple-system,"Segoe UI",sans-serif');
+    loadFont(c.font); put(P.sans, stack); if (mono) put(P.mono, stack);
+  }
+  if (SIZE[c.size] !== 1) put('--tw-fs', SIZE[c.size]);
+  if (CORNER[c.corner] !== 1) put('--tw-r', CORNER[c.corner]);
+  if (DENSITY[c.density] !== 1) put('--tw-d', DENSITY[c.density]);
+}
+apply();
+if (linked || cfg.theme !== 'page' || cfg.surface !== 'solid' || cfg.accent !== 'page' || cfg.gutter !== OWN_GUTTER || ['font', 'size', 'corner', 'density'].some(k => cfg[k] !== 'default')) toURL();
+
+/* ---- dock ---- */
+let dock, chip, space;
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
+const seg = (k, opts) => `<span class="tw-seg">${opts.map(o => `<button type="button" data-k="${k}" data-v="${o}" aria-pressed="${cfg[k] === o}">${o}</button>`).join('')}</span>`;
+const NAME = { theme: 'theme', font: 'font', size: 'size', corner: 'corners', density: 'density' };
+const sw = (hexes, b) => { const h = hexes.split(' '); return { a: '#' + h[1], b: b || '#' + (h[16] || h[13]) }; }; /* surface + primary of a palette */
+const choices = k => k === 'theme' ? themesFor(cfg.mode).map(t => t === 'page' ? { v: t, label: 'page default', sw: P.own && P.own[cfg.mode] ? sw(P.own[cfg.mode], P.accentOwn[cfg.mode]) : null } : { v: t, label: t, sw: sw(THEMES[cfg.mode][t]) })
+  : k === 'font' ? [{ v: 'default', label: 'default' }, { group: 'mono, whole page' }].concat(FONTS.mono.map(f => ({ v: f, label: f })), [{ group: 'sans' }], FONTS.sans.map(f => ({ v: f, label: f })))
+  : Object.keys({ size: SIZE, corner: CORNER, density: DENSITY }[k]).map(o => ({ v: o, label: o }));
+const pick = k => { const now = (choices(k).find(o => o.v === cfg[k]) || { label: cfg[k] }).label; return `<button type="button" class="tw-val" data-k="${k}" aria-haspopup="listbox" aria-expanded="false" aria-controls="tw-menu" aria-label="${NAME[k]}: ${esc(now)}">${esc(now)}</button>`; };
+
+/* the list of a chooser: a listbox the page draws, so it wears the active theme. Arrow keys, Home/End, typing a name, Enter, Escape */
+let menu, menuFor = null, opts = [], at = -1, typed = '', typedAt = 0;
+function setAt(i, quiet){
+  at = i; opts.forEach((o, n) => o.classList.toggle('act', n === i));
+  const o = opts[i]; if (!o) return; menu.setAttribute('aria-activedescendant', o.id);
+  if (quiet) return; /* the pointer is already on it */
+  if (o.offsetTop < menu.scrollTop + 4) menu.scrollTop = o.offsetTop - 4; else if (o.offsetTop + o.offsetHeight > menu.scrollTop + menu.clientHeight - 4) menu.scrollTop = o.offsetTop + o.offsetHeight - menu.clientHeight + 4;
+}
+function place(){ /* above the control when the dock sits at the bottom, kept inside the window */
+  const r = menuFor.getBoundingClientRect(), up = r.top > innerHeight - r.bottom;
+  menu.style.minWidth = Math.max(132, Math.round(r.width) + 18) + 'px';
+  menu.style.maxHeight = Math.max(120, Math.min(480, (up ? r.top : innerHeight - r.bottom) - 14)) + 'px';
+  menu.style.left = Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, r.left - 9)) + 'px';
+  menu.style.top = up ? 'auto' : r.bottom + 6 + 'px'; menu.style.bottom = up ? innerHeight - r.top + 6 + 'px' : 'auto';
+}
+function openMenu(btn){
+  closeMenu(); const k = btn.dataset.k;
+  menu.innerHTML = choices(k).map((o, i) => o.group ? `<div class="tw-grp" role="presentation">${esc(o.group)}</div>` :
+    `<div role="option" id="tw-o${i}" data-v="${esc(o.v)}" aria-selected="${cfg[k] === o.v}">${o.sw ? `<i class="tw-dot" style="--a:${o.sw.a};--b:${o.sw.b}"></i>` : ''}${esc(o.label)}</div>`).join('');
+  opts = Array.from(menu.querySelectorAll('[role="option"]')); menuFor = btn; typed = '';
+  btn.setAttribute('aria-expanded', 'true'); menu.setAttribute('aria-label', NAME[k]); menu.hidden = false; menu.scrollTop = 0;
+  place(); setAt(Math.max(0, opts.findIndex(o => o.getAttribute('aria-selected') === 'true'))); menu.focus({ preventScroll: true });
+}
+function closeMenu(refocus){
+  if (!menuFor) return; const b = menuFor; menuFor = null; menu.hidden = true;
+  if (b.isConnected){ b.setAttribute('aria-expanded', 'false'); if (refocus) b.focus({ preventScroll: true }); }
+}
+function choose(i){ const b = menuFor, o = opts[i]; closeMenu(true); if (b && o && cfg[b.dataset.k] !== o.dataset.v) set({ [b.dataset.k]: o.dataset.v }); }
+function menuKey(e){
+  const n = opts.length, k = e.key;
+  if (k === 'ArrowDown') setAt((at + 1) % n); else if (k === 'ArrowUp') setAt((at - 1 + n) % n);
+  else if (k === 'Home' || k === 'PageUp') setAt(0); else if (k === 'End' || k === 'PageDown') setAt(n - 1);
+  else if (k === 'Enter' || k === ' ') choose(at); else if (k === 'Escape') closeMenu(true);
+  else if (k === 'Tab'){ closeMenu(true); return; } /* focus is back on the control, so Tab moves on from there */
+  else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey){ /* type a name to jump to it */
+    const t = Date.now(); typed = (t - typedAt > 700 ? '' : typed) + k.toLowerCase(); typedAt = t;
+    for (let j = 0, from = typed.length > 1 ? at : at + 1; j < n; j++){ const i = (from + j) % n; if (opts[i].textContent.trim().toLowerCase().startsWith(typed)){ setAt(i); break; } }
+  } else return;
+  e.preventDefault(); e.stopPropagation();
+}
+
+function render(){
+  if (!dock) return;
+  closeMenu();
+  const light = cfg.mode === 'light', had = document.activeElement, keep = had && dock.contains(had) ? [had.dataset.k, had.dataset.v] : null;
+  dock.innerHTML =
+    `<div class="tw-ctl">mode ${seg('mode', ['dark', 'light'])}</div>` +
+    `<div class="tw-ctl">theme ${pick('theme')}</div>` +
+    `<div class="tw-ctl">surface ${seg('surface', ['solid', 'glass'])}</div>` +
+    `<div class="tw-ctl">font ${pick('font')}</div>` +
+    `<div class="tw-ctl">size ${pick('size')}</div>` +
+    `<div class="tw-ctl">corners ${pick('corner')}</div>` +
+    `<div class="tw-ctl">density ${pick('density')}</div>` +
+    (P.gutter ? `<div class="tw-ctl">gutter ${seg('gutter', GUTTERS)}</div>` : '') +
+    `<div class="tw-ctl">accent <span class="tw-sws">${['page'].concat(Object.keys(ACCENTS)).map(a => `<button type="button" class="tw-sw" data-k="accent" data-v="${a}" title="${a === 'page' ? 'default' : a}" aria-label="${a === 'page' ? 'default' : a} accent" aria-pressed="${cfg.accent === a}" style="--c:${a === 'page' ? baseAccent : ACCENTS[a][light ? 1 : 0]}"></button>`).join('')}</span></div>` +
+    `<button type="button" class="tw-x" data-k="open" data-v="" aria-label="Hide tweaks" title="Hide tweaks">hide</button>`;
+  dock.hidden = !cfg.open; chip.hidden = !!cfg.open; if (space) space.hidden = !cfg.open;
+  if (keep){ const el = keep[1] != null ? dock.querySelector(`[data-k="${keep[0]}"][data-v="${keep[1]}"]`) : dock.querySelector(`.tw-val[data-k="${keep[0]}"]`); if (el) el.focus({ preventScroll: true }); }
+}
+function set(patch){
+  const before = { ...cfg };
+  Object.assign(cfg, patch);
+  if (patch.mode && patch.mode !== before.mode && !('theme' in patch)) cfg.theme = cfg.theme === 'page' && P.modes.includes(cfg.mode) ? 'page' : themesFor(cfg.mode)[0];
+  settle(); apply(); render();
+  try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {}
+  if (inURL || Object.keys(QK).some(k => cfg[k] !== before[k])) toURL();
+  document.dispatchEvent(new CustomEvent('tweakchange', { detail: { ...cfg } }));
+  /* text, spacing, font and width changes move boxes: let the page redraw anything it sized in script */
+  if (['font', 'size', 'density', 'corner', 'gutter'].some(k => cfg[k] !== before[k])){
+    const again = () => window.dispatchEvent(new Event('resize'));
+    requestAnimationFrame(() => requestAnimationFrame(again));
+    if (cfg.font !== before.font && document.fonts) document.fonts.ready.then(() => setTimeout(again, 60));
+  }
+}
+function mount(){
+  dock = document.createElement('div'); dock.className = 'tw'; dock.id = 'tweaks'; dock.setAttribute('role', 'group'); dock.setAttribute('aria-label', 'Theme tweaks');
+  chip = document.createElement('button'); chip.type = 'button'; chip.className = 'tw-chip'; chip.textContent = 'tweaks'; chip.setAttribute('aria-label', 'Show tweaks');
+  if (P.spacer !== false){ space = document.createElement('div'); space.className = 'tw-space'; space.setAttribute('aria-hidden', 'true'); document.body.append(space); }
+  menu = document.createElement('div'); menu.className = 'tw-menu'; menu.id = 'tw-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1; menu.hidden = true;
+  document.body.append(dock, chip, menu);
+  if (cfg.open == null) cfg.open = innerWidth > 720;
+  dock.addEventListener('click', e => {
+    const v = e.target.closest('.tw-val'); if (v){ if (menuFor === v) closeMenu(true); else openMenu(v); return; }
+    const b = e.target.closest('button[data-k]'); if (!b) return; set({ [b.dataset.k]: b.dataset.k === 'open' ? false : b.dataset.v }); if (b.dataset.k === 'open') chip.focus();
+  });
+  dock.addEventListener('keydown', e => { const v = e.target.closest('.tw-val'); if (v && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){ e.preventDefault(); openMenu(v); } });
+  menu.addEventListener('keydown', menuKey);
+  menu.addEventListener('click', e => { const o = e.target.closest('[role="option"]'); if (o) choose(opts.indexOf(o)); });
+  menu.addEventListener('pointermove', e => { const o = e.target.closest('[role="option"]'), i = opts.indexOf(o); if (o && i !== at) setAt(i, true); });
+  menu.addEventListener('focusout', e => { if (menuFor && e.relatedTarget !== menuFor && !menu.contains(e.relatedTarget)) closeMenu(); });
+  document.addEventListener('pointerdown', e => { if (menuFor && !menu.contains(e.target) && !menuFor.contains(e.target)) closeMenu(); }, true);
+  addEventListener('resize', () => closeMenu()); addEventListener('blur', () => closeMenu());
+  chip.addEventListener('click', () => { set({ open: true }); const f = dock.querySelector('button'); if (f) f.focus(); });
+  render();
+}
+if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
+window.Tweaks = { get: () => ({ ...cfg }), set, themes: THEMES, mix };
+})();
+</script>
+<!-- tweaks:end -->
+</head>
+<body id="top">
+<header class="top"><div class="wrap top-in">
+  <a class="brand" href="#top" aria-label="Acme charts, back to top"><svg viewBox="0 0 28 28" width="28" height="28" aria-hidden="true"><circle cx="14" cy="14" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M14 14h6.5A6.5 6.5 0 0 0 14 7.5z" fill="currentColor"/></svg><span>Acme</span><em>Charts</em></a>
+  <nav class="nav" aria-label="Sections"><a href="#trend">Trend</a><a href="#compare">Compare</a><a href="#distribution">Distribution</a><a href="#composition">Composition</a><a href="#flow">Flow</a><a href="#records">Records</a></nav>
+  <div class="seg" id="range" role="group" aria-label="Date range"><button type="button" data-n="7" aria-pressed="false">7D</button><button type="button" data-n="30" aria-pressed="true">30D</button><button type="button" data-n="90" aria-pressed="false">90D</button></div>
+</div></header>
+
+<main>
+<section class="hero"><div class="wrap">
+  <div class="hero-top">
+    <div>
+      <p class="eyebrow">Sample data · scan telemetry</p>
+      <h1>Every finding, charted</h1>
+    </div>
+    <div class="scope" aria-live="polite">
+      <p class="scope-k" id="scope-k">In range</p>
+      <dl id="scope-dl"></dl>
+      <div class="chips" id="scope-chips"></div>
+    </div>
+  </div>
+  <p class="lede">One sample dataset of validated findings, drawn as <b>twenty-five chart forms</b>. The range switch in the bar above rescopes every figure at once, and each card has a table view of the numbers it plots.</p>
+  <div class="kpis" id="kpis"></div>
+</div></section>
+
+<section class="sec" id="trend"><div class="wrap">
+  <p class="eyebrow">Change over time</p>
+  <h2>Trend</h2><div class="rule"></div>
+  <p class="lede">Lines for rates, steps for levels, stacks for the mix. Hover or focus a figure and use the arrow keys to read a day.</p>
+  <div class="grid" data-grid="trend"></div>
+</div></section>
+
+<section class="sec" id="compare"><div class="wrap">
+  <p class="eyebrow">Magnitude</p>
+  <h2>Compare</h2><div class="rule"></div>
+  <p class="lede">Bars on one baseline, values on the marks. A second hue appears only when there is a second thing to tell apart.</p>
+  <div class="grid" data-grid="compare"></div>
+</div></section>
+
+<section class="sec" id="distribution"><div class="wrap">
+  <p class="eyebrow">Spread</p>
+  <h2>Distribution</h2><div class="rule"></div>
+  <p class="lede">Where the values fall, not only their middle: bins, quartiles, single points and a grid of counts.</p>
+  <div class="grid" data-grid="distribution"></div>
+</div></section>
+
+<section class="sec" id="composition"><div class="wrap">
+  <p class="eyebrow">Part to whole</p>
+  <h2>Composition</h2><div class="rule"></div>
+  <p class="lede">How one total splits, and how it got from where it started to where it ended.</p>
+  <div class="grid" data-grid="composition"></div>
+</div></section>
+
+<section class="sec" id="flow"><div class="wrap">
+  <p class="eyebrow">Stages and paths</p>
+  <h2>Flow</h2><div class="rule"></div>
+  <p class="lede">What narrows, what connects, what overlaps in time, and the same data back as a table.</p>
+  <div class="grid" data-grid="flow"></div>
+</div></section>
+<section class="sec" id="records"><div class="wrap">
+  <p class="eyebrow">Row level</p>
+  <h2>Records</h2><div class="rule"></div>
+  <p class="lede">Every finding in the range as a row. Search it, narrow it by severity, class, project or status, and sort on any column.</p>
+  <div class="grid"><article class="card s12" id="c-records">
+    <header class="ch"><div><h3><i class="dot"></i><span>All findings</span></h3><p class="form">Table · search · filters · sort</p></div></header>
+    <div id="records-table"></div>
+  </article></div>
+</div></section>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <span><b>Acme</b> &nbsp;·&nbsp; charts sample page</span>
+  <span>Sample data only. Every number is generated in the script from a fixed seed (<code>DATA</code>).</span>
+</div></footer>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+<script>
+'use strict';
+/* ================= DATA: one seeded dataset, 180 days of validated findings =================
+   Every figure on the page is an aggregate of DATA.F (one object per finding) and DATA.day (one per day).
+   Change the seed, the weights or the lists here and every chart follows. */
+const DATA = (() => {
+  let a = 20261114;
+  const R = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const gauss = () => Math.sqrt(-2 * Math.log(R() || 1e-9)) * Math.cos(2 * Math.PI * R());
+  const logn = (median, sigma) => median * Math.exp(sigma * gauss());
+  const pick = w => { let x = R() * w.reduce((s, v) => s + v, 0); for (let i = 0; i < w.length; i++) if ((x -= w[i]) < 0) return i; return w.length - 1; };
+  const DAYS = 180, END = Date.UTC(2026, 10, 14);
+  const SEV = ['Critical', 'High', 'Medium', 'Low'], SLA = [24, 72, 336, 720], FIX = [20, 64, 190, 520];
+  const MODE = ['Native', 'Agentic'], SRC = ['Source code', 'Live traffic', 'API spec', 'Cloud config'];
+  const CLS = [
+    { name: 'Injection', short: 'Injection', w: 30, agentic: .26, sev: [9, 33, 42, 16], src: [6, 3, 1, 0], mods: ['xss', 'sqli', 'ssti', 'command-injection'], mw: [6, 5, 2, 2] },
+    { name: 'Access control', short: 'Access', w: 27, agentic: .72, sev: [10, 34, 40, 16], src: [3, 6, 2, 0], mods: ['idor', 'csrf', 'auth-bypass', 'privilege-escalation'], mw: [6, 3, 3, 2] },
+    { name: 'API & protocol', short: 'API', w: 22, agentic: .52, sev: [5, 25, 45, 25], src: [1, 5, 5, 0], mods: ['ssrf', 'race-condition', 'request-smuggling', 'cache-poisoning'], mw: [4, 3, 2, 2] },
+    { name: 'Frameworks & cloud', short: 'Cloud', w: 21, agentic: .15, sev: [3, 17, 42, 38], src: [3, 1, 1, 6], mods: ['cloud-misconfig', 'default-credentials', 'exposed-secret', 'debug-endpoint'], mw: [5, 4, 3, 3] },
+  ];
+  /* base: how slow a team fixes (1 is typical). drift: how much slower it was 180 days ago; negative means it has got slower since */
+  const PROJ = [
+    { name: 'checkout-api', w: 18, base: .8, drift: .5 }, { name: 'identity', w: 15, base: .7, drift: .4 }, { name: 'ledger', w: 13, base: 1, drift: .25 },
+    { name: 'storefront', w: 12, base: 1.25, drift: -.25 }, { name: 'mobile-bff', w: 11, base: 1.1, drift: .35 }, { name: 'admin-console', w: 10, base: 1.55, drift: .6 },
+    { name: 'partner-gateway', w: 9, base: 1.2, drift: .1 }, { name: 'data-pipeline', w: 7, base: .9, drift: .45 },
+  ];
+  /* native findings follow pushes through the working day; agentic runs are scheduled overnight */
+  const HN = Array.from({ length: 24 }, (_, h) => 1 + 7 * Math.exp(-(((h - 13.5) / 3.6) ** 2)));
+  const HA = Array.from({ length: 24 }, (_, h) => { const d = Math.min(Math.abs(h - 2.5), 24 - Math.abs(h - 2.5)); return 1 + 8 * Math.exp(-((d / 2.3) ** 2)); });
+  const CVSS = [[9, 10], [7, 8.9], [4, 6.9], [1, 3.9]];
+  const F = [], day = [];
+  for (let d = 0; d < DAYS; d++) {
+    const date = new Date(END - (DAYS - 1 - d) * 864e5), dow = (date.getUTCDay() + 6) % 7; /* 0 is Monday */
+    const mu = (8 + 7 * d / (DAYS - 1)) * (dow > 4 ? .42 : 1) * (1 + .16 * Math.sin(d / 8.5));
+    const n = Math.max(1, Math.round(mu + gauss() * Math.sqrt(mu) * .85));
+    for (let k = 0; k < n; k++) {
+      const cls = pick(CLS.map(c => c.w)), C = CLS[cls], mode = R() < C.agentic + .08 * d / DAYS ? 1 : 0;
+      let sev = pick(C.sev); if (mode && sev > 0 && R() < .22) sev--;
+      const proj = pick(PROJ.map(p => p.w)), P = PROJ[proj], hour = pick(mode ? HA : HN);
+      const accepted = R() < [.01, .03, .08, .18][sev];
+      const fix = Math.max(.5, accepted ? logn(48, .6) : logn(FIX[sev] * P.base * (1 + P.drift * (1 - d / (DAYS - 1))), .75));
+      const t0 = d * 24 + hour + R();
+      F.push({ d, dow, hour, cls, mod: pick(C.mw), mode, sev, src: pick(C.src), proj, accepted, fix, t0, t1: t0 + fix,
+        cvss: +(CVSS[sev][0] + R() * (CVSS[sev][1] - CVSS[sev][0])).toFixed(1), ttp: Math.max(.2, logn(mode ? 15 : 1.3, mode ? .62 : .7)) });
+    }
+    day.push({ d, date, dow, n, req: Math.round((620 + 420 * d / (DAYS - 1)) * (dow > 4 ? .55 : 1) * (1 + .1 * gauss())),
+      sig: Math.round(n * (8.4 + gauss() * .7)), cand: Math.round(n * (3.9 + gauss() * .3)), fired: Math.round(n * (2.05 + gauss() * .12)) });
+  }
+  /* open[d]: findings still open at the end of day d. openHi: the critical and high ones among them */
+  const open = new Array(DAYS).fill(0), openHi = new Array(DAYS).fill(0);
+  for (const f of F) for (let d = f.d; d < DAYS && f.t1 > (d + 1) * 24; d++) { open[d]++; if (f.sev < 2) openHi[d]++; }
+  return { DAYS, SEV, SLA, MODE, SRC, CLS, PROJ, F, day, open, openHi };
+})();
+const { SEV, SLA, MODE, SRC, CLS, PROJ } = DATA;
+const SEVC = ['--sev1', '--sev2', '--sev3', '--sev4'], CLSC = ['--s1', '--s2', '--s3', '--s4'], MODEC = ['--s2', '--s3'];
+
+/* ---------- the slice every figure reads: the last N days, and the N days before them ---------- */
+function slice(N) {
+  const d0 = DATA.DAYS - N, T0 = d0 * 24, T1 = DATA.DAYS * 24;
+  const cur = DATA.F.filter(f => f.d >= d0), prev = DATA.F.filter(f => f.d >= d0 - N && f.d < d0);
+  const days = DATA.day.slice(d0), byDay = days.map(() => []);
+  cur.forEach(f => byDay[f.d - d0].push(f));
+  /* closed in the period, whenever it was found */
+  const closed = DATA.F.filter(f => f.t1 > T0 && f.t1 <= T1), closedPrev = DATA.F.filter(f => f.t1 > T0 - N * 24 && f.t1 <= T0);
+  return { N, d0, T0, T1, cur, prev, days, byDay, closed, closedPrev, openNow: DATA.F.filter(f => f.t1 > T1) };
+}
+
+/* ---------- small helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const sum = a => a.reduce((s, v) => s + v, 0);
+const mk = (tag, text, cls) => { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; };
+const tally = (arr, key, n) => { const out = new Array(n).fill(0); for (const x of arr) out[key(x)]++; return out; };
+const quant = (sorted, q) => { if (!sorted.length) return 0; const i = (sorted.length - 1) * q, lo = Math.floor(i); return sorted[lo] + (sorted[Math.min(sorted.length - 1, lo + 1)] - sorted[lo]) * (i - lo); };
+const median = a => quant(a.slice().sort((x, y) => x - y), .5);
+const NF = new Intl.NumberFormat('en-US'), fmt = n => NF.format(Math.round(n));
+const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+const DF = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }), dl = date => DF.format(date);
+const fh = h => h < 1 ? Math.round(h * 60) + 'm' : h < 48 ? (h < 10 ? h.toFixed(1) : Math.round(h)) + 'h' : (h / 24).toFixed(h < 240 ? 1 : 0) + 'd';
+const fmin = m => m < 1 ? Math.round(m * 60) + 's' : m < 10 ? m.toFixed(1) + 'm' : m < 120 ? Math.round(m) + 'm' : (m / 60).toFixed(1) + 'h';
+const freq = k => k >= 1000 ? +(k / 1000).toFixed(1) + 'M' : fmt(k) + 'K'; /* requests are stored in thousands */
+const r1 = v => Math.round(v * 10) / 10, px = v => Math.round(v) + .5;
+let CH = 6.3; /* advance of one mono character at the figure's type size */
+const T = (x, y, s, cls = 'tk', anchor = 'start') => `<text class="${cls}" x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}">${esc(s)}</text>`;
+const nice = (max, n = 4) => { const raw = Math.max(max, 1e-9) / n, p = 10 ** Math.floor(Math.log10(raw)), f = raw / p, step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p, out = []; for (let v = 0; v < max + step - 1e-9; v += step) out.push(+v.toFixed(6)); return out; };
+const tickFmt = top => top >= 10000 ? v => v ? (v / 1000) + 'K' : '0' : v => fmt(v);
+/* days when the range is short, weeks when it is long */
+function buckets(S, size = S.N <= 30 ? 1 : 7) {
+  if (size === 1) return S.days.map(x => ({ label: dl(x.date), from: x.d, to: x.d }));
+  const out = [];
+  for (let to = DATA.DAYS - 1; to >= S.d0; to -= size) { const from = Math.max(S.d0, to - size + 1); out.unshift({ label: `${dl(DATA.day[from].date)} to ${dl(DATA.day[to].date)}`, short: dl(DATA.day[from].date), from, to }); }
+  return out;
+}
+/* smoother buckets for the figures that plot a mix or a small count: days, three days or weeks */
+const coarse = S => buckets(S, S.N <= 7 ? 1 : S.N <= 30 ? 3 : 7);
+/* push label positions apart until they are at least gap apart, keeping their order */
+function spread(ys, gap) {
+  const idx = ys.map((y, i) => i).sort((a, b) => ys[a] - ys[b]), out = ys.slice();
+  for (let pass = 0; pass < 8; pass++) for (let k = 1; k < idx.length; k++) { const a = idx[k - 1], b = idx[k], d = gap - (out[b] - out[a]); if (d > 0) { out[a] -= d / 2; out[b] += d / 2; } }
+  return out;
+}
+const clip = (s, w) => { const n = Math.floor(w / CH); return s.length <= n ? s : n >= 4 ? s.slice(0, n - 1) + '…' : ''; };
+/* horizontal gridlines, a baseline and tick labels. Returns the plot box and the y scale. o.unit maps a value to 0..1 of the height when the scale is not linear */
+function axes(W, H, top, o = {}) {
+  const ticks = o.ticks || nice(top, o.n || 4), max = ticks[ticks.length - 1], f = o.fmt || tickFmt(max), labels = ticks.map(f);
+  const m = { l: Math.ceil(Math.max(...labels.map(s => s.length)) * CH) + 12, r: 10, t: 10, b: 24, ...o.m };
+  const x0 = m.l, x1 = W - m.r, y0 = m.t, y1 = H - m.b, unit = o.unit || (v => v / max), y = v => y1 - unit(v) * (y1 - y0);
+  let body = '';
+  ticks.forEach((t, i) => { body += `<line class="${i ? 'grid-l' : 'axis'}" x1="${x0}" x2="${x1}" y1="${px(y(t))}" y2="${px(y(t))}"/>` + T(x0 - 8, y(t) + 3.5, labels[i], 'tk', 'end'); });
+  return { body, y, x0, x1, y0, y1, max, w: x1 - x0, h: y1 - y0 };
+}
+/* a log y axis in hours, for the fix-time figures: 1h to about 80 days */
+const logAxes = (W, H) => axes(W, H, 0, { ticks: [1, 10, 100, 1000], fmt: t => t + 'h', unit: v => Math.min(3.3, Math.max(0, Math.log10(Math.max(v, 1)))) / 3.3 });
+/* date labels under a time axis, counted back from the latest so the last day is always named */
+function xDates(n, x, label, y, w) {
+  const step = Math.ceil(n / Math.max(2, Math.floor(w / 70))); let s = '';
+  for (let i = n - 1; i >= 0; i -= step) s += T(x(i), y, label(i), 'tk', 'middle');
+  return s;
+}
+const wrap2 = (s, at) => { const i = s.indexOf(at); return i < 0 ? [s] : [s.slice(0, i + (at === '-' ? 1 : 0)).trim(), s.slice(i + (at === '-' ? 1 : 0)).trim()]; };
+
+/* ================= cards: card(id, options, draw) =================
+   draw({W, H, S}) returns { body, legend, pts, table, hover, aria }.
+   pts[i] = { x, y, tip: { t, rows: [[colourToken, label, value]] }, marks } is what hover, focus and the arrow keys read.
+   Marks that belong to point i carry data-i="i". hover: 'x' snaps to the nearest column, 'near' to the nearest point, default is the mark under the pointer. */
+const cards = [], card = (id, o, draw) => cards.push({ id, ...o, draw });
+let S, N = 30;
+const tipEl = $('#tip');
+
+function mount() {
+  for (const c of cards) {
+    const a = document.createElement('article'); a.className = 'card s' + c.span + (c.t ? ' t' + c.t : ''); a.id = 'c-' + c.id;
+    a.innerHTML = `<header class="ch"><div><h3><i class="dot"></i><span></span></h3><p class="form"></p></div>${c.custom ? '' : '<button type="button" class="tb" aria-pressed="false">Table</button>'}</header><p class="cap"></p><div class="lg"></div><div class="fig"${c.custom ? '' : ' tabindex="0" role="img"'}><div class="plot"></div></div><div class="tv" hidden></div>`;
+    $('h3 span', a).textContent = c.title; $('.form', a).textContent = c.form; $('.cap', a).textContent = c.cap;
+    if (c.dot) $('.dot', a).style.background = `var(${c.dot})`;
+    $(`[data-grid="${c.sec}"]`).append(a);
+    Object.assign(c, { el: a, fig: $('.fig', a), plot: $('.plot', a), lg: $('.lg', a), tv: $('.tv', a), btn: $('.tb', a), cur: -1 });
+    if (!c.custom) wire(c);
+  }
+}
+function render(c, grow = 0) {
+  const shown = !c.fig.hidden, W = shown ? (c.W = Math.max(200, Math.floor(c.plot.clientWidth))) : c.W || 600, H = (c.h || 236) + grow, o = c.out = c.draw({ W, H, S });
+  legend(c.lg, o.legend || []);
+  if (c.custom) return c.plot.replaceChildren(o.node);
+  if (!shown) return table(c); /* the table view is up: refresh it and leave the plot for when it comes back */
+  c.plot.innerHTML = `<svg viewBox="0 0 ${W} ${o.H || H}" width="${W}" height="${o.H || H}" aria-hidden="true">${o.defs ? `<defs>${o.defs}</defs>` : ''}${o.body}<g class="hov"></g></svg>`;
+  c.fig.setAttribute('aria-label', `${c.title}. ${o.aria || c.cap} Use the arrow keys to step through the values.`);
+  c.cur = -1;
+}
+/* cards in one row are as tall as the tallest: a figure with room left over is drawn again to fill its panel */
+function fill(c) {
+  if (c.custom || c.fixed || c.fig.hidden) return;
+  const cs = getComputedStyle(c.fig), room = c.fig.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - c.plot.offsetHeight;
+  if (room > 6) render(c, Math.min(200, Math.floor(room)));
+}
+function legend(el, items) {
+  const sw = (c, kind, op) => { const i = document.createElement('i'); i.className = 'sw' + (kind ? ' ' + kind : ''); i.style.setProperty('--c', `var(${c})`); if (op != null) i.style.opacity = op; return i; };
+  el.replaceChildren(...items.map(it => {
+    const s = document.createElement('span');
+    if (it.ramp) { s.style.gap = '2px'; s.append(...it.ramp.map(op => sw(it.c, '', op))); } else if (it.c) s.append(sw(it.c, it.kind));
+    if (it.label) s.append(it.label);
+    if (it.note) { const b = document.createElement('b'); b.textContent = it.note; s.append(b); }
+    return s;
+  }));
+}
+function table(c) {
+  const t = c.out.table, el = document.createElement('table'), head = document.createElement('thead'), body = document.createElement('tbody');
+  const row = (cells, tag) => { const tr = document.createElement('tr'); cells.forEach(v => { const x = document.createElement(tag); x.textContent = v; tr.append(x); }); return tr; };
+  head.append(row(t.head, 'th')); t.rows.forEach(r => body.append(row(r, 'td'))); el.append(head, body);
+  c.tv.replaceChildren(el);
+}
+let tipFor; /* the readout the tooltip holds: moving over the same point only moves it */
+function tipShow(t, x, y) {
+  if (t !== tipFor) {
+    tipFor = t; tipEl.replaceChildren();
+    if (t.t) { const p = document.createElement('p'); p.className = 'tip-t'; p.textContent = t.t; tipEl.append(p); }
+    for (const [c, l, v] of t.rows) {
+      const r = document.createElement('div'), s = document.createElement('span'), b = document.createElement('b'); r.className = 'tip-r';
+      if (c) { const i = document.createElement('i'); i.style.setProperty('--c', `var(${c})`); r.append(i); }
+      s.textContent = l; b.textContent = v; r.append(s, b); tipEl.append(r);
+    }
+  }
+  const w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  let left = x + 14, top = y - h - 12;
+  if (left + w > innerWidth - 8) left = x - w - 14; if (left < 8) left = 8; if (top < 8) top = y + 18;
+  tipEl.style.transform = `translate(${Math.round(left)}px,${Math.round(top)}px)`; tipEl.classList.add('show');
+}
+function locate(c, e) {
+  const o = c.out, pts = o.pts || []; if (!pts.length) return -1;
+  const r = c.plot.firstElementChild.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (o.hover === 'x') { if (x < pts[0].x - 16 || x > pts[pts.length - 1].x + 16) return -1; let b = 0; pts.forEach((p, i) => { if (Math.abs(p.x - x) < Math.abs(pts[b].x - x)) b = i; }); return b; }
+  if (o.hover === 'near') { let b = -1, bd = (o.reach || 24) ** 2; pts.forEach((p, i) => { const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < bd) { bd = d; b = i; } }); return b; }
+  const t = e.target.closest('[data-i]'); return t ? +t.dataset.i : -1;
+}
+function show(c, i, cx, cy) {
+  const o = c.out, p = o.pts[i]; if (!p) return;
+  if (c.cur !== i) {
+    c.fig.querySelectorAll('.on').forEach(el => el.classList.remove('on'));
+    c.fig.querySelectorAll(`[data-i="${i}"]`).forEach(el => el.classList.add('on'));
+    c.fig.classList.toggle('dim', !!o.dim);
+    $('.hov', c.fig).innerHTML = (o.hover === 'x' ? `<line class="xh" x1="${px(p.x)}" x2="${px(p.x)}" y1="${o.y0}" y2="${o.y1}"/>` : '') +
+      (p.marks || []).map(m => `<rect class="mk" x="${r1(m.x - 4)}" y="${r1(m.y - 4)}" width="8" height="8" fill="var(${m.c})"/>`).join('');
+    c.cur = i;
+  }
+  const r = c.plot.firstElementChild.getBoundingClientRect();
+  tipShow(p.tip, cx == null ? r.left + p.x : cx, cy == null ? r.top + p.y : cy);
+}
+function leave(c) {
+  if (c.cur < 0 && !tipEl.classList.contains('show')) return;
+  c.cur = -1; c.fig.classList.remove('dim'); c.fig.querySelectorAll('.on').forEach(el => el.classList.remove('on'));
+  const h = $('.hov', c.fig); if (h) h.innerHTML = '';
+  tipEl.classList.remove('show');
+}
+function wire(c) {
+  const f = c.fig;
+  f.addEventListener('pointermove', e => { const i = locate(c, e); if (i < 0) leave(c); else show(c, i, e.clientX, e.clientY); });
+  f.addEventListener('pointerleave', () => leave(c));
+  f.addEventListener('blur', () => leave(c));
+  f.addEventListener('keydown', e => {
+    const n = (c.out.pts || []).length, k = e.key; if (!n) return; let i = c.cur;
+    if (k === 'ArrowRight' || k === 'ArrowDown') i = i < 0 ? 0 : (i + 1) % n; else if (k === 'ArrowLeft' || k === 'ArrowUp') i = i < 0 ? n - 1 : (i - 1 + n) % n;
+    else if (k === 'Home') i = 0; else if (k === 'End') i = n - 1; else if (k === 'Escape') return leave(c); else return;
+    e.preventDefault(); show(c, i);
+  });
+  c.btn.addEventListener('click', () => {
+    const on = c.btn.getAttribute('aria-pressed') !== 'true'; c.btn.setAttribute('aria-pressed', on); leave(c);
+    if (on) { c.tv.style.height = c.fig.offsetHeight + 'px'; table(c); }
+    c.fig.hidden = on; c.tv.hidden = !on; c.btn.textContent = on ? 'Chart' : 'Table';
+    if (!on) { render(c); fill(c); }
+  });
+}
+
+/* ================= hero scope and stat tiles ================= */
+const SLAL = ['24h', '3d', '14d', '30d'];
+const fixedOnly = list => list.filter(f => !f.accepted);
+const inSla = list => list.filter(f => f.fix <= SLA[f.sev]).length, slaRate = list => pct(inSla(list), list.length);
+const grad = (id, c, a = .28) => `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(${c});stop-opacity:${a}"/><stop offset="1" style="stop-color:var(${c});stop-opacity:0"/></linearGradient>`;
+
+function hero() {
+  const sev = tally(S.cur, f => f.sev, 4);
+  $('#scope-k').textContent = `Last ${S.N} days · ${dl(S.days[0].date)} to ${dl(S.days[S.days.length - 1].date)}`;
+  $('#scope-dl').replaceChildren(...[[fmt(S.cur.length), 'findings'], [PROJ.length, 'projects'], [freq(sum(S.days.map(d => d.req))), 'requests']].map(([v, k]) => { const d = document.createElement('div'); d.append(mk('dt', k), mk('dd', v)); return d; }));
+  $('#scope-chips').replaceChildren(...[0, 1, 2].map(k => { const s = document.createElement('span'), i = document.createElement('i'); s.className = 'chip'; i.style.background = `var(${SEVC[k]})`; s.append(i, mk('b', fmt(sev[k])), SEV[k].toLowerCase()); return s; }));
+}
+function kpis() {
+  const last = DATA.DAYS - 1, ttp = median(S.cur.map(f => f.ttp)), ttpP = median(S.prev.map(f => f.ttp)), sla = slaRate(fixedOnly(S.closed)), slaP = slaRate(fixedOnly(S.closedPrev));
+  const rel = (a, b) => b ? (a - b) / b * 100 : 0, sign = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0);
+  /* closed within SLA over the trailing seven days, for each day in the range */
+  const slaDaily = S.days.map(x => slaRate(fixedOnly(DATA.F.filter(f => f.t1 > (x.d - 6) * 24 && f.t1 <= (x.d + 1) * 24))));
+  const tiles = [
+    { l: 'Validated findings', v: fmt(S.cur.length), d: rel(S.cur.length, S.prev.length), u: '%', good: 0, sp: S.byDay.map(a => a.length) },
+    { l: 'Open critical and high', v: fmt(DATA.openHi[last]), d: rel(DATA.openHi[last], DATA.openHi[S.d0 - 1]), u: '%', good: -1, sp: DATA.openHi.slice(S.d0) },
+    { l: 'Median time to proof', v: fmin(ttp), d: rel(ttp, ttpP), u: '%', good: -1, sp: S.byDay.map(a => median(a.map(f => f.ttp))) },
+    { l: 'Closed within SLA', v: sla, unit: '%', d: sla - slaP, u: ' pts', good: 1, sp: slaDaily },
+  ];
+  const el = $('#kpis'); el.replaceChildren();
+  for (const t of tiles) {
+    const a = document.createElement('article'); a.className = 'kpi';
+    const tone = !t.good || Math.abs(t.d) < .05 ? '' : (t.d > 0) === (t.good > 0) ? 'good' : 'bad', arrow = Math.abs(t.d) < .05 ? '■' : t.d > 0 ? '▲' : '▼';
+    a.innerHTML = `<p class="kl"></p><p class="kv"></p><p class="kd"><b class="${tone}"></b><span></span></p>`;
+    $('.kl', a).textContent = t.l; $('.kv', a).textContent = t.v; if (t.unit) { const s = document.createElement('small'); s.textContent = t.unit; $('.kv', a).append(s); }
+    $('.kd b', a).textContent = `${arrow} ${sign(t.d)}${t.u}`; $('.kd span', a).textContent = `vs the ${S.N} days before`;
+    el.append(a);
+    const cs = getComputedStyle(a), W = Math.floor(a.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)), H = 40, lo = Math.min(...t.sp), hi = Math.max(...t.sp), n = t.sp.length, x = i => 1 + i / (n - 1) * (W - 9), y = v => H - 6 - (hi > lo ? (v - lo) / (hi - lo) : .5) * (H - 12);
+    const d = 'M' + t.sp.map((v, i) => r1(x(i)) + ' ' + r1(y(v))).join('L'), id = 'g-k' + tiles.indexOf(t);
+    a.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Daily trend over the range"><defs>${grad(id, '--muted', .22)}</defs><path fill="url(#${id})" d="${d}V${H}H1Z"/><path class="sp-l" d="${d}"/><rect class="sp-e" x="${r1(x(n - 1) - 3.5)}" y="${r1(y(t.sp[n - 1]) - 3.5)}" width="7" height="7"/></svg>`);
+  }
+}
+
+/* ================= trend ================= */
+card('line', { sec: 'trend', span: 8, h: 250, title: 'Findings per day', form: 'Line · 2 series', cap: 'Validated findings found each day, split by scan mode. Native runs on every push; agentic runs ahead of a release.' }, ({ W, H, S }) => {
+  const n = S.days.length, ser = [0, 1].map(m => S.byDay.map(a => a.filter(f => f.mode === m).length));
+  const A = axes(W, H, Math.max(...ser[0], ...ser[1]), { m: { r: 14 + Math.ceil(11 * CH) } }), x = i => A.x0 + (n < 2 ? 0 : i / (n - 1) * A.w);
+  const ends = ser.map(s => A.y(s[n - 1])), ly = ends.slice();
+  if (Math.abs(ly[0] - ly[1]) < 13) { const mid = (ly[0] + ly[1]) / 2, up = ly[0] <= ly[1] ? 0 : 1; ly[up] = mid - 6.5; ly[1 - up] = mid + 6.5; }
+  let body = A.body + xDates(n, x, i => dl(S.days[i].date), H - 6, A.w);
+  ser.forEach((s, m) => {
+    body += `<path class="ln" stroke="var(${MODEC[m]})" d="M${s.map((v, i) => r1(x(i)) + ' ' + r1(A.y(v))).join('L')}"/>`;
+    if (Math.abs(ly[m] - ends[m]) > 2) body += `<path class="hair" d="M${r1(A.x1 + 5)} ${r1(ends[m])}L${r1(A.x1 + 9)} ${r1(ly[m])}"/>`;
+    body += `<rect class="ring" x="${r1(A.x1 - 3.5)}" y="${r1(ends[m] - 3.5)}" width="7" height="7" fill="var(${MODEC[m]})"/>` + T(A.x1 + 12, ly[m] + 3.5, MODE[m], 'lb') + T(A.x1 + 12 + (MODE[m].length + 1) * CH, ly[m] + 3.5, s[n - 1], 'vl');
+  });
+  return {
+    body, hover: 'x', y0: A.y0, y1: A.y1,
+    legend: MODE.map((l, m) => ({ c: MODEC[m], label: l, kind: 'l' })),
+    pts: S.days.map((d, i) => ({ x: x(i), y: Math.min(A.y(ser[0][i]), A.y(ser[1][i])), tip: { t: dl(d.date), rows: MODE.map((l, m) => [MODEC[m], l, ser[m][i]]) }, marks: ser.map((s, m) => ({ x: x(i), y: A.y(s[i]), c: MODEC[m] })) })),
+    table: { head: ['Day', 'Native', 'Agentic', 'Total'], rows: S.days.map((d, i) => [dl(d.date), ser[0][i], ser[1][i], ser[0][i] + ser[1][i]]) },
+    aria: `Native found ${sum(ser[0])} and agentic ${sum(ser[1])} over ${n} days.`,
+  };
+});
+
+card('step', { sec: 'trend', span: 4, h: 250, title: 'Open backlog', form: 'Step line', cap: 'Findings still open at the end of each day. It is a level, so it steps instead of sloping.' }, ({ W, H, S }) => {
+  const v = DATA.open.slice(S.d0), n = v.length, A = axes(W, H, Math.max(...v), { m: { r: 12 + Math.ceil(4 * CH) } }), bw = A.w / n, x = i => A.x0 + i * bw;
+  let d = `M${r1(x(0))} ${r1(A.y(v[0]))}`; v.forEach((val, i) => { d += `V${r1(A.y(val))}H${r1(x(i + 1))}`; });
+  return {
+    defs: grad('g-step', '--s1'), hover: 'x', y0: A.y0, y1: A.y1,
+    body: A.body + `<path fill="url(#g-step)" d="${d}V${A.y1}H${A.x0}Z"/><path class="ln" style="stroke-linejoin:miter;stroke-linecap:butt" stroke="var(--s1)" d="${d}"/>` + T(A.x1 + 8, A.y(v[n - 1]) + 3.5, v[n - 1], 'vl') + xDates(n, i => x(i) + bw / 2, i => dl(S.days[i].date), H - 6, A.w),
+    pts: v.map((val, i) => ({ x: x(i) + bw / 2, y: A.y(val), tip: { t: dl(S.days[i].date), rows: [[null, 'Open', fmt(val)]] }, marks: [{ x: x(i) + bw / 2, y: A.y(val), c: '--s1' }] })),
+    table: { head: ['Day', 'Open findings'], rows: v.map((val, i) => [dl(S.days[i].date), val]) },
+    aria: `The backlog went from ${v[0]} to ${v[n - 1]} open findings.`,
+  };
+});
+
+card('area', { sec: 'trend', span: 4, title: 'Requests fired', form: 'Area · 1 series', cap: 'Payload requests sent per day. One series, so the fill is a wash under the line and the peak carries the only label.' }, ({ W, H, S }) => {
+  const v = S.days.map(d => d.req), n = v.length, A = axes(W, H, Math.max(...v), { fmt: t => t ? freq(t) : '0', m: { t: 20 } }), x = i => A.x0 + (n < 2 ? 0 : i / (n - 1) * A.w);
+  const d = 'M' + v.map((val, i) => r1(x(i)) + ' ' + r1(A.y(val))).join('L'), k = v.indexOf(Math.max(...v)), kx = x(k), anchor = kx > A.x1 - 44 ? 'end' : kx < A.x0 + 44 ? 'start' : 'middle';
+  return {
+    defs: grad('g-area', '--s1', .34), hover: 'x', y0: A.y0, y1: A.y1,
+    body: A.body + `<path fill="url(#g-area)" d="${d}V${A.y1}H${A.x0}Z"/><path class="ln" stroke="var(--s1)" d="${d}"/><rect class="ring" x="${r1(kx - 3.5)}" y="${r1(A.y(v[k]) - 3.5)}" width="7" height="7" fill="var(--s1)"/>` + T(kx, A.y(v[k]) - 9, 'peak ' + freq(v[k]), 'vl', anchor) + xDates(n, x, i => dl(S.days[i].date), H - 6, A.w),
+    pts: v.map((val, i) => ({ x: x(i), y: A.y(val), tip: { t: dl(S.days[i].date), rows: [[null, 'Requests', freq(val)]] }, marks: [{ x: x(i), y: A.y(val), c: '--s1' }] })),
+    table: { head: ['Day', 'Requests'], rows: v.map((val, i) => [dl(S.days[i].date), fmt(val * 1000)]) },
+    aria: `${freq(sum(v))} requests in the range, peaking at ${freq(v[k])} on ${dl(S.days[k].date)}.`,
+  };
+});
+
+card('stack', { sec: 'trend', span: 4, title: 'Findings by severity', form: 'Stacked column', cap: 'The same volume split by severity, critical at the baseline where it is easiest to compare. Weekly columns on the 90-day range.' }, ({ W, H, S }) => {
+  const B = buckets(S), vals = B.map(b => tally(S.cur.filter(f => f.d >= b.from && f.d <= b.to), f => f.sev, 4)), tot = vals.map(sum);
+  const A = axes(W, H, Math.max(...tot)), bw = A.w / B.length, cw = Math.max(3, Math.min(22, bw - (bw > 9 ? 4 : 1))), cx = i => A.x0 + (i + .5) * bw;
+  let body = A.body + xDates(B.length, cx, i => B[i].short || B[i].label, H - 6, A.w);
+  vals.forEach((v, i) => {
+    let y = A.y1; const lastSeg = v.reduce((p, val, k) => val ? k : p, 0);
+    v.forEach((val, k) => { const h = val / A.max * A.h, g = k !== lastSeg && h > 3 ? 2 : 0; if (val) body += `<rect class="bar" data-i="${i}" x="${r1(cx(i) - cw / 2)}" y="${r1(y - h + g)}" width="${r1(cw)}" height="${r1(h - g)}" fill="var(${SEVC[k]})"/>`; y -= h; });
+    body += `<rect class="hit" data-i="${i}" x="${r1(A.x0 + i * bw)}" y="${A.y0}" width="${r1(bw)}" height="${A.h}"/>`;
+  });
+  return {
+    body, legend: SEV.map((l, k) => ({ c: SEVC[k], label: l })),
+    pts: B.map((b, i) => ({ x: cx(i), y: A.y(tot[i]), tip: { t: b.label, rows: SEV.map((l, k) => [SEVC[k], l, vals[i][k]]).concat([[null, 'Total', tot[i]]]) } })),
+    table: { head: [S.N > 30 ? 'Week' : 'Day', ...SEV, 'Total'], rows: B.map((b, i) => [b.label, ...vals[i], tot[i]]) },
+    aria: `${sum(tot)} findings across ${B.length} columns.`,
+  };
+});
+
+card('share', { sec: 'trend', span: 4, title: 'Mix by class', form: 'Stacked area · 100%', cap: 'Each class as a share of the findings in a period. The total is always 100%, so only the proportions move.' }, ({ W, H, S }) => {
+  const B = coarse(S), n = B.length, raw = B.map(b => tally(S.cur.filter(f => f.d >= b.from && f.d <= b.to), f => f.cls, 4));
+  const sh = raw.map(v => { const t = sum(v) || 1; return v.map(x => x / t * 100); }), A = axes(W, H, 100, { ticks: [0, 25, 50, 75, 100], fmt: t => t + '%', m: { r: 12 + Math.ceil(9 * CH) } }), x = i => A.x0 + (n < 2 ? 0 : i / (n - 1) * A.w);
+  const cum = sh.map(v => { let s = 0; return [0, ...v.map(val => s += val)]; });
+  let body = A.body + xDates(n, x, i => B[i].short || B[i].label, H - 6, A.w);
+  CLS.forEach((C, k) => {
+    const up = cum.map((c, i) => r1(x(i)) + ' ' + r1(A.y(c[k + 1]))), dn = cum.map((c, i) => r1(x(i)) + ' ' + r1(A.y(c[k]))).reverse();
+    body += `<path class="gap soft" fill="var(${CLSC[k]})" d="M${up.join('L')}L${dn.join('L')}Z"/>`;
+  });
+  /* each band is named at its right end, outside the plot */
+  const mids = CLS.map((C, k) => A.y((cum[n - 1][k] + cum[n - 1][k + 1]) / 2)), ly = spread(mids, 12);
+  CLS.forEach((C, k) => { body += `<path class="hair" d="M${r1(A.x1 + 2)} ${r1(mids[k])}L${r1(A.x1 + 8)} ${r1(ly[k])}"/>` + T(A.x1 + 11, ly[k] + 3.5, C.short, 'lb'); });
+  return {
+    body, hover: 'x', y0: A.y0, y1: A.y1, legend: CLS.map((C, k) => ({ c: CLSC[k], label: C.name })),
+    pts: B.map((b, i) => ({ x: x(i), y: A.y0 + 8, tip: { t: b.label, rows: CLS.map((C, k) => [CLSC[k], C.name, Math.round(sh[i][k]) + '%']) } })),
+    table: { head: ['Period', ...CLS.map(C => C.name)], rows: B.map((b, i) => [b.label, ...sh[i].map(v => Math.round(v) + '%')]) },
+  };
+});
+
+/* ================= compare ================= */
+card('group', { sec: 'compare', span: 6, title: 'Class by scan mode', form: 'Grouped column', cap: 'Two bars per class on one baseline. Agentic scans find most of the access-control bugs; native scans carry injection and cloud.' }, ({ W, H, S }) => {
+  const vals = CLS.map((C, c) => [0, 1].map(m => S.cur.filter(f => f.cls === c && f.mode === m).length));
+  const top = Math.max(...vals.flat()), fits = CLS.every(C => C.name.length * CH < axes(W, H, top).w / 4 - 8), lines = C => fits ? [C.name] : wrap2(C.name, ' ');
+  const A = axes(W, H, top, { m: { t: 20, b: fits ? 24 : 36 } }), gw = A.w / 4, bw = Math.max(6, Math.min(24, (gw - 16) / 2));
+  let body = A.body;
+  vals.forEach((v, c) => {
+    const cx = A.x0 + (c + .5) * gw;
+    v.forEach((val, m) => { const bx = m ? cx + 1 : cx - bw - 1, h = val / A.max * A.h; body += `<rect class="bar" data-i="${c}" x="${r1(bx)}" y="${r1(A.y1 - h)}" width="${r1(bw)}" height="${r1(h)}" fill="var(${MODEC[m]})"/>` + (bw >= String(val).length * CH - 2 ? T(bx + bw / 2, A.y1 - h - 6, val, 'vl', 'middle') : ''); });
+    body += lines(CLS[c]).map((t, k) => T(cx, A.y1 + 16 + k * 12, t, 'tk', 'middle')).join('') + `<rect class="hit" data-i="${c}" x="${r1(A.x0 + c * gw)}" y="${A.y0}" width="${r1(gw)}" height="${A.h}"/>`;
+  });
+  return {
+    body, legend: MODE.map((l, m) => ({ c: MODEC[m], label: l })),
+    pts: CLS.map((C, c) => ({ x: A.x0 + (c + .5) * gw, y: A.y(Math.max(...vals[c])), tip: { t: C.name, rows: MODE.map((l, m) => [MODEC[m], l, vals[c][m]]) } })),
+    table: { head: ['Class', ...MODE, 'Total'], rows: CLS.map((C, c) => [C.name, ...vals[c], sum(vals[c])]) },
+  };
+});
+
+card('rank', { sec: 'compare', span: 6, title: 'Top modules', form: 'Ranked bar', cap: 'The eight modules with the most findings, largest first. One series, so one hue: the length already says which is bigger.' }, ({ W, H, S }) => {
+  const all = []; CLS.forEach((C, c) => C.mods.forEach((m, k) => all.push({ name: m, cls: C.name, v: S.cur.filter(f => f.cls === c && f.mod === k).length })));
+  all.sort((a, b) => b.v - a.v);
+  const top = all.slice(0, 8), x0 = Math.ceil(Math.max(...top.map(t => t.name.length)) * CH) + 12, x1 = W - Math.ceil(4 * CH) - 8, rh = H / top.length, max = top[0].v || 1;
+  let body = `<line class="axis" x1="${px(x0)}" x2="${px(x0)}" y1="2" y2="${H - 2}"/>`;
+  top.forEach((t, i) => { const cy = (i + .5) * rh, w = t.v / max * (x1 - x0); body += T(x0 - 10, cy + 3.5, t.name, 'lb', 'end') + `<rect class="bar" data-i="${i}" x="${x0 + 1}" y="${r1(cy - 7)}" width="${r1(w)}" height="14" fill="var(--s1)"/>` + T(x0 + w + 9, cy + 3.5, t.v, 'vl') + `<rect class="hit" data-i="${i}" x="0" y="${r1(i * rh)}" width="${W}" height="${r1(rh)}"/>`; });
+  return {
+    body, pts: top.map((t, i) => ({ x: x0 + t.v / max * (x1 - x0), y: (i + .5) * rh, tip: { t: t.cls, rows: [[null, t.name, t.v], [null, 'Share of all', pct(t.v, S.cur.length) + '%']] } })),
+    table: { head: ['Module', 'Class', 'Findings', 'Share'], rows: all.map(t => [t.name, t.cls, t.v, pct(t.v, S.cur.length) + '%']) },
+    aria: `${top[0].name} leads with ${top[0].v} findings.`,
+  };
+});
+
+card('diverge', { sec: 'compare', span: 4, title: 'Change by project', form: 'Diverging bar', cap: 'Findings in this period against the one before it. Bars leave a zero line in two directions, so each side gets its own hue.' }, ({ W, H, S }) => {
+  const rows = PROJ.map((p, i) => { const a = S.cur.filter(f => f.proj === i).length, b = S.prev.filter(f => f.proj === i).length; return { name: p.name, a, b, ch: b ? (a - b) / b * 100 : 0 }; }).sort((x, y) => y.ch - x.ch);
+  const lw = Math.ceil(Math.max(...rows.map(r => r.name.length)) * CH) + 10, pad = Math.ceil(6 * CH) + 6, pos = Math.max(0, ...rows.map(r => r.ch)), neg = Math.max(0, ...rows.map(r => -r.ch)), span = pos + neg || 1;
+  const a0 = lw + pad, aw = W - pad - a0, zx = a0 + neg / span * aw, rh = H / rows.length, lab = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Math.round(v)) + '%';
+  let body = '';
+  rows.forEach((r, i) => {
+    const cy = (i + .5) * rh, w = Math.abs(r.ch) / span * aw, up = r.ch >= 0;
+    body += T(0, cy + 3.5, r.name, 'lb') + `<rect class="bar" data-i="${i}" x="${r1(up ? zx + 1 : zx - w - 1)}" y="${r1(cy - 7)}" width="${r1(w)}" height="14" fill="var(${up ? '--s1' : '--s2'})"/>` + T(up ? zx + w + 7 : zx - w - 7, cy + 3.5, lab(r.ch), 'vl', up ? 'start' : 'end') + `<rect class="hit" data-i="${i}" x="0" y="${r1(i * rh)}" width="${W}" height="${r1(rh)}"/>`;
+  });
+  body += `<line class="axis" x1="${px(zx)}" x2="${px(zx)}" y1="2" y2="${H - 2}"/>`;
+  return {
+    body, legend: [{ c: '--s1', label: 'More than before' }, { c: '--s2', label: 'Fewer' }],
+    pts: rows.map((r, i) => ({ x: zx, y: (i + .5) * rh, tip: { t: r.name, rows: [[r.ch >= 0 ? '--s1' : '--s2', 'Change', lab(r.ch)], [null, 'This period', r.a], [null, 'Period before', r.b]] } })),
+    table: { head: ['Project', 'This period', 'Period before', 'Change'], rows: rows.map(r => [r.name, r.a, r.b, lab(r.ch)]) },
+  };
+});
+
+card('dumb', { sec: 'compare', span: 4, title: 'Fix time, before and now', form: 'Dumbbell', cap: 'Median days to fix per project: the hollow mark is the period before, the solid one is this period. Left is faster.' }, ({ W, H, S }) => {
+  const med = (list, i) => median(fixedOnly(list).filter(f => f.proj === i).map(f => f.fix)) / 24, fd = v => v.toFixed(1) + 'd';
+  const rows = PROJ.map((p, i) => ({ name: p.name, a: med(S.closedPrev, i), b: med(S.closed, i) })).sort((x, y) => x.b - y.b);
+  const ticks = nice(Math.max(...rows.map(r => Math.max(r.a, r.b))), 3), max = ticks[ticks.length - 1], x0 = Math.ceil(Math.max(...rows.map(r => r.name.length)) * CH) + 12, x1 = W - 14, y1 = H - 22, rh = (y1 - 2) / rows.length, x = v => x0 + v / max * (x1 - x0);
+  let body = ticks.map(t => `<line class="${t ? 'grid-l' : 'axis'}" x1="${px(x(t))}" x2="${px(x(t))}" y1="2" y2="${y1}"/>` + T(x(t), H - 6, t + 'd', 'tk', 'middle')).join('');
+  rows.forEach((r, i) => {
+    const cy = 2 + (i + .5) * rh;
+    body += T(x0 - 10, cy + 3.5, r.name, 'lb', 'end') + `<line data-i="${i}" x1="${r1(x(r.a))}" x2="${r1(x(r.b))}" y1="${r1(cy)}" y2="${r1(cy)}" stroke="var(--line-2)" stroke-width="2"/>` +
+      `<rect data-i="${i}" x="${r1(x(r.a) - 3.5)}" y="${r1(cy - 3.5)}" width="7" height="7" fill="var(--fig-solid)" stroke="var(--s1)" stroke-width="1.5"/><rect class="ring" data-i="${i}" x="${r1(x(r.b) - 4)}" y="${r1(cy - 4)}" width="8" height="8" fill="var(--s1)"/>` +
+      `<rect class="hit" data-i="${i}" x="0" y="${r1(2 + i * rh)}" width="${W}" height="${r1(rh)}"/>`;
+  });
+  const ch = r => r.a ? (r.b > r.a ? '+' : '−') + Math.abs(Math.round((r.b - r.a) / r.a * 100)) + '%' : 'n/a';
+  return {
+    body, legend: [{ c: '--s1', kind: 'o', label: 'Period before' }, { c: '--s1', label: 'This period' }],
+    pts: rows.map((r, i) => ({ x: x(r.b), y: 2 + (i + .5) * rh, tip: { t: r.name, rows: [['--s1', 'This period', fd(r.b)], [null, 'Period before', fd(r.a)], [null, 'Change', ch(r)]] } })),
+    table: { head: ['Project', 'Period before', 'This period', 'Change'], rows: rows.map(r => [r.name, fd(r.a), fd(r.b), ch(r)]) },
+  };
+});
+
+card('bullet', { sec: 'compare', span: 4, t: 12, title: 'Closed within SLA', form: 'Bullet · meter list', cap: 'Share of fixes that landed inside the window for their severity. Each bar is read against the same tick: the 90% target.' }, ({ W, H, S }) => {
+  const fx = fixedOnly(S.closed), rows = SEV.map((l, k) => ({ name: l, sub: 'within ' + SLAL[k], list: fx.filter(f => f.sev === k) })).concat([{ name: 'All', sub: 'any severity', list: fx }]);
+  rows.forEach(r => { r.n = r.list.length; r.k = inSla(r.list); r.v = pct(r.k, r.n); });
+  const x0 = Math.ceil(12 * CH) + 14, x1 = W - Math.ceil(4 * CH) - 10, rh = H / rows.length, tx = x0 + .9 * (x1 - x0);
+  let body = '';
+  rows.forEach((r, i) => {
+    const cy = (i + .5) * rh;
+    body += T(0, cy - 1.5, r.name, 'lb') + T(0, cy + 11, r.sub, 'tk') + `<rect class="bar" x="${x0}" y="${r1(cy - 6)}" width="${r1(x1 - x0)}" height="12" fill="var(--line)"/><rect class="bar" data-i="${i}" x="${x0}" y="${r1(cy - 6)}" width="${r1(r.v / 100 * (x1 - x0))}" height="12" fill="var(--s1)"/>` +
+      `<rect x="${r1(tx - 1)}" y="${r1(cy - 11)}" width="2" height="22" fill="var(--ink)"/>` + T(W, cy + 3.5, r.n ? r.v + '%' : 'n/a', 'vl', 'end') + `<rect class="hit" data-i="${i}" x="0" y="${r1(i * rh)}" width="${W}" height="${r1(rh)}"/>`;
+  });
+  return {
+    body, legend: [{ c: '--ink', kind: 't', label: 'Target 90%' }],
+    pts: rows.map((r, i) => ({ x: x0 + r.v / 100 * (x1 - x0), y: (i + .5) * rh, tip: { t: `${r.name} · ${r.sub}`, rows: [[null, 'Inside the window', `${r.k} of ${r.n}`], [null, 'Share', r.v + '%'], [null, 'Target', '90%']] } })),
+    table: { head: ['Severity', 'Window', 'Fixed', 'Inside window', 'Share'], rows: rows.map(r => [r.name, r.sub.replace('within ', ''), r.n, r.k, r.v + '%']) },
+  };
+});
+
+/* ================= distribution ================= */
+card('hist', { sec: 'distribution', span: 4, title: 'Time to proof', form: 'Histogram', cap: 'Minutes from the first signal to a validated proof, in doubling bins. Two humps: native checks finish in a minute or two, agentic runs take longer.' }, ({ W, H, S }) => {
+  const E = [.5, 1, 2, 4, 8, 16, 32, 64], EL = ['30s', '1m', '2m', '4m', '8m', '16m', '32m', '64m'], nb = E.length + 1, bin = v => { let i = 0; while (i < E.length && v >= E[i]) i++; return i; };
+  const name = i => i === 0 ? 'Under 30s' : i === nb - 1 ? 'Over 64m' : `${EL[i - 1]} to ${EL[i]}`;
+  const c = tally(S.cur, f => bin(f.ttp), nb), A = axes(W, H, Math.max(...c), { m: { t: 22 } }), bw = A.w / nb;
+  let body = A.body;
+  c.forEach((v, i) => { const h = v / A.max * A.h; body += `<rect class="bar" data-i="${i}" x="${r1(A.x0 + i * bw + 1)}" y="${r1(A.y1 - h)}" width="${r1(bw - 2)}" height="${r1(h)}" fill="var(--s1)"/><rect class="hit" data-i="${i}" x="${r1(A.x0 + i * bw)}" y="${A.y0}" width="${r1(bw)}" height="${A.h}"/>`; });
+  E.forEach((e, i) => { body += T(A.x0 + (i + 1) * bw, H - 6, EL[i], 'tk', 'middle'); });
+  const med = median(S.cur.map(f => f.ttp)), b = bin(med), lo = b ? E[b - 1] : E[0] / 2, hi = b < E.length ? E[b] : E[E.length - 1] * 2;
+  const mx = A.x0 + (b + Math.min(1, Math.max(0, Math.log(med / lo) / Math.log(hi / lo)))) * bw, right = mx > A.x1 - 13 * CH;
+  body += `<line x1="${px(mx)}" x2="${px(mx)}" y1="${A.y0 - 12}" y2="${A.y1}" stroke="var(--ink)" stroke-width="1" shape-rendering="crispEdges"/>` + T(mx + (right ? -7 : 7), A.y0 - 3, 'median ' + fmin(med), 'vl', right ? 'end' : 'start');
+  return {
+    body, pts: c.map((v, i) => ({ x: A.x0 + (i + .5) * bw, y: A.y(v), tip: { t: name(i), rows: [[null, 'Findings', v], [null, 'Share', pct(v, S.cur.length) + '%']] } })),
+    table: { head: ['Time to proof', 'Findings', 'Share'], rows: c.map((v, i) => [name(i), v, pct(v, S.cur.length) + '%']) },
+    aria: `Median time to proof is ${fmin(med)}.`,
+  };
+});
+
+card('box', { sec: 'distribution', span: 4, title: 'Hours to fix', form: 'Box plot · log scale', cap: 'Each box holds the middle half of the fix times for one severity. The line is the median, the whiskers reach the 5th and 95th percentile.' }, ({ W, H, S }) => {
+  const fx = fixedOnly(S.closed), A = logAxes(W, H), gw = A.w / 4, bw = Math.min(46, gw * .52);
+  const st = SEV.map((l, k) => { const v = fx.filter(f => f.sev === k).map(f => f.fix).sort((a, b) => a - b); return { n: v.length, p5: quant(v, .05), q1: quant(v, .25), med: quant(v, .5), q3: quant(v, .75), p95: quant(v, .95) }; });
+  let body = A.body;
+  st.forEach((s, k) => {
+    const cx = A.x0 + (k + .5) * gw, c = `var(${SEVC[k]})`, y = A.y;
+    body += T(cx, H - 6, SEV[k], 'tk', 'middle');
+    if (s.n < 4) { body += T(cx, (A.y0 + A.y1) / 2, 'too few', 'tk', 'middle'); return; }
+    body += `<g data-i="${k}" stroke="${c}" stroke-width="1.5"><path fill="none" d="M${r1(cx)} ${r1(y(s.p95))}V${r1(y(s.q3))}M${r1(cx)} ${r1(y(s.q1))}V${r1(y(s.p5))}M${r1(cx - 8)} ${r1(y(s.p95))}h16M${r1(cx - 8)} ${r1(y(s.p5))}h16"/>` +
+      `<rect x="${r1(cx - bw / 2)}" y="${r1(y(s.q3))}" width="${r1(bw)}" height="${r1(y(s.q1) - y(s.q3))}" fill="${c}" fill-opacity=".28"/><path stroke="var(--ink)" stroke-width="2" d="M${r1(cx - bw / 2)} ${r1(y(s.med))}h${r1(bw)}"/></g>` +
+      `<rect class="hit" data-i="${k}" x="${r1(A.x0 + k * gw)}" y="${A.y0}" width="${r1(gw)}" height="${A.h}"/>`;
+  });
+  return {
+    body, pts: st.map((s, k) => ({ x: A.x0 + (k + .5) * gw, y: A.y(s.q3), tip: { t: `${SEV[k]} · ${s.n} fixed`, rows: [[null, '95th percentile', fh(s.p95)], [null, 'Upper quartile', fh(s.q3)], [SEVC[k], 'Median', fh(s.med)], [null, 'Lower quartile', fh(s.q1)], [null, '5th percentile', fh(s.p5)]] } })),
+    table: { head: ['Severity', 'Fixed', 'P5', 'Q1', 'Median', 'Q3', 'P95'], rows: st.map((s, k) => [SEV[k], s.n, fh(s.p5), fh(s.q1), fh(s.med), fh(s.q3), fh(s.p95)]) },
+  };
+});
+
+card('scatter', { sec: 'distribution', span: 4, t: 12, title: 'Score against fix time', form: 'Scatter · 2 series', cap: 'One mark per fixed finding: CVSS score across, hours to fix up, on a log scale. Shape repeats what colour says about the scan mode.' }, ({ W, H, S }) => {
+  const fx = fixedOnly(S.closed), step = Math.ceil(fx.length / 240), P = fx.filter((f, i) => i % step === 0), A = logAxes(W, H), x = v => A.x0 + v / 10 * A.w;
+  let body = A.body + [2, 4, 6, 8, 10].map(t => `<line class="grid-l" x1="${px(x(t))}" x2="${px(x(t))}" y1="${A.y0}" y2="${A.y1}"/>`).join('') + [0, 2, 4, 6, 8, 10].map(t => T(x(t), H - 6, t, 'tk', 'middle')).join('');
+  P.forEach((f, i) => { const cx = r1(x(f.cvss)), cy = r1(A.y(f.fix)); body += `<rect class="ring" data-i="${i}" x="${r1(cx - 3)}" y="${r1(cy - 3)}" width="6" height="6" fill="var(${MODEC[f.mode]})" fill-opacity=".88"${f.mode ? ` transform="rotate(45 ${cx} ${cy})"` : ''}/>`; });
+  return {
+    body, hover: 'near', reach: 22, legend: [{ c: MODEC[0], label: 'Native' }, { c: MODEC[1], label: 'Agentic', kind: 'd' }].concat(step > 1 ? [{ note: `every ${step}${step === 2 ? 'nd' : step === 3 ? 'rd' : 'th'} finding shown` }] : []),
+    pts: P.map(f => ({ x: x(f.cvss), y: A.y(f.fix), tip: { t: `${PROJ[f.proj].name} · ${CLS[f.cls].mods[f.mod]}`, rows: [[MODEC[f.mode], `${MODE[f.mode]} · ${SEV[f.sev].toLowerCase()}`, ''], [null, 'CVSS', f.cvss.toFixed(1)], [null, 'Time to fix', fh(f.fix)]] } })),
+    table: { head: ['Project', 'Module', 'Mode', 'Severity', 'CVSS', 'Time to fix'], rows: P.map(f => [PROJ[f.proj].name, CLS[f.cls].mods[f.mod], MODE[f.mode], SEV[f.sev], f.cvss.toFixed(1), fh(f.fix)]) },
+    aria: `${P.length} fixed findings plotted.`,
+  };
+});
+
+card('heat', { sec: 'distribution', span: 12, fixed: true, title: 'When findings land', form: 'Heatmap · 7 × 24', cap: 'Findings by weekday and hour, in UTC. Native findings follow pushes through the working day; agentic runs are scheduled overnight.' }, ({ W, S }) => {
+  const DN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], g = DN.map(() => new Array(24).fill(0)), p2 = h => String(h).padStart(2, '0');
+  S.cur.forEach(f => g[f.dow][f.hour]++);
+  const max = Math.max(1, ...g.flat()), x0 = Math.ceil(3 * CH) + 10, cw = (W - x0) / 24, rh = 22, H = 7 * rh + 22, every = cw < 3 * CH + 4 ? 3 : 1;
+  let body = '';
+  g.forEach((row, d) => {
+    body += T(0, d * rh + rh / 2 + 3.5, DN[d], 'lb');
+    row.forEach((v, h) => { body += `<rect class="cell" data-i="${d * 24 + h}" x="${r1(x0 + h * cw + 1)}" y="${d * rh + 1}" width="${r1(cw - 2)}" height="${rh - 2}" fill="var(${v ? '--s1' : '--ink'})" fill-opacity="${v ? r1(.14 + .86 * v / max) : .04}"/>`; });
+  });
+  for (let h = 0; h < 24; h += every) body += T(x0 + (h + .5) * cw, H - 6, p2(h), 'tk', 'middle');
+  return {
+    body, H, legend: [{ label: 'Fewer' }, { ramp: [.14, .35, .57, .78, 1], c: '--s1' }, { label: 'More', note: `most in one hour: ${max}` }],
+    pts: g.flatMap((row, d) => row.map((v, h) => ({ x: x0 + (h + .5) * cw, y: d * rh + 4, tip: { t: `${DN[d]} ${p2(h)}:00 to ${p2((h + 1) % 24)}:00`, rows: [[null, 'Findings', v]] } }))),
+    table: { head: ['Day', ...Array.from({ length: 24 }, (_, h) => p2(h))], rows: g.map((row, d) => [DN[d], ...row]) },
+  };
+});
+
+/* ================= composition ================= */
+card('donut', { sec: 'composition', span: 4, h: 216, title: 'Where findings come from', form: 'Donut', cap: 'Four sources and one total. A donut is fine for a few parts read at a glance; the legend carries the exact figures.' }, ({ W, H, S }) => {
+  const v = tally(S.cur, f => f.src, 4), tot = sum(v) || 1, cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 4, r = R * .66, pts = [];
+  const p = (rad, ang) => `${r1(cx + rad * Math.cos(ang))} ${r1(cy + rad * Math.sin(ang))}`;
+  let a = -Math.PI / 2, body = '';
+  v.forEach((val, k) => {
+    const b = a + val / tot * 2 * Math.PI - (val === tot ? 1e-4 : 0), big = b - a > Math.PI ? 1 : 0, m = (a + b) / 2;
+    if (val) body += `<path class="gap" data-i="${k}" fill="var(${CLSC[k]})" d="M${p(R, a)}A${r1(R)} ${r1(R)} 0 ${big} 1 ${p(R, b)}L${p(r, b)}A${r1(r)} ${r1(r)} 0 ${big} 0 ${p(r, a)}Z"/>`;
+    pts.push({ x: cx + (R + r) / 2 * Math.cos(m), y: cy + (R + r) / 2 * Math.sin(m), tip: { t: SRC[k], rows: [[CLSC[k], 'Findings', fmt(val)], [null, 'Share', pct(val, tot) + '%']] } }); a = b;
+  });
+  return {
+    body: body + T(cx, cy + 5, fmt(sum(v)), 'big', 'middle') + T(cx, cy + 23, 'findings', 'tk', 'middle'), dim: true, pts,
+    legend: SRC.map((l, k) => ({ c: CLSC[k], label: l, note: `${fmt(v[k])} · ${pct(v[k], tot)}%` })),
+    table: { head: ['Source', 'Findings', 'Share'], rows: SRC.map((l, k) => [l, v[k], pct(v[k], tot) + '%']) },
+  };
+});
+
+/* squarified treemap: lays items (largest first) into a box, keeping cells close to square */
+function squarify(items, x, y, w, h) {
+  const out = [], total = sum(items.map(i => i.v)); if (!total || w <= 0 || h <= 0) return out;
+  let rest = items.filter(i => i.v > 0).map(i => ({ ...i, a: i.v * w * h / total }));
+  while (rest.length) {
+    const side = Math.min(w, h), worst = (row, s) => Math.max(side * side * Math.max(...row) / (s * s), s * s / (side * side * Math.min(...row)));
+    let k = 1, s = rest[0].a;
+    while (k < rest.length && worst(rest.slice(0, k + 1).map(r => r.a), s + rest[k].a) <= worst(rest.slice(0, k).map(r => r.a), s)) s += rest[k++].a;
+    const thick = s / side; let off = 0;
+    for (const r of rest.slice(0, k)) { const len = r.a / thick; out.push(w >= h ? { ...r, x, y: y + off, w: thick, h: len } : { ...r, x: x + off, y, w: len, h: thick }); off += len; }
+    if (w >= h) { x += thick; w -= thick; } else { y += thick; h -= thick; }
+    rest = rest.slice(k);
+  }
+  return out;
+}
+card('tree', { sec: 'composition', span: 8, t: 6, h: 252, title: 'Findings by class and module', form: 'Treemap · 2 levels', cap: 'Area is the number of findings. Modules sit inside their class and take its colour, so the four blocks read first and the cells second.' }, ({ W, H, S }) => {
+  const groups = CLS.map((C, c) => ({ c, v: S.cur.filter(f => f.cls === c).length, kids: C.mods.map((m, k) => ({ name: m, c, v: S.cur.filter(f => f.cls === c && f.mod === k).length })).sort((a, b) => b.v - a.v) })).sort((a, b) => b.v - a.v);
+  const cells = squarify(groups, 0, 0, W, H).flatMap(g => squarify(g.kids, g.x + 1, g.y + 1, g.w - 2, g.h - 2));
+  let body = '';
+  cells.forEach((q, i) => {
+    body += `<rect class="cell soft" data-i="${i}" x="${r1(q.x + 1)}" y="${r1(q.y + 1)}" width="${r1(Math.max(0, q.w - 2))}" height="${r1(Math.max(0, q.h - 2))}" fill="var(${CLSC[q.c]})"/>`;
+    const name = q.h >= 22 ? clip(q.name, q.w - 18) : '';
+    if (name) body += `<g pointer-events="none">${T(q.x + 9, q.y + 17, name, 'in')}${q.h >= 38 ? T(q.x + 9, q.y + 31, q.v, 'in') : ''}</g>`;
+  });
+  return {
+    body, dim: true, legend: CLS.map((C, k) => ({ c: CLSC[k], label: C.name, note: fmt(S.cur.filter(f => f.cls === k).length) })),
+    pts: cells.map(q => ({ x: q.x + q.w / 2, y: q.y + q.h / 2, tip: { t: CLS[q.c].name, rows: [[CLSC[q.c], q.name, q.v], [null, 'Share of all', pct(q.v, S.cur.length) + '%']] } })),
+    table: { head: ['Class', 'Module', 'Findings', 'Share'], rows: cells.map(q => [CLS[q.c].name, q.name, q.v, pct(q.v, S.cur.length) + '%']) },
+  };
+});
+
+card('fall', { sec: 'composition', span: 5, title: 'Backlog bridge', form: 'Waterfall', cap: 'How the open backlog got from the start of the range to the end: what was added, then what was fixed or accepted.' }, ({ W, H, S }) => {
+  const start = DATA.open[S.d0 - 1], added = S.cur.length, fixed = fixedOnly(S.closed).length, acc = S.closed.length - fixed, end = DATA.open[DATA.DAYS - 1];
+  const st = [{ l: ['Open at', 'start'], lo: 0, hi: start, c: '--muted', t: fmt(start) }, { l: ['New'], lo: start, hi: start + added, c: '--s1', t: '+' + fmt(added) }, { l: ['Fixed'], lo: start + added - fixed, hi: start + added, c: '--s3', t: '−' + fmt(fixed) },
+    { l: ['Accepted', 'risk'], lo: end, hi: end + acc, c: '--s2', t: '−' + fmt(acc) }, { l: ['Open at', 'end'], lo: 0, hi: end, c: '--muted', t: fmt(end) }];
+  const level = [start, start + added, start + added - fixed, end], A = axes(W, H, start + added, { m: { t: 22, b: 36 } }), gw = A.w / st.length, bw = Math.min(48, gw * .62);
+  let body = A.body;
+  st.forEach((s, i) => {
+    const cx = A.x0 + (i + .5) * gw, y = A.y(s.hi), h = Math.max(1, A.y(s.lo) - y);
+    body += `<rect class="bar" data-i="${i}" x="${r1(cx - bw / 2)}" y="${r1(y)}" width="${r1(bw)}" height="${r1(h)}" fill="var(${s.c})"/>` + T(cx, y - 6, s.t, 'vl', 'middle') + s.l.map((t, k) => T(cx, H - (s.l.length - k - 1) * 12 - 6, t, 'tk', 'middle')).join('') +
+      (i < level.length ? `<line class="hair" x1="${r1(cx + bw / 2)}" x2="${r1(cx + gw - bw / 2)}" y1="${px(A.y(level[i]))}" y2="${px(A.y(level[i]))}"/>` : '') + `<rect class="hit" data-i="${i}" x="${r1(A.x0 + i * gw)}" y="${A.y0}" width="${r1(gw)}" height="${A.h}"/>`;
+  });
+  return {
+    body, pts: st.map((s, i) => ({ x: A.x0 + (i + .5) * gw, y: A.y(s.hi), tip: { t: s.l.join(' '), rows: [[s.c, i % 4 ? 'Change' : 'Open findings', s.t], ...(i % 4 ? [[null, 'Backlog after', fmt(level[i])]] : [])] } })),
+    table: { head: ['Step', 'Findings', 'Backlog after'], rows: st.map((s, i) => [s.l.join(' '), s.t, fmt(i < 4 ? level[i] : end)]) },
+    aria: `The backlog went from ${start} to ${end}.`,
+  };
+});
+
+card('seg', { sec: 'composition', span: 4, h: 190, title: 'Severity split', form: 'Segmented bar · 100%', cap: 'Three wholes on one scale. Each block prints its share where it fits; the legend names the parts.' }, ({ W, H, S }) => {
+  const rows = [['All', S.cur], ['Native', S.cur.filter(f => !f.mode)], ['Agentic', S.cur.filter(f => f.mode)]].map(([name, list]) => ({ name, n: list.length, v: tally(list, f => f.sev, 4) }));
+  const x0 = Math.ceil(7 * CH) + 10, x1 = W - Math.ceil(5 * CH) - 8, rh = H / rows.length, pts = [];
+  let body = '';
+  rows.forEach((r, j) => {
+    const cy = (j + .5) * rh; let x = x0;
+    body += T(0, cy + 3.5, r.name, 'lb') + T(W, cy + 3.5, fmt(r.n), 'vl', 'end');
+    r.v.forEach((val, k) => {
+      const w = r.n ? val / r.n * (x1 - x0) : 0, share = pct(val, r.n) + '%';
+      if (w > 0) body += `<rect class="bar" data-i="${pts.length}" x="${r1(x + 1)}" y="${r1(cy - 14)}" width="${r1(Math.max(1, w - 2))}" height="28" fill="var(${SEVC[k]})"/>` + (w >= share.length * CH + 16 ? `<g pointer-events="none">${T(x + 8, cy + 3.5, share, 'in')}</g>` : '');
+      pts.push({ x: x + w / 2, y: cy - 14, tip: { t: `${r.name} · ${fmt(r.n)} findings`, rows: [[SEVC[k], SEV[k], `${fmt(val)} · ${share}`]] } }); x += w;
+    });
+  });
+  return {
+    body, pts, dim: true, legend: SEV.map((l, k) => ({ c: SEVC[k], label: l })),
+    table: { head: ['Scan mode', ...SEV, 'Total'], rows: rows.map(r => [r.name, ...r.v.map(val => `${val} (${pct(val, r.n)}%)`), r.n]) },
+  };
+});
+
+card('gauge', { sec: 'composition', span: 3, t: 12, h: 190, title: 'SLA attainment', form: 'Gauge', cap: 'One ratio against one limit: fixes inside their window, with the 90% target marked on the arc.' }, ({ W, H, S }) => {
+  const fx = fixedOnly(S.closed), k = inSla(fx), v = fx.length ? k / fx.length : 0;
+  const cx = W / 2, R = Math.max(40, Math.min(W / 2 - 14, H - 44)), cy = (H - R - 26) / 2 + R, pt = (p, rad = R) => `${r1(cx - rad * Math.cos(Math.PI * p))} ${r1(cy - rad * Math.sin(Math.PI * p))}`;
+  const body = `<path d="M${pt(0)}A${R} ${R} 0 0 1 ${pt(1)}" fill="none" stroke="var(--line)" stroke-width="16"/><path data-i="0" d="M${pt(0)}A${R} ${R} 0 0 1 ${pt(v)}" fill="none" stroke="var(--s1)" stroke-width="16"/>` +
+    `<path d="M${pt(.9, R - 13)}L${pt(.9, R + 13)}" stroke="var(--ink)" stroke-width="2"/>` + T(cx, cy - 12, Math.round(v * 100) + '%', 'big', 'middle') + T(cx, cy + 6, 'inside the window', 'tk', 'middle') + T(cx - R, cy + 20, '0', 'tk', 'middle') + T(cx + R, cy + 20, '100%', 'tk', 'middle') +
+    `<rect class="hit" data-i="0" x="0" y="0" width="${W}" height="${H}"/>`;
+  return {
+    body, legend: [{ c: '--ink', kind: 't', label: 'Target 90%' }],
+    pts: [{ x: cx, y: cy - R, tip: { t: 'Closed within SLA', rows: [[null, 'Inside the window', `${fmt(k)} of ${fmt(fx.length)}`], [null, 'Share', Math.round(v * 100) + '%'], [null, 'Target', '90%']] } }],
+    table: { head: ['Measure', 'Value'], rows: [['Fixed in the range', fx.length], ['Inside the window', k], ['Share', Math.round(v * 100) + '%'], ['Target', '90%']] },
+  };
+});
+
+/* ================= flow ================= */
+card('funnel', { sec: 'flow', span: 5, h: 262, title: 'Signal to fix', form: 'Funnel · 5 stages', cap: 'What survives each stage, from raw signals to findings that are already fixed. One hue stepping brighter, because the stages are an order.' }, ({ W, H, S }) => {
+  const st = [['Raw signals', sum(S.days.map(d => d.sig))], ['Candidates', sum(S.days.map(d => d.cand))], ['Payloads fired', sum(S.days.map(d => d.fired))], ['Validated', S.cur.length], ['Fixed', S.cur.filter(f => !f.accepted && f.t1 <= S.T1).length]];
+  const x0 = Math.ceil(14 * CH) + 10, x1 = W - Math.ceil(9 * CH) - 10, cx = (x0 + x1) / 2, rh = H / st.length, bh = rh - 14, w = st.map(s => Math.max(3, s[1] / (st[0][1] || 1) * (x1 - x0)));
+  let body = '';
+  st.forEach(([name, v], i) => {
+    const y = i * rh + 7, cy = y + bh / 2;
+    if (i < st.length - 1) body += `<path fill="var(--o${i + 1})" fill-opacity=".2" d="M${r1(cx - w[i] / 2)} ${r1(y + bh)}H${r1(cx + w[i] / 2)}L${r1(cx + w[i + 1] / 2)} ${r1(y + rh)}H${r1(cx - w[i + 1] / 2)}Z"/>`;
+    body += `<rect class="bar" data-i="${i}" x="${r1(cx - w[i] / 2)}" y="${r1(y)}" width="${r1(w[i])}" height="${r1(bh)}" fill="var(--o${i + 1})"/>` + T(0, cy + 3.5, name, 'lb') + T(W, cy - 2, fmt(v), 'vl', 'end') + T(W, cy + 11, i ? pct(v, st[i - 1][1]) + '% kept' : 'start', 'tk', 'end') + `<rect class="hit" data-i="${i}" x="0" y="${r1(i * rh)}" width="${W}" height="${r1(rh)}"/>`;
+  });
+  return {
+    body, pts: st.map(([name, v], i) => ({ x: cx, y: i * rh + 7, tip: { t: name, rows: [[`--o${i + 1}`, 'Count', fmt(v)], ...(i ? [[null, 'Kept from the stage before', pct(v, st[i - 1][1]) + '%']] : []), [null, 'Of raw signals', (v / (st[0][1] || 1) * 100).toFixed(1) + '%']] } })),
+    table: { head: ['Stage', 'Count', 'Kept', 'Of raw signals'], rows: st.map(([name, v], i) => [name, fmt(v), i ? pct(v, st[i - 1][1]) + '%' : '', (v / (st[0][1] || 1) * 100).toFixed(1) + '%']) },
+  };
+});
+
+card('sankey', { sec: 'flow', span: 7, t: 6, h: 262, title: 'From source to outcome', form: 'Sankey', cap: 'Where each finding was found, which class it fell in and where it stands now. Band thickness is the number of findings; a band keeps the colour of its class.' }, ({ W, H, S }) => {
+  const OUT = ['Fixed', 'Open', 'Accepted risk'], out = f => f.t1 > S.T1 ? 1 : f.accepted ? 2 : 0, tot = S.cur.length || 1;
+  const A = SRC.map((_, s) => CLS.map((_, c) => S.cur.filter(f => f.src === s && f.cls === c).length)), B = CLS.map((_, c) => OUT.map((_, o) => S.cur.filter(f => f.cls === c && out(f) === o).length));
+  /* narrow: the outer labels move inside, over the bands, and the legend alone names the classes */
+  const nw = 10, tight = W < 460, lw = tight ? 0 : Math.ceil(12 * CH) + 10, rw = tight ? 0 : Math.ceil(13 * CH) + 12, xs = [lw, (lw + W - rw - nw) / 2, W - rw - nw], k = (H - 36) / tot;
+  const col = vals => { const g = vals.length > 1 ? (H - sum(vals) * k) / (vals.length - 1) : 0; let y = 0; return vals.map(v => { const n = { y, h: v * k, v, a: 0, b: 0 }; y += v * k + g; return n; }); };
+  const n0 = col(A.map(sum)), n1 = col(CLS.map((_, c) => sum(A.map(r => r[c])))), n2 = col(OUT.map((_, o) => sum(B.map(r => r[o])))), pts = [], rows = [];
+  let body = '';
+  const band = (xa, ya, xb, yb, h, c, from, to, v) => {
+    const mx = r1((xa + xb) / 2), f = r1;
+    body += `<path class="band" data-i="${pts.length}" fill="var(${c})" d="M${f(xa)} ${f(ya)}C${mx} ${f(ya)} ${mx} ${f(yb)} ${f(xb)} ${f(yb)}V${f(yb + h)}C${mx} ${f(yb + h)} ${mx} ${f(ya + h)} ${f(xa)} ${f(ya + h)}Z"/>`;
+    pts.push({ x: (xa + xb) / 2, y: (ya + yb) / 2, tip: { t: `${from} → ${to}`, rows: [[c, 'Findings', fmt(v)], [null, 'Share of all', pct(v, tot) + '%']] } }); rows.push([from, to, v]);
+  };
+  A.forEach((r, s) => r.forEach((v, c) => { if (v) band(xs[0] + nw, n0[s].y + n0[s].b, xs[1], n1[c].y + n1[c].a, v * k, CLSC[c], SRC[s], CLS[c].name, v); n0[s].b += v * k; n1[c].a += v * k; }));
+  B.forEach((r, c) => r.forEach((v, o) => { if (v) band(xs[1] + nw, n1[c].y + n1[c].b, xs[2], n2[o].y + n2[o].a, v * k, CLSC[c], CLS[c].name, OUT[o], v); n1[c].b += v * k; n2[o].a += v * k; }));
+  const node = (x, n, c) => `<rect x="${r1(x)}" y="${r1(n.y)}" width="${nw}" height="${r1(Math.max(1, n.h))}" fill="var(${c})"/>`;
+  const two = (x, n, name, anchor) => `<g pointer-events="none">${T(x, n.y + n.h / 2 - 2, name, tight ? 'vl halo' : 'lb', anchor)}${T(x, n.y + n.h / 2 + 10, fmt(n.v), tight ? 'lb halo' : 'tk', anchor)}</g>`;
+  n0.forEach((n, s) => { body += node(xs[0], n, '--muted') + (tight ? two(xs[0] + nw + 7, n, SRC[s], 'start') : two(xs[0] - 8, n, SRC[s], 'end')); });
+  n1.forEach((n, c) => { body += node(xs[1], n, CLSC[c]) + (tight ? '' : `<g pointer-events="none">${T(xs[1] + nw + 7, n.y + n.h / 2 + 3.5, CLS[c].name, 'vl halo')}</g>`); });
+  n2.forEach((n, o) => { body += node(xs[2], n, '--muted') + (tight ? two(xs[2] - 8, n, OUT[o], 'end') : two(xs[2] + nw + 8, n, OUT[o], 'start')); });
+  return { body, pts, dim: true, legend: CLS.map((C, c) => ({ c: CLSC[c], label: C.name })), table: { head: ['From', 'To', 'Findings'], rows } };
+});
+
+card('radar', { sec: 'flow', span: 4, h: 262, title: 'Projects by scan mode', form: 'Radar · 2 series', cap: 'Findings per project, native against agentic. The outline shows which projects lean on which mode.' }, ({ W, H, S }) => {
+  const v = PROJ.map((_, p) => [0, 1].map(m => S.cur.filter(f => f.proj === p && f.mode === m).length)), ticks = nice(Math.max(1, ...v.flat()), 3), max = ticks[ticks.length - 1], n = PROJ.length;
+  const cx = W / 2, cy = H / 2, R = Math.max(30, Math.min(W / 2 - Math.ceil(9 * CH) - 14, H / 2 - 30)), ang = i => -Math.PI / 2 + i / n * 2 * Math.PI, pt = (i, val) => [cx + val / max * R * Math.cos(ang(i)), cy + val / max * R * Math.sin(ang(i))];
+  const poly = val => PROJ.map((_, i) => pt(i, typeof val === 'function' ? val(i) : val).map(r1).join(' ')).join(' ');
+  let body = ticks.slice(1).map(t => `<polygon class="grid-l" fill="none" points="${poly(t)}" style="shape-rendering:auto"/>`).join('') + PROJ.map((_, i) => `<line class="grid-l" style="shape-rendering:auto" x1="${cx}" y1="${cy}" x2="${r1(pt(i, max)[0])}" y2="${r1(pt(i, max)[1])}"/>`).join('');
+  PROJ.forEach((p, i) => {
+    const c = Math.cos(ang(i)), s = Math.sin(ang(i)), lines = Math.abs(c) < .3 ? [p.name] : wrap2(p.name, '-'), x = cx + (R + 10) * c, y = cy + (R + 10) * s, anchor = Math.abs(c) < .3 ? 'middle' : c > 0 ? 'start' : 'end';
+    const y0 = s < -.3 ? y - (lines.length - 1) * 12 : s > .3 ? y + 9 : y + 3.5 - (lines.length - 1) * 6;
+    body += lines.map((t, k) => T(x, y0 + k * 12, t, 'lb', anchor)).join('');
+  });
+  [0, 1].forEach(m => { body += `<polygon fill="var(${MODEC[m]})" fill-opacity=".14" stroke="var(${MODEC[m]})" stroke-width="2" stroke-linejoin="round" points="${poly(i => v[i][m])}"/>` + PROJ.map((_, i) => { const q = pt(i, v[i][m]); return `<rect class="ring" x="${r1(q[0] - 2.5)}" y="${r1(q[1] - 2.5)}" width="5" height="5" fill="var(${MODEC[m]})"/>`; }).join(''); });
+  const mid = -Math.PI / 2 + Math.PI / n, edge = Math.cos(Math.PI / n); /* the middle of the first edge of each ring */
+  body += ticks.slice(1).map(t => T(cx + t / max * R * edge * Math.cos(mid), cy + t / max * R * edge * Math.sin(mid) + 3.5, t, 'tk halo', 'middle')).join('');
+  return {
+    body, hover: 'near', reach: 1e4, legend: MODE.map((l, m) => ({ c: MODEC[m], label: l, kind: 'l' })),
+    pts: PROJ.map((p, i) => ({ x: pt(i, max)[0], y: pt(i, max)[1], tip: { t: p.name, rows: MODE.map((l, m) => [MODEC[m], l, v[i][m]]) }, marks: [0, 1].map(m => ({ x: pt(i, v[i][m])[0], y: pt(i, v[i][m])[1], c: MODEC[m] })) })),
+    table: { head: ['Project', ...MODE, 'Total'], rows: PROJ.map((p, i) => [p.name, ...v[i], sum(v[i])]) },
+  };
+});
+
+card('gantt', { sec: 'flow', span: 8, t: 6, h: 262, title: 'One agentic scan', form: 'Gantt · timeline', cap: 'Phases of the longest agentic run in the range, in minutes from its start. Writing, firing and validating overlap because agents work in parallel.' }, ({ W, H, S }) => {
+  const run = S.cur.filter(f => f.mode === 1).reduce((a, f) => !a || f.ttp > a.ttp ? f : a, null), total = Math.max(24, Math.min(120, run ? run.ttp : 40));
+  const PH = [['Recon', 0, .14], ['Plan', .11, .22], ['Write exploits', .2, .55], ['Fire payloads', .27, .82], ['Validate', .45, .93], ['Report', .91, 1]].map(([name, a, b]) => ({ name, a: a * total, b: b * total }));
+  const ticks = nice(total, 5), max = ticks[ticks.length - 1], x0 = Math.ceil(14 * CH) + 12, x1 = W - 12, y1 = H - 22, rh = (y1 - 2) / PH.length, x = t => x0 + t / max * (x1 - x0);
+  let body = ticks.map(t => `<line class="${t ? 'grid-l' : 'axis'}" x1="${px(x(t))}" x2="${px(x(t))}" y1="2" y2="${y1}"/>` + T(x(t), H - 6, t + 'm', 'tk', 'middle')).join('');
+  PH.forEach((p, i) => {
+    const cy = 2 + (i + .5) * rh, w = x(p.b) - x(p.a), lab = fmin(p.b - p.a), inside = x(p.b) + 8 + lab.length * CH > x1;
+    body += T(x0 - 10, cy + 3.5, p.name, 'lb', 'end') + `<rect class="bar" data-i="${i}" x="${r1(x(p.a))}" y="${r1(cy - 8)}" width="${r1(w)}" height="16" fill="var(--s1)"/>` + T(inside ? x(p.a) - 7 : x(p.b) + 7, cy + 3.5, lab, 'vl', inside ? 'end' : 'start') + `<rect class="hit" data-i="${i}" x="0" y="${r1(2 + i * rh)}" width="${W}" height="${r1(rh)}"/>`;
+  });
+  return {
+    body, pts: PH.map((p, i) => ({ x: x(p.b), y: 2 + (i + .5) * rh - 8, tip: { t: p.name, rows: [[null, 'Starts at', fmin(p.a)], [null, 'Ends at', fmin(p.b)], [null, 'Lasts', fmin(p.b - p.a)]] } })),
+    table: { head: ['Phase', 'Starts at', 'Ends at', 'Lasts'], rows: PH.map(p => [p.name, fmin(p.a), fmin(p.b), fmin(p.b - p.a)]) },
+    aria: run ? `The run took ${fmin(total)} on ${PROJ[run.proj].name}.` : '',
+  };
+});
+
+card('ptable', { sec: 'flow', span: 12, custom: true, title: 'Projects', form: 'Table · sparklines', cap: 'When more than a handful of rows all matter, the table is the chart. Each row carries its own severity bar and trend.' }, ({ S }) => {
+  const B = coarse(S);
+  const rows = PROJ.map((p, i) => { const list = S.cur.filter(f => f.proj === i); return { name: p.name, n: list.length, open: S.openNow.filter(f => f.proj === i).length, sev: tally(list, f => f.sev, 4), sp: B.map(b => list.filter(f => f.d >= b.from && f.d <= b.to).length), fix: median(fixedOnly(S.closed).filter(f => f.proj === i).map(f => f.fix)) }; }).sort((a, b) => b.n - a.n);
+  const wrap = mk('div', null, 'ptab'), table = mk('table'), head = mk('thead'), body = mk('tbody'), hr = mk('tr'); wrap.style.overflowX = 'auto';
+  [['Project'], ['Findings'], ['Open now'], ['Critical'], ['Severity mix', 'c'], ['Trend', 'c'], ['Median fix']].forEach(([t, c]) => hr.append(mk('th', t, c)));
+  head.append(hr);
+  rows.forEach(r => {
+    const tr = mk('tr'), mix = mk('div', null, 'mix'), tdm = mk('td', null, 'c'), tds = mk('td', null, 'c'), w = 132, h = 22, hi = Math.max(1, ...r.sp), n = r.sp.length;
+    mix.setAttribute('role', 'img'); mix.setAttribute('aria-label', SEV.map((l, k) => `${r.sev[k]} ${l.toLowerCase()}`).join(', '));
+    r.sev.forEach((v, k) => { if (!v) return; const i = mk('i'); i.style.flex = v + ' 0 0'; i.style.setProperty('--c', `var(${SEVC[k]})`); mix.append(i); });
+    tdm.append(mix);
+    const x = i => 1 + i / Math.max(1, n - 1) * (w - 9), y = v => h - 4 - v / hi * (h - 8);
+    tds.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Trend, ${r.sp.join(', ')}"><path class="sp-l" d="M${r.sp.map((v, i) => r1(x(i)) + ' ' + r1(y(v))).join('L')}"/><rect class="sp-e" style="stroke:var(--fig-solid)" x="${r1(x(n - 1) - 3)}" y="${r1(y(r.sp[n - 1]) - 3)}" width="6" height="6"/></svg>`;
+    tr.append(mk('td', r.name), mk('td', fmt(r.n)), mk('td', fmt(r.open)), mk('td', r.sev[0]), tdm, tds, mk('td', fh(r.fix)));
+    body.append(tr);
+  });
+  table.append(head, body); wrap.append(table);
+  return { node: wrap, legend: SEV.map((l, k) => ({ c: SEVC[k], label: l })) };
+});
+
+/* ================= records table: recordsTable(root, options) =================
+   One table with a search box, a segmented filter, choosers, sortable columns and pages. It only writes markup and rt-* classes: the look is the page's CSS.
+   options  rows      the records, plain objects
+            columns   [{ key, label, num, cls, cell(row), sort(row) }]  cell returns the cell's HTML and sort what to order by; both default to row[key]. sort: false leaves a column unsortable
+            search    the keys the search box reads
+            seg       { key, label, options }  one filter as a row of switches, each with its count
+            picks     [{ key, label, options }]  filters as choosers; without options they list the values found in the rows
+            sort      { key, dir }   size, sizes  rows a page   noun  ['finding', 'findings']   glyph  { search, prev, next } as HTML
+            cls       { search, seg, pick, reset, table, step }  class names to add, so a part can wear a control the page already has
+   Returns { rows(next) }: swap the records, keep the filters and the sort, and go back to the first page. */
+function recordsTable(root, o) {
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const cols = o.columns, picks = o.picks || [], noun = o.noun || ['row', 'rows'], sizes = o.sizes || [10, 25, 50], id = 'rt' + (recordsTable.n = (recordsTable.n || 0) + 1);
+  const G = Object.assign({ search: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3.5 3.5"/></svg>', prev: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.500"/></svg>', next: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.500 4.500 4.500-4.500 4.500"/></svg>' }, o.glyph);
+  const K = o.cls || {}, cl = k => 'rt-' + k + (K[k] ? ' ' + K[k] : '');
+  const st = { q: '', seg: '', pick: {}, sort: o.sort ? { ...o.sort } : null, page: 0, size: o.size || sizes[0] };
+  let rows = o.rows;
+  const found = k => Array.from(new Set(rows.map(r => String(r[k])))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  /* does a row pass every filter, leaving out the one whose options are being counted */
+  const pass = (r, skip) => (!st.q || o.search.some(k => String(r[k]).toLowerCase().includes(st.q)))
+    && (!o.seg || skip === o.seg.key || !st.seg || String(r[o.seg.key]) === st.seg)
+    && picks.every(p => skip === p.key || !st.pick[p.key] || String(r[p.key]) === st.pick[p.key]);
+  const tally = k => { const n = { '': 0 }; for (const r of rows) if (pass(r, k)) { n[r[k]] = (n[r[k]] || 0) + 1; n['']++; } return n; };
+  const pick = (k, label) => `<button type="button" class="${cl('pick')}" data-k="${k}" aria-haspopup="listbox" aria-expanded="false"><span>${esc(label)}</span><b></b><i aria-hidden="true"></i></button>`;
+  const nf = n => (n || 0).toLocaleString('en-US');
+  const tdc = c => [c.num ? 'num' : '', c.cls || ''].join(' ').trim();
+
+  root.classList.add('rt');
+  root.innerHTML = `<div class="rt-bar"><label class="${cl('search')}">${G.search}<input type="search" placeholder="${esc(o.placeholder || 'Filter ' + noun[1])}" aria-label="${esc(o.placeholder || 'Filter ' + noun[1])}" spellcheck="false" autocomplete="off"></label>`
+    + (o.seg ? `<div class="${cl('seg')}" role="group" aria-label="${esc(o.seg.label)}">${[''].concat(o.seg.options || found(o.seg.key)).map(v => `<button type="button" data-v="${esc(v)}" aria-pressed="${!v}">${esc(v || 'All')}<b></b></button>`).join('')}</div>` : '')
+    + picks.map(p => pick(p.key, p.label)).join('') + `<button type="button" class="${cl('reset')}" hidden>Reset</button></div>`
+    + `<div class="rt-scroll"><table class="${cl('table')}" aria-label="${esc(o.label || noun[1])}"><thead><tr>${cols.map(c => `<th scope="col"${tdc(c) ? ` class="${tdc(c)}"` : ''}${c.sort === false ? `>${esc(c.label)}` : ` aria-sort="none"><button type="button" data-k="${c.key}">${esc(c.label)}<i aria-hidden="true"></i></button>`}</th>`).join('')}</tr></thead><tbody></tbody></table></div>`
+    + `<div class="rt-foot"><span class="rt-count" role="status"></span><span class="rt-pager">${pick('#size', 'Rows')}<button type="button" class="${cl('step')}" data-d="-1" aria-label="Previous page">${G.prev}</button><span class="rt-page"></span><button type="button" class="${cl('step')}" data-d="1" aria-label="Next page">${G.next}</button></span></div>`;
+  const $ = s => root.querySelector(s), input = $('input'), body = $('tbody'), steps = root.querySelectorAll('.rt-step');
+
+  function draw() {
+    const c = st.sort && cols.find(c => c.key === st.sort.key), dir = st.sort && st.sort.dir === 'desc' ? -1 : 1, by = r => typeof c.sort === 'function' ? c.sort(r) : r[c.key];
+    const all = rows.filter(r => pass(r));
+    if (c) all.sort((a, b) => { const x = by(a), y = by(b); return dir * (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })); });
+    const pages = Math.max(1, Math.ceil(all.length / st.size)); st.page = Math.max(0, Math.min(st.page, pages - 1));
+    const from = st.page * st.size, part = all.slice(from, from + st.size);
+    body.innerHTML = part.length ? part.map(r => '<tr>' + cols.map(c => `<td${tdc(c) ? ` class="${tdc(c)}"` : ''}>${c.cell ? c.cell(r) : esc(r[c.key])}</td>`).join('') + '</tr>').join('')
+      : `<tr class="rt-none"><td colspan="${cols.length}">No ${esc(noun[1])} match these filters. <button type="button" class="rt-clear">Clear filters</button></td></tr>`;
+    $('.rt-count').textContent = (all.length ? `${from + 1}–${from + part.length} of ${nf(all.length)}` : '0') + ' ' + noun[all.length === 1 ? 0 : 1] + (all.length < rows.length ? `, filtered from ${nf(rows.length)}` : '');
+    $('.rt-page').textContent = `${st.page + 1} / ${pages}`; steps[0].disabled = st.page === 0; steps[1].disabled = st.page >= pages - 1;
+    if (o.seg) { const n = tally(o.seg.key); root.querySelectorAll('.rt-seg button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.v === st.seg); b.lastElementChild.textContent = nf(n[b.dataset.v]); }); }
+    root.querySelectorAll('.rt-pick').forEach(b => { const k = b.dataset.k; b.querySelector('b').textContent = k === '#size' ? st.size : st.pick[k] || 'All'; b.classList.toggle('on', k !== '#size' && !!st.pick[k]); });
+    root.querySelectorAll('th[aria-sort]').forEach(th => th.setAttribute('aria-sort', c && th.firstElementChild.dataset.k === c.key ? (dir > 0 ? 'ascending' : 'descending') : 'none'));
+    $('.rt-reset').hidden = !(st.q || st.seg || picks.some(p => st.pick[p.key]));
+  }
+
+  /* a chooser's list: a listbox the page draws, so it wears the theme and never the system's popup. Arrow keys, Home/End, typing a name, Enter, Escape */
+  const menu = document.createElement('div'); menu.className = 'rt-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1; menu.hidden = true; document.body.append(menu);
+  let forBtn = null, opts = [], at = -1, typed = '', typedAt = 0;
+  const setAt = (i, quiet) => { at = i; opts.forEach((el, n) => el.classList.toggle('act', n === i)); const el = opts[i]; if (!el) return; menu.setAttribute('aria-activedescendant', el.id); if (!quiet) el.scrollIntoView({ block: 'nearest' }); };
+  function open(btn) {
+    close(); const k = btn.dataset.k, p = picks.find(p => p.key === k), n = p && tally(k), cur = p ? st.pick[k] || '' : String(st.size);
+    const list = p ? [['', 'All']].concat((p.options || found(k)).map(v => [v, v])) : sizes.map(v => [String(v), v + ' rows']);
+    menu.innerHTML = list.map(([v, label], i) => `<div role="option" id="${id}-${i}" data-v="${esc(v)}" aria-selected="${v === cur}"><span>${esc(label)}</span>${n ? `<b>${nf(n[v])}</b>` : ''}</div>`).join('');
+    opts = Array.from(menu.children); forBtn = btn; typed = ''; btn.setAttribute('aria-expanded', 'true'); menu.setAttribute('aria-label', p ? p.label : 'Rows a page'); menu.hidden = false; menu.scrollTop = 0;
+    const r = btn.getBoundingClientRect(), below = innerHeight - r.bottom, up = below < 200 && r.top > below; /* above the control only when there is no room under it */
+    menu.style.minWidth = Math.round(r.width) + 'px'; menu.style.maxHeight = Math.max(120, Math.min(340, (up ? r.top : below) - 12)) + 'px';
+    menu.style.left = Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, r.left)) + 'px';
+    menu.style.top = up ? 'auto' : r.bottom + 4 + 'px'; menu.style.bottom = up ? innerHeight - r.top + 4 + 'px' : 'auto';
+    setAt(Math.max(0, opts.findIndex(el => el.getAttribute('aria-selected') === 'true'))); menu.focus({ preventScroll: true });
+  }
+  function close(refocus) { if (!forBtn) return; const b = forBtn; forBtn = null; menu.hidden = true; b.setAttribute('aria-expanded', 'false'); if (refocus) b.focus({ preventScroll: true }); }
+  function choose(i) { const b = forBtn, el = opts[i]; close(true); if (!b || !el) return; if (b.dataset.k === '#size') st.size = +el.dataset.v; else st.pick[b.dataset.k] = el.dataset.v; st.page = 0; draw(); }
+  menu.addEventListener('keydown', e => {
+    const n = opts.length, k = e.key;
+    if (k === 'ArrowDown') setAt((at + 1) % n); else if (k === 'ArrowUp') setAt((at - 1 + n) % n);
+    else if (k === 'Home' || k === 'PageUp') setAt(0); else if (k === 'End' || k === 'PageDown') setAt(n - 1);
+    else if (k === 'Enter' || k === ' ') choose(at); else if (k === 'Escape') close(true);
+    else if (k === 'Tab') { close(true); return; } /* focus is back on the control, so Tab moves on from there */
+    else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) { /* type a name to jump to it */
+      const t = Date.now(); typed = (t - typedAt > 700 ? '' : typed) + k.toLowerCase(); typedAt = t;
+      for (let j = 0, from = typed.length > 1 ? at : at + 1; j < n; j++) { const i = (from + j) % n; if (opts[i].textContent.trim().toLowerCase().startsWith(typed)) { setAt(i); break; } }
+    } else return;
+    e.preventDefault(); e.stopPropagation();
+  });
+  menu.addEventListener('click', e => { const el = e.target.closest('[role="option"]'); if (el) choose(opts.indexOf(el)); });
+  menu.addEventListener('pointermove', e => { const i = opts.indexOf(e.target.closest('[role="option"]')); if (i >= 0 && i !== at) setAt(i, true); });
+  menu.addEventListener('focusout', e => { if (forBtn && e.relatedTarget !== forBtn && !menu.contains(e.relatedTarget)) close(); });
+  document.addEventListener('pointerdown', e => { if (forBtn && !menu.contains(e.target) && !forBtn.contains(e.target)) close(); }, true);
+  addEventListener('resize', () => close()); addEventListener('scroll', e => { if (e.target !== menu) close(); }, true);
+
+  root.addEventListener('keydown', e => { const b = e.target.closest('.rt-pick'); if (b && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); open(b); } });
+  root.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.classList.contains('rt-pick')) return forBtn === b ? close(true) : open(b);
+    if (b.classList.contains('rt-step')) st.page += +b.dataset.d;
+    else {
+      if (b.closest('.rt-seg')) st.seg = b.dataset.v;
+      else if (b.closest('thead')) { const k = b.dataset.k, same = st.sort && st.sort.key === k; st.sort = { key: k, dir: same ? (st.sort.dir === 'asc' ? 'desc' : 'asc') : cols.find(c => c.key === k).num ? 'desc' : 'asc' }; } /* numbers start from the largest */
+      else if (b.matches('.rt-reset, .rt-clear')) { st.q = input.value = ''; st.seg = ''; st.pick = {}; input.focus({ preventScroll: true }); } /* the button is about to go */
+      else return;
+      st.page = 0;
+    }
+    draw();
+  });
+  input.addEventListener('input', () => { st.q = input.value.trim().toLowerCase(); st.page = 0; draw(); });
+  draw();
+  return { rows(next) { rows = next; st.page = 0; draw(); } };
+}
+
+/* the records section: one row per finding in the range. It keeps its filters when the range changes */
+let recs;
+const FID = new Map(DATA.F.map((f, i) => [f, 'F-' + String(i + 1).padStart(4, '0')]));
+function records() {
+  const rows = S.cur.map(f => ({ id: FID.get(f), mod: CLS[f.cls].mods[f.mod], sev: SEV[f.sev], rank: f.sev, cls: CLS[f.cls].name, proj: PROJ[f.proj].name, mode: MODE[f.mode], cvss: f.cvss,
+    t0: f.t0, found: dl(DATA.day[f.d].date), age: Math.min(f.t1, S.T1) - f.t0, status: f.t1 > S.T1 ? 'Open' : f.accepted ? 'Accepted' : 'Fixed' }));
+  if (recs) return recs.rows(rows);
+  recs = recordsTable($('#records-table'), {
+    rows, noun: ['finding', 'findings'], label: 'All findings in the range', placeholder: 'Filter findings', search: ['id', 'mod', 'proj', 'cls'], size: 10, sort: { key: 't0', dir: 'desc' },
+    cls: { seg: 'seg', reset: 'tb' },
+    seg: { key: 'sev', label: 'Severity', options: SEV },
+    picks: [{ key: 'cls', label: 'Class', options: CLS.map(c => c.name) }, { key: 'proj', label: 'Project' }, { key: 'status', label: 'Status', options: ['Open', 'Fixed', 'Accepted'] }],
+    columns: [
+      { key: 'id', label: 'Finding', cell: r => `<b>${r.id}</b><small>${esc(r.mod)}</small>` },
+      { key: 'sev', label: 'Severity', sort: r => r.rank, cell: r => `<span class="rt-sev"><i style="--c:var(${SEVC[r.rank]})"></i>${r.sev}</span>` },
+      { key: 'cls', label: 'Class' }, { key: 'proj', label: 'Project' }, { key: 'mode', label: 'Mode' },
+      { key: 'cvss', label: 'CVSS', num: true, cell: r => `<span class="rt-cvss">${r.cvss.toFixed(1)}<i style="--c:var(${SEVC[r.rank]});--v:${r.cvss * 10}%"></i></span>` },
+      { key: 't0', label: 'Found', num: true, cell: r => r.found },
+      { key: 'age', label: 'Open for', num: true, cell: r => fh(r.age) },
+      { key: 'status', label: 'Status', cell: r => `<span class="rt-st ${r.status.toLowerCase()}">${r.status}</span>` },
+    ],
+  });
+}
+
+/* ================= boot ================= */
+function measure() {
+  const probe = document.createElement('span'); probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font-family:var(--mono);font-size:10.5px'; probe.textContent = '0000000000';
+  document.body.append(probe); const w = probe.getBoundingClientRect().width / 10; probe.remove();
+  CH = (w || 6.3) * (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tw-fs')) || 1);
+}
+function renderAll() { measure(); hero(); kpis(); cards.forEach(c => render(c)); cards.forEach(fill); }
+function setRange(n) {
+  N = n; S = slice(N);
+  document.querySelectorAll('#range button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === N)));
+  renderAll(); records();
+}
+mount(); setRange(30);
+$('#range').addEventListener('click', e => { const b = e.target.closest('button[data-n]'); if (b) setRange(+b.dataset.n); });
+let resizeTimer; addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderAll, 120); });
+addEventListener('scroll', () => tipEl.classList.remove('show'), { passive: true });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(renderAll);
+</script>
+</body>
+</html>

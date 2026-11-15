@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en" id="top">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charts made of characters</title>
+<meta name="description" content="An all-monospace article template in the Vigolium Workbench theme: bracketed links, a pipe-separated contents row, square panels and figures drawn in block, shade and box-drawing characters.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="../assets/vigolium-mark.png">
+<script>
+(function () {
+  var d = document.documentElement;
+  try {
+    var t = localStorage.getItem("artikit-blog-theme");
+    if (t === "light" || t === "dark") d.setAttribute("data-theme", t);
+  } catch (e) {}
+})();
+</script>
+<!--
+  Artikit, blog-workbench-post.html
+  An article in the register of dashboard-vigolium-workbench.html: one mono face,
+  bracketed links, a pipe-separated contents row, square hairline panels.
+  To write your own document, replace what is inside <article class="post">
+  and list each h2 in nav .nav. The line of facts under the nav (words, reading
+  time, figures) is counted from the article when the page loads.
+
+  Blocks
+    header .hdr           wordmark, bracketed links, the scheme switch
+    nav .nav              one link per h2; the section on screen is marked
+    div.strip             posted date, then counted facts
+    p.kicker, h1, p.lede  the opening
+    h2, h3                h2 is accent capitals after "##", h3 follows "###"
+    p, ul, ol             ul rows start with a dash, ol rows with 01, 02
+    blockquote            one bar down the left
+    figure.fig            a panel: .phead (title, tag), div.chart, figcaption
+    div.chart             a text chart drawn by the script from data- attributes:
+                            data-kind="bars"     data-rows='[[label, value, colour], …]'
+                            data-kind="columns"  data-values, data-labels, data-rows (height)
+                            data-kind="line"     data-series='[{name, colour, values}, …]', data-labels
+                            data-kind="heat"     data-grid (rows of numbers), data-rowlabels, data-labels
+                            data-kind="stack"    data-rows='[[label, [parts…]], …]', data-parts, data-colours
+                          each one gets a [data] toggle with the same numbers as a table
+    figure.code           .chead (file name, [copy]) and pre.well
+    div.note              a panel that opens with a bracketed word
+    div.tablewrap         table with small capital heads
+    footer                one line
+
+  Colours are tokens in :root; the light scheme overrides them. The scheme is
+  stored under "artikit-blog-theme", shared with the other blog templates, and
+  follows the system until it is set.
+-->
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#1c1b19; --surface:#272520; --text:#fce8c3; --muted:#938377; --border:#2e2b26; --well:#141310;
+  --accent:#7fd962; --secondary:#68a8e4; --tertiary:#e8943a; --success:#98bc37; --error:#f14841; --warn:#f2c55c;
+  --mark:#7fd962; --m1:#68a8e4; --m2:#e8943a;
+  --c1:#2be4d0; --c2:#f2c55c; --c3:#ff5c8f; --c4:#b794f6;
+  --sev1:#e53935; --sev2:#f08a2b; --sev3:#ffd54f; --sev4:#938377;
+  --mono:"JetBrains Mono","Fira Code","Cascadia Code",ui-monospace,Menlo,Consolas,monospace;
+  --dim:color-mix(in srgb,var(--muted) 50%,var(--bg));
+  --soft:color-mix(in srgb,var(--text) 55%,var(--muted));
+  --hairline:color-mix(in srgb,var(--border) 90%,transparent);
+  --measure:76ch;
+}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){
+    color-scheme:light;
+    --bg:#f6edda; --surface:#ede4d1; --text:#005661; --muted:#546b6b; --border:#bbc3c4; --well:#ede4d1;
+    --accent:#0066a5; --secondary:#00598f; --tertiary:#964f08; --success:#007a47; --error:#bb4017; --warn:#896408;
+    --mark:#00935a; --m1:#0078c8; --m2:#c2660a;
+    --c1:#008f8c; --c2:#b98300; --c3:#d6336c; --c4:#8a5fd0;
+    --sev1:#c62828; --sev2:#e8791a; --sev3:#eec12a; --sev4:#7d8f8f;
+  }
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f6edda; --surface:#ede4d1; --text:#005661; --muted:#546b6b; --border:#bbc3c4; --well:#ede4d1;
+  --accent:#0066a5; --secondary:#00598f; --tertiary:#964f08; --success:#007a47; --error:#bb4017; --warn:#896408;
+  --mark:#00935a; --m1:#0078c8; --m2:#c2660a;
+  --c1:#008f8c; --c2:#b98300; --c3:#d6336c; --c4:#8a5fd0;
+  --sev1:#c62828; --sev2:#e8791a; --sev3:#eec12a; --sev4:#7d8f8f;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scrollbar-color:var(--dim) transparent;scroll-padding-top:84px;scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+::selection{background:color-mix(in srgb,var(--accent) 30%,transparent);color:var(--text)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.glow{transition:text-shadow .18s ease,color .18s ease}
+.glow:hover{text-shadow:0 0 4px color-mix(in srgb,currentColor 85%,transparent),0 0 10px color-mix(in srgb,currentColor 65%,transparent),0 0 22px color-mix(in srgb,currentColor 45%,transparent)}
+
+/* ── header, contents row, facts ── */
+header.site{position:sticky;top:0;z-index:40;background:var(--bg);font-size:13.5px;line-height:1.5}
+.hdr{padding:4px 16px;min-height:32px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 16px;border-bottom:1px solid var(--border)}
+.hdr .grp{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.hdr .brand{color:var(--accent);font-weight:700}
+.hdr .ver{color:var(--muted)}
+.hdr .ver b{color:var(--tertiary);font-weight:400}
+.hdr a.lnk{color:var(--secondary)}
+.hdr a.lnk:hover,.hdr .scheme:hover{color:var(--accent)}
+.hdr .scheme{color:var(--muted);padding:4px 2px;margin:-4px -2px}
+.nav{padding:4px 16px;min-height:28px;line-height:1.25;display:flex;flex-wrap:wrap;align-items:center;gap:4px 0;border-bottom:1px solid var(--border)}
+.nav .gt{color:var(--border);margin-right:8px}
+.nav .sep{color:var(--border);margin:0 8px}
+.nav a{color:var(--muted);padding:2px 6px;margin:-2px 0;white-space:nowrap;text-transform:uppercase;transition:color .15s}
+.nav a:hover{color:var(--text)}
+.nav a.active{font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+@media (max-width:760px){.hdr .md{display:none}.nav .gt{display:none}.nav .sep{margin:0 4px}}
+
+main{flex:1;width:100%;max-width:calc(var(--measure) + 32px);margin:0 auto;padding:8px 16px 56px}
+.strip{border:1px solid var(--hairline);padding:6px 16px;display:flex;align-items:center;gap:4px 8px;flex-wrap:wrap;font-size:13.5px;line-height:1.5}
+.strip .st{display:inline-flex;align-items:center;gap:4px}
+.strip .bar{color:var(--dim);margin-right:4px}
+.strip .lab{color:var(--muted)}
+.strip .val{font-weight:700;color:var(--accent)}
+
+/* ── the opening ── */
+.kicker{margin:40px 0 0;color:var(--muted);font-size:13.5px}
+.kicker b{color:var(--tertiary);font-weight:400}
+h1{margin:10px 0 0;font-size:clamp(26px,5vw,34px);line-height:1.2;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.lede{margin:18px 0 0;padding-bottom:28px;border-bottom:1px dashed var(--border);color:var(--soft);font-size:16.5px;line-height:1.7;text-wrap:pretty}
+
+/* ── text ── */
+.post h2{margin:44px 0 0;font-size:15px;font-weight:700;color:var(--accent);text-transform:uppercase}
+.post h2::before{content:"## ";color:var(--dim)}
+.post h3{margin:28px 0 0;font-size:15px;font-weight:700}
+.post h3::before{content:"### ";color:var(--dim);font-weight:400}
+.post p{margin:14px 0 0;text-wrap:pretty}
+.post a{color:var(--secondary);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--secondary) 45%,transparent);text-underline-offset:3px}
+.post a:hover{color:var(--accent);text-decoration-color:currentColor}
+.post strong{font-weight:700}
+.post code{color:var(--success);background:var(--well);padding:1px 5px;font-size:.93em}
+.post ul,.post ol{margin:14px 0 0;padding:0;list-style:none}
+.post li{position:relative;padding-left:3ch;margin-top:6px}
+.post ul li::before{content:"-";position:absolute;left:1ch;color:var(--accent)}
+.post ol{counter-reset:n}
+.post ol li{counter-increment:n;padding-left:4ch}
+.post ol li::before{content:counter(n,decimal-leading-zero);position:absolute;left:0;color:var(--accent);font-weight:700}
+.post blockquote{margin:22px 0 0;padding:2px 0 2px 2ch;border-left:2px solid var(--accent);color:var(--soft)}
+.post blockquote p{margin:0}
+.post hr{margin:36px 0 0;border:0;border-top:1px dashed var(--border)}
+.glyph{color:var(--mark);white-space:nowrap}
+
+/* ── panels: figures, code, notes, tables ── */
+.fig,.code,.note,.tablewrap{margin:22px 0 0;border:1px solid var(--hairline);background:var(--bg);font-size:13.5px;line-height:1.5}
+.fig{padding:12px}
+.phead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.phead .title{color:var(--accent);font-weight:700;text-transform:uppercase;margin-right:auto}
+.tag{border:1px solid var(--border);padding:0 4px;color:var(--secondary);font-size:11px;white-space:nowrap}
+.chart{position:relative;min-width:0}
+.chart pre{margin:0;font:inherit;white-space:pre;overflow:hidden}
+.chart pre.join{line-height:var(--join,normal)}
+.chart .stack{display:grid}
+.chart .stack>pre{grid-area:1/1}
+.lg{display:flex;flex-wrap:wrap;gap:0 14px;margin-bottom:6px;color:var(--soft);font-size:12px}
+.lg i{font-style:normal;margin-right:5px}
+figcaption{margin-top:10px;padding-top:8px;border-top:1px dashed var(--border);color:var(--muted);font-size:12.5px;text-wrap:pretty}
+figcaption b{color:var(--text);font-weight:700;margin-right:6px;text-transform:uppercase}
+details.data{margin-top:8px;font-size:12.5px}
+details.data summary{display:inline-block;list-style:none;cursor:pointer;color:var(--muted)}
+details.data summary::-webkit-details-marker{display:none}
+details.data summary:hover,details.data[open] summary{color:var(--accent)}
+details.data .scroll{margin-top:6px;overflow:auto;max-height:260px;border:1px solid var(--hairline);background:var(--well)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th{text-align:left;padding:6px 12px;color:var(--muted);font-size:11px;text-transform:uppercase;font-weight:400;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:6px 12px;border-bottom:1px solid color-mix(in srgb,var(--border) 50%,transparent);vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--surface)}
+td.g{color:var(--mark);white-space:nowrap}
+td.n,th.n{text-align:right;white-space:nowrap}
+.tablewrap{overflow-x:auto}
+.tablewrap table{min-width:520px}
+.code .chead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 12px;border-bottom:1px solid var(--hairline);color:var(--muted)}
+.code .chead b{color:var(--secondary);font-weight:400}
+.code .copy{color:var(--muted);padding:4px 2px;margin:-4px -2px}
+.code .copy:hover{color:var(--accent)}
+.well{margin:0;padding:12px;background:var(--well);color:var(--text);font:inherit;white-space:pre;overflow-x:auto;tab-size:2}
+.well .cm{color:var(--muted)}
+.well .st{color:var(--success)}
+.note{padding:10px 12px}
+.note p{margin:0}
+.note b{color:var(--warn);font-weight:700;margin-right:6px}
+.note.ok b{color:var(--success)}
+
+footer{padding:8px 16px;border-top:1px solid var(--border);color:var(--muted);font-size:11px;line-height:1.5;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+footer a{color:var(--accent)}
+
+@media (max-width:560px){body{font-size:14px}.lede{font-size:15px}.post li{padding-left:2.5ch}}
+@media (pointer:coarse){.hdr{padding-block:8px}.nav{gap:14px 0;padding-block:8px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;scroll-behavior:auto!important}}
+@media print{header.site{position:static}.scheme,.copy,details.data{display:none}}
+</style>
+</head>
+<body>
+<header class="site">
+  <div class="hdr">
+    <div class="grp">
+      <a class="brand" href="#top">&gt; VIGOLIUM</a>
+      <span class="ver">[<b>blog</b>]</span>
+    </div>
+    <div class="grp">
+      <a class="lnk md glow" href="data-vigolium-text-charts.html">[text charts]</a>
+      <a class="lnk md glow" href="dashboard-vigolium-workbench.html">[workbench]</a>
+      <button type="button" class="scheme glow" id="scheme" aria-label="Switch colour scheme">[light]</button>
+    </div>
+  </div>
+  <nav class="nav" id="nav" aria-label="Contents">
+    <span class="gt">&gt;</span>
+    <a href="#why">why</a><span class="sep">|</span>
+    <a href="#bars">bars</a><span class="sep">|</span>
+    <a href="#columns">columns</a><span class="sep">|</span>
+    <a href="#lines">lines</a><span class="sep">|</span>
+    <a href="#shades">shades</a><span class="sep">|</span>
+    <a href="#layout">layout</a><span class="sep">|</span>
+    <a href="#colour">colour</a><span class="sep">|</span>
+    <a href="#checklist">checklist</a>
+  </nav>
+</header>
+
+<main>
+  <div class="strip" id="facts">
+    <span class="st"><span class="lab">POSTED:</span><span class="val">2026-11-15</span></span>
+  </div>
+
+  <article class="post">
+    <p class="kicker">[<b>field notes</b>] text-mode charts</p>
+    <h1>Charts made of characters</h1>
+    <p class="lede">The text charts page draws twenty-two charts without a canvas or a plotting library. Each one is a few lines of text in a <code>&lt;pre&gt;</code>. This post goes through the five kinds of character it uses, and the three things that had to line up before they looked like charts.</p>
+
+    <h2 id="why">Why draw in text</h2>
+    <p>The <a href="dashboard-vigolium-workbench.html">Workbench dashboard</a> draws its bars by repeating one character, <span class="glyph">█</span>, and colouring the run. It looks like terminal output because it is terminal output: the bar is text, so it selects like text, copies like text and grows with the font.</p>
+    <p>The <a href="data-vigolium-text-charts.html">text charts page</a> takes that one idea and asks how far it goes. It goes as far as twenty-two charts, with one exception. The ring of the donut is an SVG circle, because no character draws an arc.</p>
+    <blockquote><p>A bar that is text selects, copies and scales like text.</p></blockquote>
+
+    <h2 id="bars">Whole blocks make bars</h2>
+    <p>A bar is a count scaled to a width in characters, rounded, and repeated. The whole of it is one line, kept from the Workbench as it was written:</p>
+    <figure class="code">
+      <div class="chead"><b>blocks.js</b><button type="button" class="copy glow">[copy]</button></div>
+<pre class="well"><code>const blocks = (n, max, w) =>
+  '█'.repeat(Math.max(0, Math.round(n / max * w))) || '░';</code></pre>
+    </figure>
+    <p>The last part matters. A value that rounds to nothing still prints one light shade, so a small count never reads as a missing row.</p>
+    <figure class="fig">
+      <div class="phead"><span class="title">Top modules</span><span class="tag">bars</span></div>
+      <div class="chart" data-kind="bars" data-label="Findings per module, eight rows"
+        data-rows='[["xss",58,"--c1"],["idor",49,"--c2"],["sqli",41,"--c1"],["ssrf",32,"--c3"],["cloud-misconfig",24,"--c4"],["exposed-secret",22,"--c4"],["auth-bypass",19,"--c2"],["csrf",18,"--c2"]]'></div>
+      <figcaption><b>fig 1</b>The eight modules with the most findings in the 30-day range of the sample dataset. Each bar is one run of the full block, coloured by the class of its module.</figcaption>
+    </figure>
+    <p>A bar built this way is accurate to one character. On a scale 40 characters wide that is 2.5% of the longest bar, which is enough to rank rows and not enough to read a value. So every bar prints its number beside it.</p>
+
+    <h2 id="columns">Eighth blocks make columns</h2>
+    <p>Turned upright, one character per row is far too coarse. Unicode has seven partial blocks, <span class="glyph">▁▂▃▄▅▆▇</span>, that fill a cell from the bottom in eighths. With the full block that is eight levels in every row, so a column chart nine rows high resolves 72 levels.</p>
+    <figure class="code">
+      <div class="chead"><b>columns.js</b><button type="button" class="copy glow">[copy]</button></div>
+<pre class="well"><code>const B8 = ' ▁▂▃▄▅▆▇█';
+<span class="cm">// the height of the column in eighths, then what is left for this row</span>
+const H = Math.round(value / top * rows * 8);
+const level = Math.max(0, Math.min(8, H - row * 8));
+line += B8[level];</code></pre>
+    </figure>
+    <figure class="fig">
+      <div class="phead"><span class="title">Time to proof</span><span class="tag">columns</span></div>
+      <div class="chart" data-kind="columns" data-rows="9" data-label="Findings by time to proof, nine bins"
+        data-values="[19,45,83,43,38,63,65,20,3]" data-labels='["&lt;30s","30s","1m","2m","4m","8m","16m","32m","&gt;64m"]'></div>
+      <figcaption><b>fig 2</b>Minutes from the first signal to a validated proof, in doubling bins, for 379 findings. Each label names the low edge of its bin. Two humps: native checks, then agentic runs.</figcaption>
+    </figure>
+    <p>A stacked column needs one more rule, because a character can only be one colour. A cell takes the colour of the segment that crosses its middle, and the top cell takes the colour of the top segment.</p>
+
+    <h2 id="lines">Box-drawing makes lines</h2>
+    <p>A line uses six box-drawing characters: <span class="glyph">─ │ ╭ ╮ ╰ ╯</span>. It holds its level until the next point, then turns through a rounded corner, runs up or down, and turns again. Each series is rounded to one of ten rows.</p>
+    <figure class="fig">
+      <div class="phead"><span class="title">Findings per day</span><span class="tag">line</span></div>
+      <div class="chart" data-kind="line" data-rows="10" data-label="Findings per day for two scan modes over thirty days"
+        data-series='[{"name":"native","colour":"--m1","values":[5,1,2,4,13,9,5,7,4,3,6,6,7,8,8,5,5,9,6,5,4,12,2,3,15,10,6,10,6,6]},{"name":"agentic","colour":"--m2","values":[6,3,2,4,5,4,5,8,4,2,11,10,9,6,5,2,2,6,8,10,9,9,4,3,10,9,10,7,9,5]}]'
+        data-labels='["Oct 16","Oct 30","Nov 14"]'></div>
+      <figcaption><b>fig 3</b>Validated findings per day by scan mode, 16 October to 14 November. Two series are two <code>&lt;pre&gt;</code> elements stacked in one grid cell, each in its own colour.</figcaption>
+    </figure>
+    <p>Where two lines cross, both characters show. That is the one place the charts stop being plain text: copy the figure and the series come out one after the other, not overlaid.</p>
+
+    <h2 id="shades">Shades make heat</h2>
+    <p>Three shade characters and the full block give four densities: <span class="glyph">░ ▒ ▓ █</span>. A grid of them reads as a heat map with no colour ramp at all, which also means it survives a monochrome terminal.</p>
+    <figure class="fig">
+      <div class="phead"><span class="title">When findings land</span><span class="tag">heat</span></div>
+      <div class="chart" data-kind="heat" data-label="Findings by weekday and hour"
+        data-rowlabels='["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]' data-labels='["00","03","06","09","12","15","18","21"]'
+        data-grid="[[3,3,6,7,7,1,2,1,0,0,3,2,4,5,3,2,5,5,0,1,2,1,1,1],[0,4,6,6,8,2,1,2,2,0,1,2,2,4,6,6,1,7,1,2,1,0,1,2],[3,4,6,6,1,2,2,2,2,0,5,0,3,7,3,3,4,1,1,0,1,1,0,3],[2,3,4,3,2,3,1,1,0,2,5,3,3,1,5,6,2,0,1,0,2,1,2,2],[2,4,4,8,5,5,1,4,2,2,3,7,5,4,2,5,3,4,2,1,1,0,0,1],[1,1,4,4,4,3,1,1,1,0,2,2,3,2,3,0,0,1,1,0,0,0,0,2],[0,1,0,3,2,0,0,0,0,4,1,0,1,2,1,0,2,3,0,0,0,0,1,1]]"></div>
+      <figcaption><b>fig 4</b>The same 379 findings by weekday and hour, in UTC: 168 cells. The busiest hour holds 8 findings, so each shade covers two of them, and an hour with none prints a dot.</figcaption>
+    </figure>
+
+    <h2 id="layout">Three things that had to line up</h2>
+    <h3>Width in characters</h3>
+    <p>Nothing on the page is positioned in pixels. Before a chart is drawn, the script puts 40 block characters in a hidden <code>&lt;pre&gt;</code>, measures them, and divides the width of the panel by the width of one. That number, <code>cols</code>, is all a chart is given. When the panel changes width the chart is laid out again, and on a long range the days are grouped into buckets until they fit.</p>
+    <h3>Rows that touch</h3>
+    <p>Full blocks join vertically only if a line is exactly as tall as the glyph. A line height of 1.5 leaves gaps. The font's own line height closes them, but it is rarely a whole number of pixels, and the fraction shows as hairline seams. So the script measures the glyph and sets the line height to that height rounded down to a whole pixel. Rows then overlap by less than a pixel, in the same colour, where nobody can see it.</p>
+    <h3>Bars that end together</h3>
+    <p>A bar that shows shares of a whole has to be exactly as wide as the bars around it. Rounding each segment on its own can leave the row a character short or a character long. Instead the widths are rounded down, and the characters left over go to the segments with the largest remainders.</p>
+    <figure class="fig">
+      <div class="phead"><span class="title">Severity split</span><span class="tag">segmented bars</span></div>
+      <div class="chart" data-kind="stack" data-label="Severity shares for all findings and for each scan mode"
+        data-parts='["critical","high","medium","low"]' data-colours='["--sev1","--sev2","--sev3","--sev4"]'
+        data-rows='[["all",[31,113,155,80]],["native",[12,48,81,51]],["agentic",[19,65,74,29]]]'></div>
+      <figcaption><b>fig 5</b>Three wholes of different size, 379, 192 and 187 findings, drawn to one width. Agentic scans turn up a larger share of critical and high findings.</figcaption>
+    </figure>
+
+    <h2 id="colour">What colour is for</h2>
+    <p>Colour is the one thing a character cannot carry by its shape, so it is spent only on identity. A single series is the accent. Scan modes are blue and orange. Classes take four further hues, and severity runs from red to grey. Each set was checked on the dark ground and on the light one for how far apart its neighbours stay under the two common forms of colour blindness.</p>
+    <p>The check is a floor, not the plan. Every chart also says its numbers in text: a count beside each bar, a line under the chart that reads out the cell under the pointer, and the same figures as a table behind a <code>[table]</code> button. All the characters in use are listed here.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Characters</th><th>Code points</th><th>Used for</th></tr></thead>
+        <tbody>
+          <tr><td class="g">█</td><td>U+2588</td><td>bars, filled cells, the top of the shade scale</td></tr>
+          <tr><td class="g">▁▂▃▄▅▆▇</td><td>U+2581 to U+2587</td><td>the top cell of a column, sparklines</td></tr>
+          <tr><td class="g">░ ▒ ▓</td><td>U+2591 to U+2593</td><td>heat cells, the empty part of a meter, the body of a box plot</td></tr>
+          <tr><td class="g">─ │ ╭ ╮ ╰ ╯</td><td>U+2500, U+2502, U+256D to U+2570</td><td>lines, axes, the link of a dumbbell</td></tr>
+          <tr><td class="g">├ ┤ └ ┃</td><td>U+251C, U+2524, U+2514, U+2503</td><td>trees, whiskers, the corner of an axis, medians and targets</td></tr>
+          <tr><td class="g">· • ● ○</td><td>U+00B7, U+2022, U+25CF, U+25CB</td><td>scatter marks by weight, dumbbell ends, leaders</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note"><p><b>[NOTE]</b>The pages load no web font. They ask for JetBrains Mono, Fira Code or Cascadia Code and fall back to the system's monospace, so a chart's letters, digits and blocks come from one font and share one width.</p></div>
+
+    <h2 id="checklist">Checklist</h2>
+    <ol>
+      <li>Measure the width in characters, with the character you will draw.</li>
+      <li>Round to whole characters once, at the end, and give the leftovers to the largest remainders.</li>
+      <li>Use eighth blocks wherever one row is too coarse.</li>
+      <li>Set the line height from the glyph, in whole pixels.</li>
+      <li>Print the number next to the mark.</li>
+      <li>Keep the table one click behind the chart.</li>
+    </ol>
+    <hr>
+    <p>The dataset behind the figures is generated in the page from a fixed seed: 180 days of sample findings, with nothing real in it. Change the seed and every chart on the <a href="data-vigolium-text-charts.html">text charts page</a> follows.</p>
+  </article>
+</main>
+
+<footer><span>sample post: the figures are drawn from seeded sample data</span><span>·</span><a class="glow" href="#top">back to top</a></footer>
+
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s), root = document.documentElement;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const sum = a => a.reduce((s, v) => s + v, 0);
+const sp = n => ' '.repeat(Math.max(0, Math.round(n))), padL = (s, n) => String(s).padStart(n);
+const C = (c, s) => `<span style="color:var(${c})">${esc(s)}</span>`;
+const pre = (lines, cls = '') => `<pre${cls ? ` class="${cls}"` : ''}>${lines.join('\n')}</pre>`;
+const B8 = ' ▁▂▃▄▅▆▇█';
+const blocks = (n, max, w) => '█'.repeat(Math.max(0, Math.round(n / max * w))) || '░';
+/* a line of w characters with each label centred on its position and kept inside the line */
+const ruler = (w, marks) => { const a = new Array(Math.max(0, w)).fill(' '); marks.forEach(([p, t]) => { const s = Math.max(0, Math.min(w - t.length, Math.round(p - t.length / 2))); [...t].forEach((ch, k) => { if (s + k < w) a[s + k] = ch; }); }); return a.join(''); };
+/* share w characters among parts in proportion, largest remainders first */
+function share(parts, w) {
+  const t = sum(parts) || 1, raw = parts.map(p => p / t * w), out = raw.map(Math.floor); let left = w - sum(out);
+  raw.map((r, i) => [r - out[i], i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (left-- > 0) out[i]++; });
+  return out;
+}
+const legend = items => `<div class="lg">${items.map(([c, t, g]) => `<span><i style="color:var(${c})">${g || '■'}</i>${esc(t)}</span>`).join('')}</div>`;
+
+/* ---------- the text charts: each returns the HTML of the chart and its numbers as a table ---------- */
+const KINDS = {
+  bars(d, cols) {
+    const rows = JSON.parse(d.rows), max = Math.max(...rows.map(r => r[1]), 1), lab = Math.min(Math.max(...rows.map(r => r[0].length)), Math.floor(cols * .45)), w = Math.max(4, cols - lab - 1 - String(max).length - 1);
+    return { html: pre(rows.map(([l, v, c]) => C('--muted', padL(l.length > lab ? l.slice(0, lab - 1) + '…' : l, lab)) + ' ' + C(c || '--mark', blocks(v, max, w)) + ' ' + C('--soft', v))), head: ['Row', 'Value'], body: rows.map(r => [r[0], r[1]]) };
+  },
+  columns(d, cols) {
+    const v = JSON.parse(d.values), labels = JSON.parse(d.labels || '[]'), rows = +d.rows || 8, top = Math.max(...v, 1), yw = String(top).length, room = cols - yw - 1, n = v.length;
+    const [w, g] = [[5, 2], [4, 2], [4, 1], [3, 1], [2, 1], [1, 1], [1, 0]].find(([w, g]) => n * (w + g) - g <= room) || [1, 0], width = n * (w + g) - g, lines = [];
+    for (let r = rows - 1; r >= 0; r--) lines.push(C('--dim', padL(r === rows - 1 ? top : r === 0 ? 0 : '', yw) + '│') + C('--mark', v.map(x => { const H = x ? Math.max(1, Math.round(x / top * rows * 8)) : 0; return B8[Math.max(0, Math.min(8, H - r * 8))].repeat(w); }).join(sp(g))));
+    lines.push(C('--dim', sp(yw) + '└' + '─'.repeat(width)));
+    if (labels.length && w + g >= 4) lines.push(C('--muted', sp(yw + 1) + ruler(width, labels.map((t, j) => [j * (w + g) + w / 2, t]))));
+    return { html: pre(lines, 'join'), head: ['Bin', 'Value'], body: v.map((x, i) => [labels[i] || i + 1, x]) };
+  },
+  line(d, cols) {
+    const ser = JSON.parse(d.series), labels = JSON.parse(d.labels || '[]'), rows = +d.rows || 10, n = ser[0].values.length, top = Math.max(...ser.flatMap(s => s.values), 1), yw = String(top).length, width = cols - yw - 1;
+    const xs = ser[0].values.map((_, i) => Math.round(i / Math.max(1, n - 1) * (width - 1))), axis = [];
+    for (let r = 0; r < rows; r++) axis.push(C('--dim', padL(r === 0 ? top : r === rows - 1 ? 0 : '', yw) + '│'));
+    axis.push(C('--dim', sp(yw) + '└' + '─'.repeat(width)), C('--muted', sp(yw + 1) + ruler(width, labels.map((t, j) => [j / Math.max(1, labels.length - 1) * (width - 1), t]))));
+    const layer = s => {
+      const g = Array.from({ length: rows }, () => new Array(width).fill(' ')), y = s.values.map(x => rows - 1 - Math.round(x / top * (rows - 1)));
+      for (let i = 0; i < n - 1; i++) {
+        const a = y[i], b = y[i + 1], x1 = xs[i + 1];
+        for (let x = xs[i] + (i ? 1 : 0); x < x1; x++) g[a][x] = '─';
+        if (a === b) g[a][x1] = '─'; else { g[a][x1] = b < a ? '╯' : '╮'; g[b][x1] = b < a ? '╭' : '╰'; for (let r = Math.min(a, b) + 1; r < Math.max(a, b); r++) g[r][x1] = '│'; }
+      }
+      return `<pre class="join" style="color:var(${s.colour})">${g.map(r => sp(yw + 1) + r.join('')).join('\n')}</pre>`;
+    };
+    return { html: legend(ser.map(s => [s.colour, s.name, '─'])) + `<div class="stack">${pre(axis, 'join')}${ser.map(layer).join('')}</div>`, head: ['Point', ...ser.map(s => s.name)], body: ser[0].values.map((_, i) => [i + 1, ...ser.map(s => s.values[i])]) };
+  },
+  heat(d, cols) {
+    const g = JSON.parse(d.grid), rl = JSON.parse(d.rowlabels), labels = JSON.parse(d.labels || '[]'), n = g[0].length, max = Math.max(1, ...g.flat()), lw = Math.max(...rl.map(s => s.length)) + 1, cw = Math.max(1, Math.min(4, Math.floor((cols - lw) / n))), G = ['·', '░', '▒', '▓', '█'];
+    const lines = g.map((r, i) => C('--muted', rl[i].padEnd(lw)) + r.map(v => { const l = v ? Math.max(1, Math.ceil(v / max * 4)) : 0; return C(l ? '--mark' : '--dim', l ? G[l].repeat(cw) : '·'.padEnd(cw)); }).join(''));
+    lines.push(C('--muted', sp(lw) + ruler(n * cw, labels.map((t, j) => [j * (n / labels.length) * cw + Math.min(cw, 2) / 2, t]))));
+    return { html: legend([['--dim', 'none', '·'], ['--mark', 'fewer to more', '░ ▒ ▓ █']]) + pre(lines, 'join'), head: ['', ...g[0].map((_, h) => String(h).padStart(2, '0'))], body: g.map((r, i) => [rl[i], ...r]) };
+  },
+  stack(d, cols) {
+    const rows = JSON.parse(d.rows), parts = JSON.parse(d.parts), col = JSON.parse(d.colours), lab = Math.max(...rows.map(r => r[0].length)), tw = Math.max(...rows.map(r => String(sum(r[1])).length)), w = Math.max(8, cols - lab - 1 - tw - 1), lines = [];
+    rows.forEach(([l, v]) => {
+      lines.push(C('--muted', padL(l, lab)) + ' ' + share(v, w).map((k, i) => C(col[i], '█'.repeat(k))).join('') + ' ' + C('--soft', padL(sum(v), tw)));
+      const t = v.map((x, i) => `${Math.round(x / sum(v) * 100)}% ${parts[i]}`).join(' · '); lines.push(sp(lab + 1) + C('--dim', t.length > w ? v.map(x => Math.round(x / sum(v) * 100) + '%').join(' · ') : t));
+    });
+    return { html: legend(parts.map((p, i) => [col[i], p])) + pre(lines), head: ['Row', ...parts, 'Total'], body: rows.map(([l, v]) => [l, ...v, sum(v)]) };
+  },
+};
+/* how many characters fit across an element, measured with the block character itself */
+function measure(el) {
+  const probe = document.createElement('pre'), ink = document.createElement('span'); ink.textContent = '█'.repeat(40); probe.append(ink); probe.style.cssText = 'position:absolute;visibility:hidden;margin:0;font:inherit';
+  el.append(probe); const r = ink.getBoundingClientRect(), cw = r.width / 40 || 8; probe.remove();
+  if (r.height) root.style.setProperty('--join', Math.floor(r.height) + 'px'); /* rows that must touch are a whole pixel high, a hair under the glyph */
+  return Math.max(20, Math.floor((el.clientWidth + .5) / cw));
+}
+function draw() {
+  document.querySelectorAll('.chart[data-kind]').forEach(el => {
+    const cols = measure(el), o = KINDS[el.dataset.kind](el.dataset, cols);
+    el.innerHTML = o.html; el.setAttribute('role', 'img'); el.setAttribute('aria-label', el.dataset.label || 'Chart');
+    let det = el.nextElementSibling; if (det && det.matches('details.data')) return; /* the table is built once: its numbers do not depend on the width */
+    det = document.createElement('details'); det.className = 'data';
+    const sm = document.createElement('summary'), box = document.createElement('div'), table = document.createElement('table'), head = document.createElement('thead'), body = document.createElement('tbody');
+    const tr = (cells, tag) => { const r = document.createElement('tr'); cells.forEach(v => { const x = document.createElement(tag); x.textContent = v; r.append(x); }); return r; };
+    sm.textContent = '[data]'; box.className = 'scroll'; head.append(tr(o.head, 'th')); o.body.forEach(r => body.append(tr(r, 'td'))); table.append(head, body); box.append(table); det.append(sm, box); el.after(det);
+  });
+}
+draw();
+let timer; addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(draw, 120); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+
+/* ---------- facts counted from the article ---------- */
+(function facts() {
+  const post = $('.post'), words = post.cloneNode(true); words.querySelectorAll('.chart, details, pre, table').forEach(e => e.remove());
+  const n = (words.textContent.match(/[A-Za-z0-9][A-Za-z0-9'’.-]*/g) || []).length, add = (l, v) => { const st = document.createElement('span'); st.className = 'st'; st.innerHTML = '<span class="bar">|</span><span class="lab"></span><span class="val"></span>'; st.children[1].textContent = l; st.children[2].textContent = v; $('#facts').append(st); };
+  add('READ:', Math.max(1, Math.round(n / 220)) + ' MIN'); add('WORDS:', n.toLocaleString('en-US')); add('FIGURES:', post.querySelectorAll('figure.fig').length);
+})();
+
+/* ---------- scheme: follows the system until the switch is used, then stored ---------- */
+const scheme = $('#scheme'), now = () => root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+const label = () => { const next = now() === 'dark' ? 'light' : 'dark'; scheme.textContent = `[${next}]`; scheme.setAttribute('aria-label', `Switch to the ${next} scheme`); };
+scheme.addEventListener('click', () => { const next = now() === 'dark' ? 'light' : 'dark'; root.setAttribute('data-theme', next); try { localStorage.setItem('artikit-blog-theme', next); } catch (e) {} label(); });
+matchMedia('(prefers-color-scheme: light)').addEventListener('change', label); label();
+
+/* ---------- copy buttons and the contents row ---------- */
+document.querySelectorAll('.code .copy').forEach(b => b.addEventListener('click', () => {
+  const text = b.closest('.code').querySelector('pre').textContent, done = () => { b.textContent = '[copied]'; setTimeout(() => { b.textContent = '[copy]'; }, 1400); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => {}); else { const t = document.createElement('textarea'); t.value = text; document.body.append(t); t.select(); try { document.execCommand('copy'); done(); } catch (e) {} t.remove(); }
+}));
+const links = [...document.querySelectorAll('#nav a')], heads = links.map(a => $(a.getAttribute('href')));
+const mark = () => { let on = 0; heads.forEach((h, i) => { if (h.getBoundingClientRect().top < innerHeight * .35) on = i; }); links.forEach((a, i) => a.classList.toggle('active', i === on)); };
+addEventListener('scroll', mark, { passive: true }); mark();
+</script>
+</body>
+</html>

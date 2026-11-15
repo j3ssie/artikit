@@ -4,10 +4,10 @@ import { fileURLToPath } from 'node:url';
 const dir=fileURLToPath(new URL('../',import.meta.url));
 const files=process.argv.slice(2);
 const b=await chromium.launch({channel:'chrome'});
-// usage: node make-thumbs.mjs page.html other.html@light   (@light captures the light scheme; default dark)
-for(const arg of files){
+// usage: node make-thumbs.mjs page.html other.html@light   (@light captures the light scheme; default dark). Four pages are captured at a time
+const shoot=async arg=>{
   const [f,scheme='dark']=arg.split('@');
-  if(!existsSync(dir+'pages/'+f)){console.log('skip',f);continue;}
+  if(!existsSync(dir+'pages/'+f)){console.log('skip',f);return;}
   const ctx=await b.newContext({viewport:{width:1440,height:900},deviceScaleFactor:0.5,colorScheme:scheme});
   const p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));
   await p.goto('file://'+dir+'pages/'+f,{waitUntil:'load'});
@@ -21,5 +21,6 @@ for(const arg of files){
   await p.screenshot({path:out});
   console.log(JSON.stringify({f,errs}));
   await ctx.close();
-}
+};
+await Promise.all(Array.from({length:4},async()=>{while(files.length)await shoot(files.shift());}));
 await b.close();
