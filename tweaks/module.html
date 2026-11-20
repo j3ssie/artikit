@@ -50,7 +50,7 @@ const ACCENTS = { cyan:['#66c7d6','#1a7f8e'], green:['#78d670','#2f8a3a'], magen
 const FONTS = { mono:['JetBrains Mono','Fira Code','IBM Plex Mono','Source Code Pro','Space Mono','Inconsolata','Ubuntu Mono','Victor Mono','Red Hat Mono'], sans:['Inter','Geist','IBM Plex Sans','Hanken Grotesk','Figtree','Manrope'] };
 const TWO_WEIGHTS = ['Space Mono','Ubuntu Mono']; /* static families with only regular and bold */
 const GUTTERS = ['boxed', 'full-width'], OWN_GUTTER = P.gutter ? P.gutter.own : null; /* P.gutter: { own: which of the two the page ships, css: rules for the other, keyed on html[data-tw-gutter] } */
-const SIZE = { small:.9, default:1, large:1.12, 'x-large':1.25 }, CORNER = { sharp:0, default:1, round:1.8 }, DENSITY = { compact:.72, default:1, relaxed:1.32 };
+const SIZE = { small:.9, default:1, large:1.12, 'x-large':1.25 }, CORNER = { sharp:0, default:1, round:1.8 }, DENSITY = P.density || { compact:.72, default:1, relaxed:1.32 }; /* P.density: a page may list its own levels, in menu order */
 const pal = s => Object.fromEntries(s.split(' ').map((h, i) => [ROLES[i], '#' + h]));
 const mix = (a, pct, b) => `color-mix(in srgb, ${a} ${pct}%, ${b || 'transparent'})`;
 

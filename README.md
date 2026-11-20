@@ -11,7 +11,7 @@ Every page is in [`pages/`](pages/). The file name starts with the kind of page.
 | Kind | Prefix | Pages |
 | --- | --- | --- |
 | Landing | `landing-page-` | Gimorra · Copperplate, Gimorra · Verdicts, Gimorra · Stage, Coding agents |
-| Dashboard | `dashboard-` | Gimorra · Console, Vigolium · Workbench, Vigolium · Triage, Delivery analytics |
+| Dashboard | `dashboard-` | Gimorra · Console, Gimorra · Console · Copperplate, Vigolium · Workbench, Vigolium · Triage, Delivery analytics |
 | Data | `data-` | Observability, Model Data, Prompt analytics, Evals, Analysis workbench, Vigolium · Charts, Vigolium · Text charts, Copperplate · Runs |
 | Canvas | `canvas-` | Gimorra · Architecture, Vigolium · Scan lifecycle, Gimorra · Workflows |
 | Blog | `blog-` | Release post, Research note, Terminal playbook, Workbench post |
@@ -64,7 +64,7 @@ wrangler.jsonc  Cloudflare Worker config
 
 ## Tweak dock
 
-The data pages carry a floating tweak dock with the same controls as the terminal design system's config bar, plus a gutter switch between a boxed and a full-width layout. It is built from `tweaks/module.html`, the token sets in `tweaks/themes.json` and one adapter per page in `tweaks/adapters/`. After editing any of those, inject the block again:
+The data pages and the Gimorra · Console · Copperplate dashboard carry a floating tweak dock with the same controls as the terminal design system's config bar, plus a gutter switch between a boxed and a full-width layout. It is built from `tweaks/module.html`, the token sets in `tweaks/themes.json` and one adapter per page in `tweaks/adapters/`. After editing any of those, inject the block again:
 
 ```sh
 python3 tweaks/inject.py                                                        # every page that has an adapter
@@ -73,7 +73,7 @@ python3 tweaks/inject.py pages/data-evals.html tweaks/adapters/data-evals.js    
 
 The script replaces the previous block, so it is safe to run more than once.
 
-Each theme in `themes.json` is seventeen colours: the sixteen palette roles, then the primary the theme is known by. The primary is the theme's accent until the accent control picks another. An adapter's `map(p, mix)` turns a palette into the page's tokens and `accent(c, mix, mode, p, tokens)` does the same for an accent colour; `p` and `tokens` are that palette and what `map` returned for it, or `null` while the page's own colours are in force. Its `gutter` gives the layout the page ships (`own`) and the CSS for the other one.
+Each theme in `themes.json` is seventeen colours: the sixteen palette roles, then the primary the theme is known by. The primary is the theme's accent until the accent control picks another. An adapter's `map(p, mix)` turns a palette into the page's tokens and `accent(c, mix, mode, p, tokens)` does the same for an accent colour; `p` and `tokens` are that palette and what `map` returned for it, or `null` while the page's own colours are in force. Its `gutter` gives the layout the page ships (`own`) and the CSS for the other one. An optional `density` lists the page's own density levels in menu order; the Copperplate console uses it to add `tight` below `compact`.
 
 ## Records table
 
