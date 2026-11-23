@@ -12,8 +12,8 @@ Every page is in [`pages/`](pages/). The file name starts with the kind of page.
 | --- | --- | --- |
 | Landing | `landing-page-` | Gimorra · Copperplate, Gimorra · Verdicts, Gimorra · Stage, Coding agents |
 | Dashboard | `dashboard-` | Gimorra · Console, Gimorra · Console · Copperplate, Vigolium · Workbench, Vigolium · Triage, Delivery analytics |
-| Data | `data-` | Observability, Model Data, Prompt analytics, Evals, Analysis workbench, Vigolium · Charts, Vigolium · Text charts, Copperplate · Runs |
-| Canvas | `canvas-` | Gimorra · Architecture, Vigolium · Scan lifecycle, Gimorra · Workflows |
+| Data | `data-` | Observability, Model Data, Prompt analytics, Evals, Analysis workbench, Vigolium · Charts, Vigolium · Text charts, Copperplate · Runs, Surface · Isometric, Console · Activity |
+| Canvas | `canvas-` | Gimorra · Architecture, Vigolium · Scan lifecycle, Gimorra · Workflows, Status filter · Component tree |
 | Blog | `blog-` | Release post, Research note, Terminal playbook, Workbench post |
 | Terminal | `terminal-` | Terminal Design System, Terminal Design System · Field Notes |
 
@@ -31,7 +31,7 @@ Things a copied page still depends on:
 
 - Most pages load web fonts from Google Fonts and fall back to system fonts without them.
 - The Gimorra and Vigolium pages load a logo from `../assets/`. Copy the logo too, or replace it.
-- The Gimorra · Architecture canvas page loads React, React Flow, htm and marked from esm.sh, so it needs a network connection. The other two canvas pages have no dependencies.
+- The Gimorra · Architecture canvas page loads React, React Flow, htm and marked from esm.sh, so it needs a network connection. The other canvas pages have no dependencies.
 - The two terminal pages are bundled apps of about 2.3 MB each. Open them in a browser instead of reading the source.
 
 All names, numbers and install commands in the pages are invented sample content. The blog templates are the exception: their text describes the templates themselves and their numbers were measured. The Workbench post explains the text charts page, and its figures plot that page's sample data.

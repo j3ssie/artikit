@@ -1,0 +1,1633 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Console · Activity</title>
+<meta name="color-scheme" content="dark light" />
+<meta name="description" content="Sample data page in a quiet near-black console theme: a model gateway workspace with billing-cycle, spend and latency charts, request logs and an audit trail, from one seeded dataset." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Crect width='28' height='28' rx='6' fill='%23161616'/%3E%3Crect x='8' y='8' width='12' height='12' rx='2' fill='none' stroke='%23ededed' stroke-width='2.4'/%3E%3Crect x='12' y='12' width='4' height='4' fill='%23ededed'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" />
+<script>(function(){try{var t=localStorage.getItem('ca-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<!--
+  Console · Activity: a model gateway workspace console on near-black, with quiet bordered cards, a tab bar with an underline,
+  a blue step card, a request strip and an audit trail. Tokens are in :root and resolve through light-dark(), so the used
+  color-scheme of :root is the only switch.
+  Views are hash routes: #activity (default), #usage, #models, #logs, #audit. The range switch in the tab bar scopes every view.
+  Charts are drawn by one card(id, options, draw) call each from one seeded dataset (see DATA).
+  Chart colours were checked as a set on the card surface (#1c1c1c dark, #ffffff light):
+    models   --s1..--s4   blue, teal, amber, pink, in that order; the smaller models fold into --s0 (other, grey)
+    status   --err, --warn  errors and rate-limited requests only, always with a label
+  Blocks: header.top (mark, workspace, credits, search, theme, GitHub, avatar) · .sheet = nav.tabs + .view × 5 · .pop (credits, agents)
+          #v-activity: .split = .grid (cycle burn-up, spend donut, latency scatter) + .usage (big number, stacked columns) | aside.rail (get started, logs strip, audit)
+          .grid of .card (header .ch, .fig/.plot, .tv table view, .lg legend) · .rt (records table) · .tip (the one tooltip)
+-->
+<style>
+:root{
+  color-scheme: dark light;
+  --bg: light-dark(#ebebe9, #0d0d0d);
+  --sheet: light-dark(#f7f7f6, #161616);
+  --card: light-dark(#ffffff, #1c1c1c);
+  --raised: light-dark(#ffffff, #202020);
+  --inset: light-dark(#f2f2f0, #121212);
+  --hover: light-dark(#ececea, #262626);
+  --line: light-dark(#e3e3e0, #262626);
+  --line-2: light-dark(#d1d1cd, #343434);
+  --ink: light-dark(#171717, #ededed);
+  --ink-2: light-dark(#5b5b58, #a3a3a3);
+  --dim: light-dark(#8c8c88, #6e6e6e);
+  --ok: light-dark(#1f8a4c, #3fb871);
+  --err: light-dark(#cf3036, #ec5d5d);
+  --warn: light-dark(#a86c00, #d9a33c);
+  --dot: light-dark(#e0651f, #f07c3a);
+  --accent: #4c5ff0;
+  --accent-fg: light-dark(color-mix(in oklab, var(--accent) 86%, #000), color-mix(in oklab, var(--accent) 62%, #fff));
+  --accent-soft: color-mix(in oklab, var(--accent) 16%, transparent);
+  --focus: var(--accent-fg);
+  /* chart series: the four larger models in a fixed order, then everything else */
+  --s0: light-dark(#a6a6a2, #5a5a5a);
+  --s1: light-dark(#4357e8, #6b7cf6);
+  --s2: light-dark(#008f7a, #2fa596);
+  --s3: light-dark(#b0730f, #bd7f26);
+  --s4: light-dark(#bd468d, #d06fa8);
+  --grid: light-dark(#eeeeec, #242424);
+  --bar: light-dark(#cfcfcb, #3b3b3b);
+  --track: light-dark(#f0f0ee, #222222);
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r-sheet: 12px;
+  --r-card: 8px;
+  --r-ctl: 6px;
+  --r-pill: 999px;
+  --measure: 1530px;
+  --ease: cubic-bezier(0.22, 0.68, 0.24, 1);
+}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+::selection{background:color-mix(in oklab, var(--accent) 40%, transparent)}
+a{color:inherit}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:var(--r-ctl)}
+h1,h2,h3,p{margin:0}
+h2,h3{font-weight:500}
+b,strong{font-weight:500;color:var(--ink)}
+code{font-family:var(--mono);font-size:12.5px;padding:2px 6px;border-radius:4px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink);white-space:nowrap}
+svg{flex:none}
+.ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- top bar ---------- */
+.top{display:flex;align-items:center;gap:10px;height:48px;padding:0 18px}
+.mark{display:inline-flex;align-items:center;gap:8px;color:var(--ink);text-decoration:none;font-weight:600;letter-spacing:-0.01em}
+/* a placeholder mark: swap the svg for your own */
+.mark svg{width:18px;height:18px}
+.vr{flex:none;width:1px;height:16px;background:var(--line-2)}
+.ws{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 8px;border-radius:var(--r-ctl);color:var(--ink-2);font-size:15px;cursor:pointer;transition:background 0.15s,color 0.15s}
+.ws:hover{background:var(--hover);color:var(--ink)}
+.ws .av{display:grid;place-items:center;width:20px;height:20px;border-radius:4px;background:var(--hover);box-shadow:inset 0 0 0 1px var(--line-2);font-size:11px;color:var(--ink-2)}
+.ws .ic{width:12px;height:12px}
+.top-act{display:flex;align-items:center;gap:4px;margin-left:auto}
+.qb{all:unset;box-sizing:border-box;flex:none;display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 9px;border-radius:var(--r-ctl);color:var(--ink-2);font-size:15px;cursor:pointer;white-space:nowrap;transition:background 0.15s,color 0.15s}
+.qb:hover,.qb[aria-expanded="true"]{background:var(--hover);color:var(--ink)}
+.qb.sq{width:30px;justify-content:center;padding:0}
+.qb kbd{font:inherit}
+.themebtn .moon,.themebtn[data-to="dark"] .sun{display:none}
+.themebtn[data-to="dark"] .moon{display:block}
+.avatar{display:grid;place-items:center;width:24px;height:24px;margin-left:6px;border-radius:50%;background:var(--hover);box-shadow:inset 0 0 0 1px var(--line-2);font-size:11px;color:var(--ink-2)}
+
+/* the credits popover: the top bar's one menu */
+.pop{position:fixed;inset:auto;margin:0;padding:14px;width:250px;border:0;border-radius:10px;background:var(--raised);color:var(--ink);box-shadow:0 0 0 1px var(--line-2),0 18px 40px -16px rgb(0 0 0 / 0.55)}
+.pop .pl{font-size:13px;color:var(--ink-2)}
+.pop .pv{margin-top:2px;font-size:24px;font-weight:500;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
+.pop .row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+.pop .row .btn{justify-content:center;padding:0}
+.pop small{display:block;margin-top:10px;color:var(--dim);font-size:12px}
+.agentpop{width:340px}
+.agentpop h2{font-size:15px}
+.agentpop .pl{margin-top:4px}
+.agentpop ol{margin:14px 0 0;padding:0;list-style:none;counter-reset:s}
+.agentpop li{position:relative;padding:0 0 12px 32px;color:var(--ink-2);font-size:13.5px;line-height:1.55;counter-increment:s}
+.agentpop li:last-child{padding-bottom:0}
+.agentpop li::before{content:counter(s);position:absolute;left:0;top:0;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1px var(--line-2);font-size:11px}
+.agentpop code{white-space:normal;overflow-wrap:anywhere}
+.agentpop a{color:var(--ink)}
+
+/* ---------- the sheet: tab bar + views ---------- */
+.sheet{min-height:calc(100vh - 56px);margin:0 8px 8px;border-radius:var(--r-sheet);background:var(--sheet);box-shadow:inset 0 0 0 1px var(--line)}
+.tabs{display:flex;align-items:center;gap:12px;height:56px;padding:0 14px 0 28px;border-bottom:1px solid var(--line)}
+.tabs nav{display:flex;align-self:stretch;gap:28px;min-width:0;overflow-x:auto;scrollbar-width:none}
+.tabs nav::-webkit-scrollbar{display:none}
+.tabs nav a{position:relative;display:flex;align-items:center;flex:none;color:var(--ink-2);font-size:15px;text-decoration:none;transition:color 0.15s}
+.tabs nav a:hover{color:var(--ink)}
+.tabs nav a[aria-current="page"]{color:var(--ink)}
+.tabs nav a[aria-current="page"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:1px;background:var(--ink)}
+.tabs nav a:focus-visible{outline-offset:-2px}
+.tabs-end{display:flex;align-items:center;gap:10px;margin-left:auto}
+/* the range switch: one segmented control, the records table's status filter wears it too */
+.range{display:inline-flex;align-items:center;gap:2px;height:32px;padding:3px;border-radius:var(--r-ctl);background:var(--card);box-shadow:inset 0 0 0 1px var(--line-2)}
+.range button{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:4px;font-size:13px;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums;transition:color 0.15s,background 0.15s}
+.range button:hover{color:var(--ink)}
+.range button[aria-pressed="true"]{color:var(--ink);background:var(--hover);box-shadow:inset 0 0 0 1px var(--line-2)}
+.range button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:var(--r-ctl);background:var(--raised);box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink);font-size:14px;font-weight:500;white-space:nowrap;transition:background 0.15s}
+.btn:hover{background:var(--hover)}
+.btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.btn.round{border-radius:var(--r-pill)}
+.btn.sm{height:32px;padding:0 12px}
+.btn .ic{width:14px;height:14px}
+.btn .chev{width:12px;height:12px;margin-right:-3px;color:var(--ink-2)}
+.btn.wide{width:100%;justify-content:center}
+.agents .glyph{display:block;width:18px;height:14px}
+.view{padding:72px 28px 64px}
+.view[hidden]{display:none}
+.wrap{max-width:var(--measure);margin-inline:auto}
+.vhead{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin-bottom:28px}
+.vhead h1{font-size:22px;font-weight:500;letter-spacing:-0.015em}
+.vhead p{margin-top:4px;color:var(--ink-2)}
+@media (max-width:820px){.tabs .agents span{display:none}.tabs .agents{padding:0 10px}}
+@media (max-width:640px){
+  .top{gap:6px;padding:0 10px}.top-act{gap:0}#searchbtn kbd{display:none}#searchbtn{width:30px;justify-content:center;padding:0}
+}
+@media (max-width:640px){.tabs{flex-wrap:wrap;height:auto;padding:0 14px;row-gap:0}.tabs nav{height:52px;flex-basis:100%;order:0}.tabs-end{order:1;margin:0 0 12px;width:100%;justify-content:space-between}.view{padding:40px 16px 48px}.top .ver,.qb .lbl{display:none}}
+
+/* ---------- activity: layout ---------- */
+.split{display:grid;grid-template-columns:minmax(0,1fr) 392px;gap:72px;align-items:start}
+.card{background:var(--card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--line)}
+.linkbtn{all:unset;cursor:pointer;color:var(--ink);text-decoration:underline;text-decoration-color:var(--dim);text-underline-offset:4px}
+.linkbtn:hover{text-decoration-color:currentColor}
+.linkbtn:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:2px}
+
+/* ---------- activity: workspace usage ---------- */
+.usage{margin-top:64px}
+.uhead{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.big{font-size:26px;font-weight:500;line-height:1.2;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
+.ul{margin-top:4px;color:var(--ink-2);font-size:15px}
+.ul b{font-weight:400;font-variant-numeric:tabular-nums}
+.ul b.up{color:var(--ink)}
+.uact{display:flex;align-items:center;gap:6px}
+
+/* ---------- activity: the rail ---------- */
+.rail{min-width:0;padding-top:12px}
+.rail > section + section{margin-top:28px;padding-top:28px;border-top:1px solid var(--line)}
+.rhead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.rail h2{font-size:17px}
+.rsub{margin-top:4px;color:var(--ink-2);font-size:15px;font-variant-numeric:tabular-nums}
+.rsub i{font-style:normal;margin:0 6px;color:var(--dim)}
+.arrows{display:flex;gap:2px;margin-top:2px}
+.stack{position:relative;margin-top:28px;padding-top:9px}
+.stack::before{content:"";position:absolute;left:12px;right:12px;top:0;height:24px;border-radius:10px 10px 0 0;background:color-mix(in oklab, var(--accent) 52%, var(--sheet))}
+.stepcard{position:relative;display:flex;flex-direction:column;min-height:174px;padding:18px 18px 16px;border-radius:10px;background:linear-gradient(168deg, color-mix(in oklab, var(--accent) 84%, #fff), var(--accent) 70%);color:#fff;font-size:15px;box-shadow:inset 0 1px 0 rgb(255 255 255 / 0.12)}
+.stepcard .st{font-weight:500}
+.stepcard .st i{font-style:normal;margin:0 6px;opacity:0.7}
+.stepcard .sd{margin-top:2px;color:rgb(255 255 255 / 0.84);line-height:1.5}
+.stepcard ol{margin:12px 0 0;padding-left:20px;color:rgb(255 255 255 / 0.9);font-size:14px;line-height:1.6}
+.stepcard ol[hidden]{display:none}
+.stepcard .sa{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;padding-top:18px}
+.stepcard .go{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-weight:500}
+.stepcard .go .ic{width:12px;height:12px;transition:transform 0.2s var(--ease)}
+.stepcard .go[aria-expanded="true"] .ic{transform:rotate(90deg)}
+.stepcard .done{all:unset;cursor:pointer;padding:4px 10px;border-radius:var(--r-pill);background:rgb(255 255 255 / 0.16);font-size:13px;font-weight:500}
+.stepcard .done:hover{background:rgb(255 255 255 / 0.24)}
+.stepcard :focus-visible{outline:2px solid #fff;outline-offset:2px;border-radius:4px}
+.stepcard .ok{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500}
+.rail .dismiss{margin-top:26px}
+.strip{margin-top:22px}
+.strip .fig{margin-top:0}
+.strip .lg{justify-content:flex-start;margin-top:10px}
+.audit ol{list-style:none;margin:26px 0 0;padding:0}
+.audit li{position:relative;display:grid;grid-template-columns:46px minmax(0,1fr) auto;column-gap:4px;padding-bottom:20px}
+.audit li:last-child{padding-bottom:0}
+.audit li::before{content:"";position:absolute;left:10px;top:22px;bottom:2px;width:1px;background:var(--line-2)}
+.audit li:last-child::before{display:none}
+.audit .d{width:10px;height:10px;margin:6px 0 0 5px;border-radius:50%;background:var(--dim);box-shadow:0 0 0 3px color-mix(in oklab, var(--dim) 28%, var(--sheet))}
+.audit li.new .d{background:var(--dot);box-shadow:0 0 0 3px color-mix(in oklab, var(--dot) 30%, var(--sheet))}
+.audit .w{font-size:15px;font-weight:500;color:var(--ink);overflow-wrap:anywhere}
+.audit time{color:var(--ink-2);font-size:14px;white-space:nowrap;padding-top:1px;font-variant-numeric:tabular-nums}
+.who{display:inline-flex;align-items:center;gap:8px;margin-top:6px;color:var(--ink-2);font-size:14px}
+.who i{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--hover);box-shadow:inset 0 0 0 1px var(--line-2);font-style:normal;font-size:10px;color:var(--ink-2);text-transform:uppercase}
+@media (max-width:1180px){.split{grid-template-columns:minmax(0,1fr);gap:56px}.rail{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:40px}.rail > section + section{margin-top:0;padding-top:0;border-top:0}}
+
+/* ---------- stat tiles ---------- */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.kpi{min-width:0;padding:16px 18px 14px}
+.kl{color:var(--ink-2)}
+.kv{margin-top:4px;font-size:26px;font-weight:500;line-height:1.2;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
+.kd{margin-top:2px;font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
+.kd b{font-weight:500}
+.kd b.good{color:var(--ok)}.kd b.bad{color:var(--err)}.kd b.flat{color:var(--ink-2)}
+.kpi svg{display:block;width:100%;height:30px;margin-top:12px;overflow:visible}
+.kpi .sl{fill:none;stroke:var(--accent-fg);stroke-width:1.5;stroke-linejoin:round}
+.kpi .sa{fill:var(--accent-soft)}
+
+/* ---------- chart cards ---------- */
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.grid + .grid{margin-top:16px}
+.chart{position:relative;display:flex;flex-direction:column;min-width:0;padding:18px 20px 16px}
+.s4{grid-column:span 4}.s5{grid-column:span 5}.s6{grid-column:span 6}.s7{grid-column:span 7}.s8{grid-column:span 8}.s12{grid-column:span 12}
+.ch{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.ch h3{font-size:15px}
+.form{margin-top:2px;font-size:13px;color:var(--dim)}
+.tb{all:unset;box-sizing:border-box;flex:none;cursor:pointer;display:inline-flex;align-items:center;height:26px;padding:0 9px;border-radius:var(--r-ctl);font-size:13px;color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--line-2);background:var(--raised);transition:color 0.15s,background 0.15s}
+.tb:hover{color:var(--ink);background:var(--hover)}
+.tb[aria-pressed="true"]{color:var(--ink);background:var(--hover)}
+.tb:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.fig{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;margin-top:16px;border-radius:var(--r-ctl);cursor:default}
+.fig[hidden]{display:none}
+.plot{min-width:0}
+.lg{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:6px 16px;margin-top:12px;font-size:13px;color:var(--ink-2)}
+.lg:empty{display:none}
+.lg span{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.lg b{font-weight:400;color:var(--dim);font-variant-numeric:tabular-nums}
+.sw{flex:none;width:8px;height:8px;border-radius:2px;background:var(--c)}
+.sw.ln{width:12px;height:2px;border-radius:1px}
+.cap{margin-top:10px;font-size:13px;line-height:1.5;color:var(--dim)}
+.cap:empty{display:none}
+
+/* plot paint */
+.plate{display:block;overflow:visible;font-family:var(--sans)}
+.plate text{font-size:12px;font-variant-numeric:tabular-nums;stroke:none}
+.t1{fill:var(--ink)}.t2{fill:var(--ink-2)}.t3{fill:var(--dim)}
+.plate .tb5{font-weight:500}
+.gl{fill:none;stroke:var(--grid);shape-rendering:crispEdges}
+.base{fill:none;stroke:var(--line-2);shape-rendering:crispEdges}
+.cyc{fill:none;stroke:var(--line-2);stroke-dasharray:3 4}
+.ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.area{opacity:0.14}
+.xh{fill:none;stroke:var(--ink-2);stroke-width:1;stroke-dasharray:2 3}
+.hd{stroke:var(--card);stroke-width:2}
+.cursor{fill:none;stroke:var(--ink-2);stroke-width:1}
+.lim{fill:none;stroke:var(--ink-2);stroke-dasharray:5 4}
+.prev{fill:none;stroke:var(--s0);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.proj{fill:none;stroke-width:2;stroke-dasharray:3 5;stroke-linecap:round}
+.arc{stroke:var(--card);stroke-width:2}
+.sc{stroke:var(--card);stroke-width:.8}
+.plate .t-big{font-size:22px;font-weight:500;letter-spacing:-0.02em}
+.trk{fill:var(--track)}
+.nb{fill:var(--bar)}
+.zero{fill:url(#hatch)}
+.plate .hit{fill:transparent;stroke:none}
+.plate .hov{pointer-events:none}
+.plate [data-i]{transition:opacity 0.15s}
+.fig.dim [data-i]:not(.on):not(.hit){opacity:0.4}
+
+/* table view */
+.tv{flex:1;margin-top:16px;border-radius:var(--r-ctl);background:var(--inset);box-shadow:inset 0 0 0 1px var(--line);overflow:auto;scrollbar-width:thin}
+.tv[hidden]{display:none}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+thead th{position:sticky;top:0;z-index:1;background:var(--hover);color:var(--ink-2);font-weight:500}
+tbody td{color:var(--ink-2)}
+tbody td:first-child{color:var(--ink)}
+tbody tr:last-child td{border-bottom:0}
+
+/* ---------- models table ---------- */
+.mt-wrap{margin-top:16px;border-radius:var(--r-ctl);box-shadow:inset 0 0 0 1px var(--line);overflow-x:auto;scrollbar-width:thin}
+.mt td,.mt th{padding:11px 14px}
+.mt thead th{background:transparent}
+.mt .mdl{gap:10px}
+.mt td small{margin-left:2px;color:var(--dim);font-size:12.5px}
+.mt tbody tr:hover td{background:color-mix(in oklab, var(--hover) 60%, transparent)}
+.share{display:inline-flex;align-items:center;gap:10px}
+.share i{display:block;width:72px;height:6px;border-radius:3px;background:linear-gradient(90deg,var(--c) var(--v),var(--track) 0)}
+
+/* ---------- pills ---------- */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:1px 8px;border-radius:var(--r-pill);font-size:12.5px;line-height:1.6;background:var(--lit-bg,var(--hover));color:var(--lit,var(--ink-2));white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.ok{--lit:var(--ok);--lit-bg:color-mix(in srgb, var(--ok) 13%, transparent)}
+.pill.err{--lit:var(--err);--lit-bg:color-mix(in srgb, var(--err) 13%, transparent)}
+.pill.warn{--lit:var(--warn);--lit-bg:color-mix(in srgb, var(--warn) 14%, transparent)}
+.pill.plain::before{display:none}
+.mdl{display:inline-flex;align-items:center;gap:8px}
+
+/* ---------- records table: search, a segmented filter, choosers, sortable columns, pages (see recordsTable in the script) ---------- */
+.logs{padding:18px 20px 16px}
+.rt{margin-top:16px}
+.rt-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.rt-search{display:flex;align-items:center;gap:8px;flex:1 1 200px;max-width:280px;height:32px;padding:0 11px;border-radius:var(--r-ctl);background:var(--inset);box-shadow:inset 0 0 0 1px var(--line-2);color:var(--dim);cursor:text;transition:box-shadow 0.15s,color 0.15s}
+.rt-search:focus-within{box-shadow:inset 0 0 0 1px var(--accent-fg);color:var(--ink)}
+.rt-search svg{flex:none;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
+.rt-search input{all:unset;flex:1;min-width:0;font-size:13.5px;color:var(--ink)}
+.rt-search input::placeholder{color:var(--dim)}
+.rt-search input::-webkit-search-cancel-button{display:none}
+.rt-seg{max-width:100%;overflow-x:auto;scrollbar-width:none}
+.rt-seg button{flex:none}
+.rt-seg b{margin-left:6px;font-weight:400;font-variant-numeric:tabular-nums;color:var(--dim)}
+.rt-pick{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 11px;border-radius:var(--r-ctl);background:var(--raised);box-shadow:inset 0 0 0 1px var(--line-2);font-size:13px;white-space:nowrap;color:var(--ink-2);transition:color 0.15s,background 0.15s}
+.rt-pick b{max-width:18ch;overflow:hidden;text-overflow:ellipsis;font-weight:500;color:var(--ink)}
+.rt-pick i{width:0;height:0;margin-top:1px;border:3.5px solid transparent;border-top:4px solid currentColor;border-bottom:0}
+.rt-pick:hover,.rt-pick[aria-expanded="true"]{color:var(--ink);background:var(--hover)}
+.rt-pick.on b{color:var(--accent-fg)}
+.rt-reset{margin-left:auto}
+.rt-reset[hidden]{display:none}
+.rt-scroll{margin-top:14px;border-radius:var(--r-ctl);box-shadow:inset 0 0 0 1px var(--line);overflow-x:auto;scrollbar-width:thin}
+.rt-table th,.rt-table td{padding:10px 14px;text-align:left}
+.rt-table .num{text-align:right}
+.rt-table thead th{background:transparent;border-bottom-color:var(--line)}
+.rt-table th button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:color 0.15s}
+.rt-table th.num button{flex-direction:row-reverse}
+.rt-table th button:hover,.rt-table th[aria-sort$="ending"] button{color:var(--ink)}
+.rt-table th i{width:0;height:0;border:3.5px solid transparent;border-bottom:4.5px solid currentColor;border-top:0;opacity:0;transition:opacity 0.15s}
+.rt-table th button:hover i{opacity:0.45}
+.rt-table th[aria-sort$="ending"] i{opacity:1}
+.rt-table th[aria-sort="descending"] i{transform:rotate(180deg)}
+.rt-table tbody tr:hover td{background:color-mix(in oklab, var(--hover) 60%, transparent)}
+.rt-table td b{font-weight:500;color:var(--ink);font-family:var(--mono);font-size:12.5px}
+.rt-table td small{margin-left:9px;font-size:inherit;color:var(--dim)}
+.rt-none td{padding:32px 14px;text-align:center;color:var(--dim)}
+.rt-none:hover td{background:none!important}
+.rt-clear{all:unset;cursor:pointer;margin-left:6px;color:var(--ink);text-decoration:underline;text-decoration-color:var(--dim);text-underline-offset:3px}
+.rt-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-top:12px;font-size:13px;color:var(--dim)}
+.rt-pager{display:flex;align-items:center;gap:8px}
+.rt-page{min-width:6ch;text-align:center;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.rt-step{all:unset;box-sizing:border-box;cursor:pointer;display:grid;place-items:center;width:32px;height:32px;border-radius:var(--r-ctl);background:var(--raised);box-shadow:inset 0 0 0 1px var(--line-2);color:var(--ink-2);transition:color 0.15s,background 0.15s}
+.rt-step svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.rt-step:hover{color:var(--ink);background:var(--hover)}
+.rt-step:disabled{opacity:0.4;pointer-events:none}
+.rt :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.rt-search input:focus-visible{outline:0}
+.rt-menu{position:fixed;z-index:70;box-sizing:border-box;min-width:150px;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain;padding:4px;border-radius:8px;background:var(--raised);box-shadow:0 0 0 1px var(--line-2),0 16px 34px -16px rgb(0 0 0 / 0.55);font-size:13px;color:var(--ink-2);outline:0;scrollbar-width:thin;-webkit-user-select:none;user-select:none}
+.rt-menu[hidden]{display:none}
+.rt-menu [role="option"]{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:6px 10px;border-radius:var(--r-ctl);white-space:nowrap;cursor:pointer}
+.rt-menu [role="option"].act{background:var(--hover);color:var(--ink)}
+.rt-menu [role="option"][aria-selected="true"]{color:var(--accent-fg)}
+.rt-menu b{font-weight:400;font-variant-numeric:tabular-nums;color:var(--dim)}
+
+/* ---------- audit view ---------- */
+.trail{padding:22px 22px 8px}
+.trail h3{margin:6px 0 16px;font-size:13px;font-weight:500;color:var(--dim)}
+.trail h3:not(:first-child){margin-top:28px}
+.trail ol{margin:0}
+.trail .kind{margin-left:10px;vertical-align:1px}
+
+/* ---------- tooltip ---------- */
+.tip{position:fixed;left:0;top:0;z-index:60;min-width:150px;max-width:300px;padding:9px 11px;border-radius:8px;background:var(--raised);box-shadow:0 0 0 1px var(--line-2),0 16px 34px -16px rgb(0 0 0 / 0.55);font-size:12.5px;line-height:1.45;color:var(--ink-2);pointer-events:none;opacity:0;transition:opacity 0.12s}
+.tip.show{opacity:1}
+.tip-t{margin:0 0 6px;color:var(--dim)}
+.tip-r{display:flex;align-items:center;gap:8px}
+.tip-r+.tip-r{margin-top:3px}
+.tip-r i{flex:none;width:8px;height:8px;border-radius:2px;background:var(--c)}
+.tip-r b{order:2;margin-left:auto;padding-left:14px;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* ---------- footer ---------- */
+.foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 18px;max-width:var(--measure);margin:0 auto;padding:22px 28px 30px;color:var(--dim);font-size:13px}
+.foot code{font-size:12px}
+
+@media (max-width:1100px){.s4,.s5,.s7,.s8{grid-column:span 12}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){.s6{grid-column:span 12}.chart,.logs{padding:16px 14px 14px}.rt-search{flex-basis:100%;max-width:none}}
+@media (max-width:360px){.kpis{grid-template-columns:minmax(0,1fr)}}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}
+@media print{.top-act,.tabs-end,.tb,.rt-bar,.rt-pager{display:none}}
+</style>
+<!-- tweaks:start -->
+<script>
+/* how this page's tokens line up with the shared tweak palettes.
+   The page's tokens are the sixteen palette roles under other names; the grid rules, bar tracks and button fills are mixed from them, so they follow. */
+window.TWEAK_PAGE = {
+  key: 'console-activity',
+  modes: ['dark', 'light'], /* the page ships both, through light-dark() tokens */
+  /* no data-theme yet means the page is following the system */
+  getMode: () => { const t = document.documentElement.getAttribute('data-theme'); return t === 'dark' || t === 'light' ? t : matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; },
+  setMode: m => { document.documentElement.setAttribute('data-theme', m); try { localStorage.setItem('ca-theme', m); } catch (e) {} },
+  sans: '--sans', mono: '--mono', scale: { r: ['--r-sheet', '--r-card', '--r-ctl'] },
+  chrome: { bg: 'var(--raised)', fg: 'var(--ink)', dim: 'var(--dim)', line: 'var(--line-2)', hover: 'var(--hover)', accent: 'var(--accent-fg)' },
+  accentOwn: { dark: '#4c5ff0', light: '#4c5ff0' },
+  /* the page's own colours in palette order (app surf raised inset hover line line2 text text2 dim green red yellow blue magenta warn); used for glass */
+  own: {
+    dark: '0d0d0d 161616 1c1c1c 121212 262626 262626 343434 ededed a3a3a3 6e6e6e 3fb871 ec5d5d d9a33c 4c5ff0 d06fa8 f07c3a',
+    light: 'ebebe9 f7f7f6 ffffff f2f2f0 ececea e3e3e0 d1d1cd 171717 5b5b58 8c8c88 1f8a4c cf3036 a86c00 4c5ff0 bd468d e0651f',
+  },
+  map: (p, mix) => ({
+    '--bg': p.app, '--sheet': p.surf, '--card': p.raised, '--raised': mix(p.hover, 35, p.raised), '--inset': p.inset, '--hover': p.hover,
+    '--line': p.line, '--line-2': p.line2, '--ink': p.text, '--ink-2': p.text2, '--dim': p.dim,
+    '--grid': mix(p.line, 70, p.raised), '--bar': p.line2, '--track': mix(p.hover, 60, p.raised),
+    /* status follows the theme; the model series (--s*) keep the colours that were checked as a set */
+    '--ok': p.green, '--err': p.red, '--warn': p.yellow, '--dot': p.warn,
+  }),
+  /* the accent drives the step card, the heat grid, the client and provider bars and the focus ring */
+  accent: c => ({ '--accent': c }),
+  gutter: { own: 'boxed', css: 'html[data-tw-gutter="full-width"] :is(.wrap,.foot){max-width:none}' },
+  glass: '.tip, .rt-menu, .pop', /* only boxes that float over other content */
+};
+</script>
+<style id="tw-css">
+/* tweak dock: same controls as the terminal design system's config bar. Colours come from --tw-* so it follows whatever theme is active. */
+.tw{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:900;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px 10px;width:max-content;max-width:calc(100vw - 24px);padding:4px 6px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-dim);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+html[data-tw-surface="glass"] .tw{-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}
+.tw[hidden],.tw-chip[hidden]{display:none}
+.tw-ctl{display:flex;align-items:center;gap:6px;height:24px;padding:0 4px;white-space:nowrap}
+.tw button,.tw-chip{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* a chooser is a button showing its value; its list is .tw-menu below, drawn by the page, never the system's popup */
+.tw button.tw-val{display:inline-block;vertical-align:middle;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tw-fg);padding:4px 14px 4px 0;background:linear-gradient(45deg,transparent 50%,var(--tw-dim) 50%) calc(100% - 4px) 55%/4px 4px no-repeat,linear-gradient(135deg,var(--tw-dim) 50%,transparent 50%) 100% 55%/4px 4px no-repeat}
+.tw button.tw-val:hover,.tw button.tw-val[aria-expanded="true"]{color:var(--tw-acc)}
+.tw-seg{display:flex;gap:2px}
+.tw-seg button{padding:4px 7px;border-radius:4px;color:var(--tw-fg);opacity:.72}
+.tw-seg button:hover{background:var(--tw-hover);opacity:1}
+.tw-seg button[aria-pressed="true"]{background:var(--tw-hover);color:var(--tw-acc);font-weight:700;opacity:1}
+.tw-sws{display:flex;align-items:center;gap:8px}
+.tw button.tw-sw{width:11px;height:11px;border-radius:50%;background:var(--c);outline:1px solid transparent;outline-offset:2px}
+.tw button.tw-sw[aria-pressed="true"]{outline-color:var(--tw-fg)}
+.tw button.tw-x{margin-left:2px;padding:4px 7px;border-radius:4px;color:var(--tw-dim)}
+.tw button.tw-x:hover{background:var(--tw-hover);color:var(--tw-fg)}
+.tw button:focus-visible,.tw-chip:focus-visible{outline:2px solid var(--tw-acc);outline-offset:2px}
+.tw-chip{position:fixed;right:12px;bottom:12px;z-index:900;padding:7px 10px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-bg);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);box-shadow:0 12px 32px -14px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.14)}
+.tw-chip:hover{color:var(--tw-acc)}
+.tw-space{height:56px}
+.tw-menu{position:fixed;z-index:901;box-sizing:border-box;min-width:132px;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain;padding:4px;border-radius:8px;border:1px solid var(--tw-line);background:var(--tw-menu);color:var(--tw-fg);font:500 11px/1 var(--tw-font,ui-monospace,SFMono-Regular,Menlo,monospace);letter-spacing:0;text-transform:none;text-align:left;box-shadow:0 16px 40px -14px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.14);outline:0;scrollbar-width:thin;scrollbar-color:var(--tw-dim) transparent;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.tw-menu[hidden]{display:none}
+.tw-menu [role="option"]{display:flex;align-items:center;gap:8px;padding:7px 12px 7px 8px;border-radius:4px;white-space:nowrap;cursor:pointer}
+.tw-menu [role="option"].act{background:var(--tw-hover)}
+.tw-menu [role="option"][aria-selected="true"]{color:var(--tw-acc);font-weight:700}
+.tw-menu .tw-grp{padding:9px 8px 5px;color:var(--tw-dim);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.tw-dot{flex:none;width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--a) 50%,var(--b) 50%);box-shadow:0 0 0 1px var(--tw-line)} /* a theme's surface and primary */
+@media (max-width:720px){.tw{left:8px;right:8px;bottom:8px;transform:none;width:auto;max-width:none;justify-content:flex-start}.tw-ctl{height:30px}.tw-space{height:150px}.tw-menu [role="option"]{padding-block:10px}}
+@media print{.tw,.tw-chip,.tw-space,.tw-menu{display:none}}
+/* glass surface: a soft backdrop behind translucent panels */
+html[data-tw-surface="glass"]{background:var(--tw-app)!important}
+html[data-tw-surface="glass"] body{background:transparent!important}
+html[data-tw-surface="glass"]::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 50% at 18% 0%,color-mix(in srgb,var(--tw-acc) 16%,transparent),transparent 70%),radial-gradient(50% 45% at 100% 100%,color-mix(in srgb,var(--tw-warn) 13%,transparent),transparent 70%)}
+</style>
+<script id="tw-js">
+/* Tweaks: mode / theme / surface / font / size / corners / density / gutter / accent. All but gutter are the terminal design system page's controls.
+   Each page describes itself in window.TWEAK_PAGE (which of its tokens mean what); everything else here is shared.
+   With every control on its default the page's own CSS is untouched.
+   The look is also written to the address as ?mode=&theme=&surface=&font=&size=&corners=&density=&gutter=&accent=, and read back from it, so a link carries it. */
+(function(){
+'use strict';
+const P = window.TWEAK_PAGE, root = document.documentElement, KEY = 'artikit-tweaks:' + P.key;
+/* palettes, in this order: */
+const ROLES = ['app','surf','raised','inset','hover','line','line2','text','text2','dim','green','red','yellow','blue','magenta','warn','primary']; /* primary: the hue a theme is known by. It is the theme's accent until the accent control picks another */
+const THEMES = {
+ "dark": {
+  "Copperplate": "14100b 1a150e 241d14 100c08 2c2418 332917 54432a ead9c0 b59c7a 77664c a4c26f e0705a d8a24a 8aa8bd c98da4 cf8236 cf8236",
+  "Midnight": "0d0d13 16161e 1d1d28 12121a 232330 2a2a38 383848 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f 6f9ef1",
+  "Graphite": "101012 151517 1c1c1f 0c0c0e 232326 2a2a2e 3a3a40 c9ccd6 9096a8 565b6e 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f b9c0d0",
+  "Phosphor": "060a06 0a120a 101a10 050905 152415 1c301c 2a462a b8e0b0 7aa874 4a6a46 78d670 e0616d e3c078 6f9ef1 ec6bb4 e2953f 78d670",
+  "Dracula": "1e1f29 282a36 343746 21222c 3c3f52 3a3d4f 4d5069 f8f8f2 a8abc7 6272a4 50fa7b ff5555 f1fa8c 8be9fd ff79c6 ffb86c bd93f9",
+  "Nord": "242933 2e3440 3b4252 272c37 434c5e 3b4252 4c566a e5e9f0 aeb8cc 616e88 a3be8c bf616a ebcb8b 81a1c1 b48ead d08770 88c0d0",
+  "Solarized Dark": "00212b 002b36 073642 001f27 0a4050 073642 586e75 93a1a1 839496 586e75 859900 dc322f b58900 268bd2 d33682 cb4b16 2aa198",
+  "Tidewatch": "0a1220 0e1728 16233a 091020 1c2c47 1e2f4a 2e4368 d7e3f2 93a8c4 54688a 4fd6be ff6b7f e5c07b 56b3fa c792ea e5a45b 4fd6be",
+  "Iris": "14121f 191627 221e35 110f1c 2a2542 2b2545 413866 e6e1f5 a79fc7 675f8a 72e0a5 ff6b9d f0c674 82aaff c792ea f0a35e a99cf5",
+  "Emberline": "0c1210 101915 18241e 0a0f0d 1f2e26 22332a 35503f d8e6dc 96ad9d 587263 7fce6f f26d4f f0a848 6db2c9 d78ab0 f08c3a f08c3a",
+  "Oceanic": "0b141f 0f1a29 172538 0a111c 1d3049 203450 31507a d9e6f5 8ea9c4 526b88 5fd39b f2708a e8c268 58a6ff bc8cff e09a4e 58a6ff",
+  "Grove": "0d130c 121a10 1a2618 0b100a 21301e 263a22 3b5a35 dde8d6 a2b797 647a5a 9ccb72 e06c5f d9b656 72aec4 c194bd d19042 9ccb72",
+  "Rosewire": "170f14 1e1319 291b23 130c10 32212b 36242e 523847 f0dfe8 bd9cab 7c6070 7fd2a0 ff5c8a e8b465 7ba6e0 e56ba8 e0955a ef6fa0",
+  "Halide": "0c0c0c 111111 1a1a1a 080808 222222 262626 3d3d3d e8e8e8 a0a0a0 606060 a9c4a9 cf9a9a c9bd9a 9ab1c4 bda4b8 c4ad8f c4ad8f"
+ },
+ "light": {
+  "Porcelain": "efece8 fbf9f6 ffffff f4f1ec e9e5df ddd8d0 c2bab0 33302b 6b655c a39c90 3d8b3d c53a3a a37414 3565c0 ad3d8d bb6a1e 3565c0",
+  "Paper": "eceff1 fafbfc ffffff f0f2f4 e4e8ec d5dade b8c0c8 2a3138 5a656e 9aa4ac 188038 c5221f a86a00 1a63d0 b8207e c26401 1a63d0",
+  "Solarized Light": "eee8d5 fdf6e3 ffffff f3edda e8e1cc ddd6c1 c0b99f 586e75 657b83 93a1a1 859900 dc322f b58900 268bd2 d33682 cb4b16 1b817a",
+  "Frost": "e8edf3 f6f9fc ffffff eef2f7 dfe7ef d0dae4 aabccd 26313c 54687a 93a5b5 2e9440 d13b45 ad7a12 3a6ec4 b8459a c47222 2b7a9e",
+  "Dawn": "f2eae8 fcf7f5 ffffff f5edeb ecdfdc e2d3cf c8b1ab 3a2d2a 75605b ab948e 2c8a44 cc3344 a86e10 3565c0 c03a7e bd6420 c2456b",
+  "Linen": "efe9dd faf6ec fffdf6 f3eee1 e8e1d0 ded5c1 bfb298 38321f 6e6650 a49a80 4c7f22 bd3e2e 976a08 2e6a9e a5498a af6a12 a4532a",
+  "Sage": "e9eee6 f6f9f3 ffffff eef3ea dfe7da d2ddcb adbfa3 2b352a 5c6c58 93a58c 347a34 c04040 9c7212 33689e 9c4a8a b06a1c 347a34",
+  "Lavender": "edeaf3 f9f7fc ffffff f2eff7 e4dfee d9d3e4 b5aacb 312b3d 655c78 a096b3 2f8a48 cc3550 a06d10 4a5ecc a63cae bb681e 6d55c9"
+ }
+};
+const ACCENTS = { cyan:['#66c7d6','#1a7f8e'], green:['#78d670','#2f8a3a'], magenta:['#ec6bb4','#b8328a'], blue:['#6f9ef1','#3565c0'], orange:['#e2953f','#b5651a'] };
+const FONTS = { mono:['JetBrains Mono','Fira Code','IBM Plex Mono','Source Code Pro','Space Mono','Inconsolata','Ubuntu Mono','Victor Mono','Red Hat Mono'], sans:['Inter','Geist','IBM Plex Sans','Hanken Grotesk','Figtree','Manrope'] };
+const TWO_WEIGHTS = ['Space Mono','Ubuntu Mono']; /* static families with only regular and bold */
+const GUTTERS = ['boxed', 'full-width'], OWN_GUTTER = P.gutter ? P.gutter.own : null; /* P.gutter: { own: which of the two the page ships, css: rules for the other, keyed on html[data-tw-gutter] } */
+const SIZE = { small:.9, default:1, large:1.12, 'x-large':1.25 }, CORNER = { sharp:0, default:1, round:1.8 }, DENSITY = P.density || { compact:.72, default:1, relaxed:1.32 }; /* P.density: a page may list its own levels, in menu order */
+const pal = s => Object.fromEntries(s.split(' ').map((h, i) => [ROLES[i], '#' + h]));
+const mix = (a, pct, b) => `color-mix(in srgb, ${a} ${pct}%, ${b || 'transparent'})`;
+
+/* ---- one pass over the page's own rules: px font sizes, radii and spacing get a multiplier that defaults to 1,
+        so nothing moves until size, corners or density is changed ---- */
+const FAMILY = [[/^font-size$/, 'fs'], [/^border-(top|bottom|start|end)-(left|right|start|end)-radius$/, 'r'], [/^(padding|margin)-(top|right|bottom|left|block-start|block-end|inline-start|inline-end)$|^(row|column)-gap$/, 'd']];
+const PX = /-?\d*\.?\d+px/g, tokens = P.scale || {};
+/* negative margins are left alone: they pull a box out to an edge whose gutter is fixed, so scaling them would overshoot */
+const scaled = (v, k) => v.replace(PX, m => parseFloat(m) > 0 ? `calc(${m}*var(--tw-${k},1))` : m);
+(function walk(rules){
+  for (const r of rules){
+    if (r instanceof CSSKeyframesRule) continue;
+    const st = r.style;
+    if (st) for (const prop of Array.from(st)){
+      const k = prop.startsWith('--') ? Object.keys(tokens).find(k => tokens[k].includes(prop)) : (FAMILY.find(f => f[0].test(prop)) || [])[1];
+      if (!k) continue;
+      const v = st.getPropertyValue(prop);
+      if (v && !v.includes('--tw-') && v.search(PX) >= 0) st.setProperty(prop, scaled(v, k), st.getPropertyPriority(prop));
+    }
+    if (r.cssRules && r.cssRules.length) walk(r.cssRules);
+  }
+})(Array.from(document.styleSheets).flatMap(s => { try { return s.ownerNode && s.ownerNode.id === 'tw-css' ? [] : Array.from(s.cssRules); } catch (e) { return []; } }));
+
+/* ---- state ---- */
+const themesFor = m => (P.modes.includes(m) ? ['page'] : []).concat(Object.keys(THEMES[m]));
+const cfg = { mode: P.getMode(), theme: null, surface: 'solid', font: 'default', size: 'default', corner: 'default', density: 'default', gutter: OWN_GUTTER, accent: 'page', open: null };
+/* one address parameter per control. Values are matched loosely (case, spaces and dashes ignored); "default" means the page's own */
+const QK = { mode: 'mode', theme: 'theme', surface: 'surface', font: 'font', size: 'size', corner: 'corners', density: 'density', gutter: 'gutter', accent: 'accent' };
+const norm = v => String(v).toLowerCase().replace(/[^a-z0-9]+/g, ''), among = (v, list) => list.find(o => norm(o) === norm(v));
+function fromURL(){
+  let q; try { q = new URLSearchParams(location.search); } catch (e) { return null; }
+  if (!Object.values(QK).some(name => q.has(name))) return null;
+  const g = k => q.get(QK[k]) || '', own = v => ['default', 'page', 'pagedefault'].includes(norm(v)), th = g('theme');
+  /* a link is a complete look: anything it leaves out is the default, not what this browser had saved */
+  const out = { mode: among(g('mode'), ['dark', 'light']) || (own(th) ? null : ['dark', 'light'].find(m => among(th, Object.keys(THEMES[m])))) || cfg.mode }; /* ?theme=Nord alone implies dark */
+  out.theme = own(th) ? 'page' : among(th, Object.keys(THEMES[out.mode])) || null;
+  out.surface = among(g('surface'), ['solid', 'glass']) || 'solid';
+  out.font = among(g('font'), FONTS.mono.concat(FONTS.sans)) || 'default';
+  out.size = among(g('size'), Object.keys(SIZE)) || 'default'; out.corner = among(g('corner'), Object.keys(CORNER)) || 'default'; out.density = among(g('density'), Object.keys(DENSITY)) || 'default';
+  out.accent = among(g('accent'), Object.keys(ACCENTS)) || 'page';
+  out.gutter = among(g('gutter'), GUTTERS) || (norm(g('gutter')) === 'full' ? 'full-width' : OWN_GUTTER);
+  return out;
+}
+let inURL = false;
+function toURL(){
+  try {
+    const q = new URLSearchParams(location.search);
+    for (const k in QK) if (cfg[k] != null) q.set(QK[k], cfg[k] === 'page' ? 'default' : cfg[k]);
+    history.replaceState(history.state, '', '?' + q + location.hash); inURL = true; /* the page's own #section stays */
+  } catch (e) {}
+}
+let stored = {}; try { stored = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+const linked = fromURL();
+Object.assign(cfg, linked ? { ...linked, open: stored.open == null ? null : stored.open } : stored);
+function settle(){
+  if (!THEMES[cfg.mode]) cfg.mode = P.getMode();
+  if (!themesFor(cfg.mode).includes(cfg.theme)) cfg.theme = themesFor(cfg.mode)[0];
+  if (cfg.surface !== 'glass') cfg.surface = 'solid';
+  if (cfg.font !== 'default' && !FONTS.mono.concat(FONTS.sans).includes(cfg.font)) cfg.font = 'default';
+  if (!(cfg.size in SIZE)) cfg.size = 'default'; if (!(cfg.corner in CORNER)) cfg.corner = 'default'; if (!(cfg.density in DENSITY)) cfg.density = 'default';
+  if (cfg.accent !== 'page' && !ACCENTS[cfg.accent]) cfg.accent = 'page';
+  cfg.gutter = P.gutter ? (GUTTERS.includes(cfg.gutter) ? cfg.gutter : OWN_GUTTER) : null;
+}
+settle();
+
+/* glass: the page names which boxes are panels (they blur what is behind them) and which wrappers must stop painting an opaque fill.
+   gutter: the page gives the rules for the layout it does not ship (boxed for a full-width page, full-width for a boxed one) */
+if (P.glass || P.clear || P.gutter){
+  const st = document.createElement('style'); st.id = 'tw-dyn';
+  st.textContent = (P.glass ? `html[data-tw-surface="glass"] :is(${P.glass}){-webkit-backdrop-filter:blur(16px) saturate(120%);backdrop-filter:blur(16px) saturate(120%)}` : '') +
+    (P.clear ? `html[data-tw-surface="glass"] :is(${P.clear}){background:transparent!important}` : '') + (P.gutter ? P.gutter.css : '');
+  document.head.append(st);
+}
+const applied = new Set(), loaded = new Set(); let baseAccent;
+function loadFont(name){
+  if (loaded.has(name)) return; loaded.add(name);
+  const l = document.createElement('link'); l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' + name.replace(/ /g, '+') + ':wght@' + (TWO_WEIGHTS.includes(name) ? '400;700' : '400;500;600;700') + '&display=swap';
+  document.head.append(l);
+}
+function apply(){
+  const c = cfg, light = c.mode === 'light', own = c.theme === 'page', glass = c.surface === 'glass';
+  applied.forEach(k => root.style.removeProperty(k)); applied.clear();
+  const put = (k, v) => { if (k && v != null){ root.style.setProperty(k, String(v)); applied.add(k); } }, putAll = o => Object.entries(o).forEach(([k, v]) => put(k, v));
+  P.setMode(c.mode);
+  root.dataset.twMode = c.mode; if (glass) root.dataset.twSurface = 'glass'; else delete root.dataset.twSurface;
+  if (P.gutter && c.gutter !== OWN_GUTTER) root.dataset.twGutter = c.gutter; else delete root.dataset.twGutter;
+  const accent = c.accent === 'page' ? null : ACCENTS[c.accent][light ? 1 : 0];
+  let chrome = P.chrome, warn = 'transparent', app = 'transparent', p = null, tokens = null; /* the palette in force and what map() made of it: both stay null while the page's own look is untouched */
+  baseAccent = P.accentOwn[c.mode] || P.accentOwn[P.modes[0]];
+  if (!own || glass){
+    p = pal(own ? P.own[c.mode] : THEMES[c.mode][c.theme]);
+    if (!p.primary) p.primary = own ? baseAccent : p.blue; /* the page's own palette lists sixteen colours: its primary is its accent */
+    p.solid = p.surf; p.mode = c.mode; p.glass = glass; app = p.app; warn = p.warn;
+    if (glass){ /* same recipe as the terminal kit: translucent surface, tinted raised/hover layers, hairlines from the text colour */
+      const t = p.text;
+      p.surf = mix(p.surf, light ? 64 : 72); p.raised = light ? 'rgba(255,255,255,.6)' : mix(t, 5); p.inset = light ? mix(t, 4) : 'rgba(0,0,0,.18)';
+      p.hover = mix(t, light ? 7 : 9); p.line = mix(t, light ? 10 : 9); p.line2 = mix(t, light ? 18 : 16);
+    }
+    putAll(tokens = P.map(p, mix));
+    put('color-scheme', c.mode);
+    chrome = { bg: glass ? mix(p.solid, 82) : p.raised, fg: p.text, dim: mix(p.text2, 62, p.dim), line: p.line2, hover: p.hover, accent: own ? P.accentOwn[c.mode] : p.primary, menu: p.solid };
+    if (!own) baseAccent = p.primary; /* a shared theme brings its own default accent: its primary */
+  }
+  const hue = accent || (own ? null : p.primary);
+  if (hue) putAll(P.accent(hue, mix, c.mode, p, tokens));
+  put('--tw-bg', chrome.bg); put('--tw-fg', chrome.fg); put('--tw-dim', chrome.dim); put('--tw-line', chrome.line); put('--tw-hover', chrome.hover);
+  put('--tw-acc', accent || chrome.accent); put('--tw-menu', chrome.menu || chrome.bg); put('--tw-app', app); put('--tw-warn', warn);
+  if (P.mono) put('--tw-font', `var(${P.mono})`);
+  if (c.font !== 'default'){
+    const mono = FONTS.mono.includes(c.font), stack = `"${c.font}",` + (mono ? 'ui-monospace,SFMono-Regular,Menlo,monospace' : 'system-ui,-apple-system,"Segoe UI",sans-serif');
+    loadFont(c.font); put(P.sans, stack); if (mono) put(P.mono, stack);
+  }
+  if (SIZE[c.size] !== 1) put('--tw-fs', SIZE[c.size]);
+  if (CORNER[c.corner] !== 1) put('--tw-r', CORNER[c.corner]);
+  if (DENSITY[c.density] !== 1) put('--tw-d', DENSITY[c.density]);
+}
+apply();
+if (linked || cfg.theme !== 'page' || cfg.surface !== 'solid' || cfg.accent !== 'page' || cfg.gutter !== OWN_GUTTER || ['font', 'size', 'corner', 'density'].some(k => cfg[k] !== 'default')) toURL();
+
+/* ---- dock ---- */
+let dock, chip, space;
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
+const seg = (k, opts) => `<span class="tw-seg">${opts.map(o => `<button type="button" data-k="${k}" data-v="${o}" aria-pressed="${cfg[k] === o}">${o}</button>`).join('')}</span>`;
+const NAME = { theme: 'theme', font: 'font', size: 'size', corner: 'corners', density: 'density' };
+const sw = (hexes, b) => { const h = hexes.split(' '); return { a: '#' + h[1], b: b || '#' + (h[16] || h[13]) }; }; /* surface + primary of a palette */
+const choices = k => k === 'theme' ? themesFor(cfg.mode).map(t => t === 'page' ? { v: t, label: 'page default', sw: P.own && P.own[cfg.mode] ? sw(P.own[cfg.mode], P.accentOwn[cfg.mode]) : null } : { v: t, label: t, sw: sw(THEMES[cfg.mode][t]) })
+  : k === 'font' ? [{ v: 'default', label: 'default' }, { group: 'mono, whole page' }].concat(FONTS.mono.map(f => ({ v: f, label: f })), [{ group: 'sans' }], FONTS.sans.map(f => ({ v: f, label: f })))
+  : Object.keys({ size: SIZE, corner: CORNER, density: DENSITY }[k]).map(o => ({ v: o, label: o }));
+const pick = k => { const now = (choices(k).find(o => o.v === cfg[k]) || { label: cfg[k] }).label; return `<button type="button" class="tw-val" data-k="${k}" aria-haspopup="listbox" aria-expanded="false" aria-controls="tw-menu" aria-label="${NAME[k]}: ${esc(now)}">${esc(now)}</button>`; };
+
+/* the list of a chooser: a listbox the page draws, so it wears the active theme. Arrow keys, Home/End, typing a name, Enter, Escape */
+let menu, menuFor = null, opts = [], at = -1, typed = '', typedAt = 0;
+function setAt(i, quiet){
+  at = i; opts.forEach((o, n) => o.classList.toggle('act', n === i));
+  const o = opts[i]; if (!o) return; menu.setAttribute('aria-activedescendant', o.id);
+  if (quiet) return; /* the pointer is already on it */
+  if (o.offsetTop < menu.scrollTop + 4) menu.scrollTop = o.offsetTop - 4; else if (o.offsetTop + o.offsetHeight > menu.scrollTop + menu.clientHeight - 4) menu.scrollTop = o.offsetTop + o.offsetHeight - menu.clientHeight + 4;
+}
+function place(){ /* above the control when the dock sits at the bottom, kept inside the window */
+  const r = menuFor.getBoundingClientRect(), up = r.top > innerHeight - r.bottom;
+  menu.style.minWidth = Math.max(132, Math.round(r.width) + 18) + 'px';
+  menu.style.maxHeight = Math.max(120, Math.min(480, (up ? r.top : innerHeight - r.bottom) - 14)) + 'px';
+  menu.style.left = Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, r.left - 9)) + 'px';
+  menu.style.top = up ? 'auto' : r.bottom + 6 + 'px'; menu.style.bottom = up ? innerHeight - r.top + 6 + 'px' : 'auto';
+}
+function openMenu(btn){
+  closeMenu(); const k = btn.dataset.k;
+  menu.innerHTML = choices(k).map((o, i) => o.group ? `<div class="tw-grp" role="presentation">${esc(o.group)}</div>` :
+    `<div role="option" id="tw-o${i}" data-v="${esc(o.v)}" aria-selected="${cfg[k] === o.v}">${o.sw ? `<i class="tw-dot" style="--a:${o.sw.a};--b:${o.sw.b}"></i>` : ''}${esc(o.label)}</div>`).join('');
+  opts = Array.from(menu.querySelectorAll('[role="option"]')); menuFor = btn; typed = '';
+  btn.setAttribute('aria-expanded', 'true'); menu.setAttribute('aria-label', NAME[k]); menu.hidden = false; menu.scrollTop = 0;
+  place(); setAt(Math.max(0, opts.findIndex(o => o.getAttribute('aria-selected') === 'true'))); menu.focus({ preventScroll: true });
+}
+function closeMenu(refocus){
+  if (!menuFor) return; const b = menuFor; menuFor = null; menu.hidden = true;
+  if (b.isConnected){ b.setAttribute('aria-expanded', 'false'); if (refocus) b.focus({ preventScroll: true }); }
+}
+function choose(i){ const b = menuFor, o = opts[i]; closeMenu(true); if (b && o && cfg[b.dataset.k] !== o.dataset.v) set({ [b.dataset.k]: o.dataset.v }); }
+function menuKey(e){
+  const n = opts.length, k = e.key;
+  if (k === 'ArrowDown') setAt((at + 1) % n); else if (k === 'ArrowUp') setAt((at - 1 + n) % n);
+  else if (k === 'Home' || k === 'PageUp') setAt(0); else if (k === 'End' || k === 'PageDown') setAt(n - 1);
+  else if (k === 'Enter' || k === ' ') choose(at); else if (k === 'Escape') closeMenu(true);
+  else if (k === 'Tab'){ closeMenu(true); return; } /* focus is back on the control, so Tab moves on from there */
+  else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey){ /* type a name to jump to it */
+    const t = Date.now(); typed = (t - typedAt > 700 ? '' : typed) + k.toLowerCase(); typedAt = t;
+    for (let j = 0, from = typed.length > 1 ? at : at + 1; j < n; j++){ const i = (from + j) % n; if (opts[i].textContent.trim().toLowerCase().startsWith(typed)){ setAt(i); break; } }
+  } else return;
+  e.preventDefault(); e.stopPropagation();
+}
+
+function render(){
+  if (!dock) return;
+  closeMenu();
+  const light = cfg.mode === 'light', had = document.activeElement, keep = had && dock.contains(had) ? [had.dataset.k, had.dataset.v] : null;
+  dock.innerHTML =
+    `<div class="tw-ctl">mode ${seg('mode', ['dark', 'light'])}</div>` +
+    `<div class="tw-ctl">theme ${pick('theme')}</div>` +
+    `<div class="tw-ctl">surface ${seg('surface', ['solid', 'glass'])}</div>` +
+    `<div class="tw-ctl">font ${pick('font')}</div>` +
+    `<div class="tw-ctl">size ${pick('size')}</div>` +
+    `<div class="tw-ctl">corners ${pick('corner')}</div>` +
+    `<div class="tw-ctl">density ${pick('density')}</div>` +
+    (P.gutter ? `<div class="tw-ctl">gutter ${seg('gutter', GUTTERS)}</div>` : '') +
+    `<div class="tw-ctl">accent <span class="tw-sws">${['page'].concat(Object.keys(ACCENTS)).map(a => `<button type="button" class="tw-sw" data-k="accent" data-v="${a}" title="${a === 'page' ? 'default' : a}" aria-label="${a === 'page' ? 'default' : a} accent" aria-pressed="${cfg.accent === a}" style="--c:${a === 'page' ? baseAccent : ACCENTS[a][light ? 1 : 0]}"></button>`).join('')}</span></div>` +
+    `<button type="button" class="tw-x" data-k="open" data-v="" aria-label="Hide tweaks" title="Hide tweaks">hide</button>`;
+  dock.hidden = !cfg.open; chip.hidden = !!cfg.open; if (space) space.hidden = !cfg.open;
+  if (keep){ const el = keep[1] != null ? dock.querySelector(`[data-k="${keep[0]}"][data-v="${keep[1]}"]`) : dock.querySelector(`.tw-val[data-k="${keep[0]}"]`); if (el) el.focus({ preventScroll: true }); }
+}
+function set(patch){
+  const before = { ...cfg };
+  Object.assign(cfg, patch);
+  if (patch.mode && patch.mode !== before.mode && !('theme' in patch)) cfg.theme = cfg.theme === 'page' && P.modes.includes(cfg.mode) ? 'page' : themesFor(cfg.mode)[0];
+  settle(); apply(); render();
+  try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {}
+  if (inURL || Object.keys(QK).some(k => cfg[k] !== before[k])) toURL();
+  document.dispatchEvent(new CustomEvent('tweakchange', { detail: { ...cfg } }));
+  /* text, spacing, font and width changes move boxes: let the page redraw anything it sized in script */
+  if (['font', 'size', 'density', 'corner', 'gutter'].some(k => cfg[k] !== before[k])){
+    const again = () => window.dispatchEvent(new Event('resize'));
+    requestAnimationFrame(() => requestAnimationFrame(again));
+    if (cfg.font !== before.font && document.fonts) document.fonts.ready.then(() => setTimeout(again, 60));
+  }
+}
+function mount(){
+  dock = document.createElement('div'); dock.className = 'tw'; dock.id = 'tweaks'; dock.setAttribute('role', 'group'); dock.setAttribute('aria-label', 'Theme tweaks');
+  chip = document.createElement('button'); chip.type = 'button'; chip.className = 'tw-chip'; chip.textContent = 'tweaks'; chip.setAttribute('aria-label', 'Show tweaks');
+  if (P.spacer !== false){ space = document.createElement('div'); space.className = 'tw-space'; space.setAttribute('aria-hidden', 'true'); document.body.append(space); }
+  menu = document.createElement('div'); menu.className = 'tw-menu'; menu.id = 'tw-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1; menu.hidden = true;
+  document.body.append(dock, chip, menu);
+  if (cfg.open == null) cfg.open = innerWidth > 720;
+  dock.addEventListener('click', e => {
+    const v = e.target.closest('.tw-val'); if (v){ if (menuFor === v) closeMenu(true); else openMenu(v); return; }
+    const b = e.target.closest('button[data-k]'); if (!b) return; set({ [b.dataset.k]: b.dataset.k === 'open' ? false : b.dataset.v }); if (b.dataset.k === 'open') chip.focus();
+  });
+  dock.addEventListener('keydown', e => { const v = e.target.closest('.tw-val'); if (v && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){ e.preventDefault(); openMenu(v); } });
+  menu.addEventListener('keydown', menuKey);
+  menu.addEventListener('click', e => { const o = e.target.closest('[role="option"]'); if (o) choose(opts.indexOf(o)); });
+  menu.addEventListener('pointermove', e => { const o = e.target.closest('[role="option"]'), i = opts.indexOf(o); if (o && i !== at) setAt(i, true); });
+  menu.addEventListener('focusout', e => { if (menuFor && e.relatedTarget !== menuFor && !menu.contains(e.relatedTarget)) closeMenu(); });
+  document.addEventListener('pointerdown', e => { if (menuFor && !menu.contains(e.target) && !menuFor.contains(e.target)) closeMenu(); }, true);
+  addEventListener('resize', () => closeMenu()); addEventListener('blur', () => closeMenu());
+  chip.addEventListener('click', () => { set({ open: true }); const f = dock.querySelector('button'); if (f) f.focus(); });
+  render();
+}
+if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
+window.Tweaks = { get: () => ({ ...cfg }), set, themes: THEMES, mix };
+})();
+</script>
+<!-- tweaks:end -->
+</head>
+<body>
+<header class="top">
+  <a class="mark" href="#activity" aria-label="Acme console, Activity"><svg viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="2" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><rect x="6.5" y="6.5" width="5" height="5" fill="currentColor"/></svg><span>acme</span></a>
+  <span class="vr" aria-hidden="true"></span>
+  <button class="ws" type="button" title="Sample workspace"><span class="av">S</span>Sandbox<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
+  <div class="top-act">
+    <button class="qb" type="button" id="creditsbtn" popovertarget="credits" aria-expanded="false"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5"/><path d="M8 5v6M5.5 8h5"/><path d="M11 1.8l2.6.6-.6 2.6"/></svg><span class="lbl">Add credits</span></button>
+    <button class="qb" type="button" id="searchbtn" title="Search request logs"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3.5 3.5"/></svg><kbd>⌘K</kbd></button>
+    <button class="qb sq themebtn" id="themebtn" type="button" data-to="light" aria-label="Switch to light theme" title="Switch to light theme">
+      <svg class="ic sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3.2"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.05 3.05l1.13 1.13M11.82 11.82l1.13 1.13M12.95 3.05l-1.13 1.13M4.18 11.82l-1.13 1.13"/></svg>
+      <svg class="ic moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.8 5.8 0 0 1 6.4 2.5a5.8 5.8 0 1 0 7.1 7.1z"/></svg>
+    </button>
+    <a class="qb sq" href="https://github.com/j3ssie/artikit" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.1c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.4-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5z"/></svg></a>
+    <span class="avatar" title="ana@sample.test" aria-label="Signed in as ana@sample.test">A</span>
+  </div>
+  <div class="pop" id="credits" popover>
+    <p class="pl">Workspace balance</p>
+    <p class="pv" id="balance">$0.00</p>
+    <div class="row"><button class="btn sm" type="button" data-add="25">$25</button><button class="btn sm" type="button" data-add="50">$50</button><button class="btn sm" type="button" data-add="100">$100</button></div>
+    <small>Sample only: a top-up adds to the balance and writes an audit entry.</small>
+  </div>
+  <div class="pop agentpop" id="agents" popover>
+    <h2>Connect other coding agents</h2>
+    <p class="pl">Any agent that speaks the chat completions API can use this workspace.</p>
+    <ol>
+      <li>Point its base URL at <code>https://gateway.sample.test/v1</code>.</li>
+      <li>Paste a workspace API key from <b>Settings</b> → <b>API keys</b>.</li>
+      <li>Send one request. It shows up under <a href="#logs">Logs</a> within seconds.</li>
+    </ol>
+  </div>
+</header>
+
+<div class="sheet">
+  <div class="tabs">
+    <nav aria-label="Console">
+      <a href="#activity">Activity</a>
+      <a href="#usage">Usage</a>
+      <a href="#models">Models</a>
+      <a href="#logs">Logs</a>
+      <a href="#audit">Audit</a>
+    </nav>
+    <div class="tabs-end">
+      <div class="range" id="range" role="group" aria-label="Date range"><button type="button" data-n="7" aria-pressed="false">7 days</button><button type="button" data-n="30" aria-pressed="true">30 days</button><button type="button" data-n="90" aria-pressed="false">90 days</button></div>
+      <button class="btn round sm agents" type="button" id="agentsbtn" popovertarget="agents" aria-expanded="false" aria-label="Connect other coding agents"><svg class="glyph" viewBox="0 0 18 14" aria-hidden="true"><rect x="1" y="3" width="11" height="10" rx="2" fill="currentColor"/><circle cx="14.5" cy="3.5" r="2.6" fill="var(--accent-fg)"/></svg><span>Connect other coding agents</span></button>
+    </div>
+  </div>
+
+  <!-- ================= Activity ================= -->
+  <section class="view" id="v-activity" aria-label="Activity">
+    <div class="wrap split">
+      <div class="main-col">
+        <div class="grid" data-grid="activity"></div>
+
+        <div class="usage" id="usage-block">
+          <header class="uhead">
+            <div>
+              <p class="big" id="u-total">$0.00</p>
+              <p class="ul" id="u-sub">Workspace usage</p>
+            </div>
+            <div class="uact"><button type="button" class="tb" aria-pressed="false">table</button><a class="btn sm" href="#usage">Usage details<svg class="ic chev" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg></a></div>
+          </header>
+          <div class="fig" tabindex="0" role="img"><div class="plot"></div></div><div class="tv" hidden></div><div class="lg"></div>
+        </div>
+      </div>
+
+      <aside class="rail" aria-label="Workspace summary">
+        <section id="started">
+          <header class="rhead">
+            <div><h2>Get started</h2><p class="rsub" id="progress"></p></div>
+            <div class="arrows"><button class="qb sq" type="button" id="prev" aria-label="Previous step"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3m4-4L3 8l4 4"/></svg></button><button class="qb sq" type="button" id="next" aria-label="Next step"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></button></div>
+          </header>
+          <div id="started-on">
+            <div class="stack"><div class="stepcard" id="stepcard" aria-live="polite"></div></div>
+            <button class="btn wide dismiss" type="button" id="dismiss-steps">Dismiss</button>
+          </div>
+          <p class="rsub" id="started-off" hidden>Guide hidden. <button class="linkbtn" type="button" id="restore-steps">Show it again</button></p>
+        </section>
+
+        <section>
+          <header class="rhead">
+            <div><h2>Logs</h2><p class="rsub" id="logs-sub"></p></div>
+            <a class="btn sm" href="#logs">Details<svg class="ic chev" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg></a>
+          </header>
+          <div class="strip" id="strip-block"><div class="fig" tabindex="0" role="img"><div class="plot"></div></div><div class="lg"></div></div>
+        </section>
+
+        <section class="audit">
+          <header class="rhead">
+            <div><h2>Audit</h2><p class="rsub" id="audit-sub"></p></div>
+            <a class="btn sm" href="#audit">Details<svg class="ic chev" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg></a>
+          </header>
+          <ol id="audit-short"></ol>
+        </section>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ================= Usage ================= -->
+  <section class="view" id="v-usage" aria-label="Usage" hidden>
+    <div class="wrap">
+      <header class="vhead"><div><h1>Usage</h1><p id="usage-scope"></p></div></header>
+      <div class="kpis" id="kpis"></div>
+      <div class="grid" data-grid="usage"></div>
+    </div>
+  </section>
+
+  <!-- ================= Models ================= -->
+  <section class="view" id="v-models" aria-label="Models" hidden>
+    <div class="wrap">
+      <header class="vhead"><div><h1>Models</h1><p id="models-scope"></p></div></header>
+      <div class="grid" data-grid="models"></div>
+      <div class="grid"><article class="card chart s12">
+        <header class="ch"><div><h3>Every model this workspace called</h3><p class="form">table · share of requests · prices per million tokens</p></div></header>
+        <div class="mt-wrap"><table class="mt" id="models-table" aria-label="Models in the range"></table></div>
+      </article></div>
+    </div>
+  </section>
+
+  <!-- ================= Logs ================= -->
+  <section class="view" id="v-logs" aria-label="Logs" hidden>
+    <div class="wrap">
+      <header class="vhead"><div><h1>Request logs</h1><p id="logs-scope"></p></div></header>
+      <article class="card logs">
+        <header class="ch"><div><h3>All requests</h3><p class="form">table · search · filters · sort</p></div></header>
+        <div id="records-table"></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ================= Audit ================= -->
+  <section class="view" id="v-audit" aria-label="Audit" hidden>
+    <div class="wrap">
+      <header class="vhead"><div><h1>Audit trail</h1><p id="audit-scope"></p></div></header>
+      <article class="card trail audit" id="trail"></article>
+    </div>
+  </section>
+</div>
+
+<footer class="foot">
+  <span>Sample page: every name and number on it is invented.</span>
+  <span>Generated in the script from a fixed seed (<code>DATA</code>).</span>
+</footer>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="4" fill="var(--track)"/><rect width="1.4" height="4" fill="var(--bar)"/></pattern></defs></svg>
+
+<script>
+'use strict';
+/* ================= DATA: one seeded dataset, 180 days of gateway requests =================
+   Every number on the page is an aggregate of DATA.reqs (one object per request). Change the seed, the weights or the lists here and every view follows. */
+const DATA = (() => {
+  let a = 20261123;
+  const R = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const gauss = () => Math.sqrt(-2 * Math.log(R() || 1e-9)) * Math.cos(2 * Math.PI * R());
+  const logn = (median, sigma) => median * Math.exp(sigma * gauss());
+  const pick = w => { let x = R() * w.reduce((s, v) => s + v, 0); for (let i = 0; i < w.length; i++) if ((x -= w[i]) < 0) return i; return w.length - 1; };
+  const DAYS = 180, END = Date.UTC(2026, 10, 23), NOW = 20.7; /* the last day stops at 20:42 */
+  /* pin, pout: dollars per million input and output tokens. ms: a typical latency. c: the series token (the two small models share "other") */
+  const MODEL = [
+    { name: 'atlas-large', prov: 0, w: 22, pin: 3, pout: 15, ms: 2300, c: '--s1' },
+    { name: 'quill-coder', prov: 1, w: 30, pin: 1.2, pout: 6, ms: 1500, c: '--s2' },
+    { name: 'atlas-mini', prov: 0, w: 25, pin: .25, pout: 1.25, ms: 680, c: '--s3' },
+    { name: 'vega-reasoner', prov: 2, w: 9, pin: 5, pout: 25, ms: 6100, c: '--s4' },
+    { name: 'lumen-flash', prov: 2, w: 8, pin: .1, pout: .4, ms: 430, c: '--s0' },
+    { name: 'nimbus-7b', prov: 1, w: 6, pin: .05, pout: .2, ms: 360, c: '--s0' },
+  ];
+  const PROV = ['Northwind', 'Helix Cloud', 'Openrange'];
+  const CLIENT = [{ name: 'desktop', w: 30 }, { name: 'terminal', w: 34 }, { name: 'ci-runner', w: 14 }, { name: 'sdk', w: 12 }, { name: 'ide-plugin', w: 10 }];
+  const STATUS = ['ok', 'error', 'rate limited'];
+  /* people work the afternoon; the CI runner fires on a schedule */
+  const HD = Array.from({ length: 24 }, (_, h) => .25 + 8 * Math.exp(-(((h - 14.5) / 4.2) ** 2)));
+  const HC = Array.from({ length: 24 }, (_, h) => h % 6 === 2 ? 9 : .5);
+  const INCIDENT = DAYS - 17; /* one bad day at Openrange */
+  const reqs = [], day = [];
+  for (let d = 0; d < DAYS; d++) {
+    const date = new Date(END - (DAYS - 1 - d) * 864e5), dow = (date.getUTCDay() + 6) % 7; /* 0 is Monday */
+    const mu = (30 + 58 * d / (DAYS - 1)) * (dow > 4 ? .4 : 1) * (1 + .14 * Math.sin(d / 8.5));
+    const n = Math.max(3, Math.round(mu + gauss() * Math.sqrt(mu) * .8));
+    for (let k = 0; k < n; k++) {
+      const c = pick(CLIENT.map(x => x.w)), hour = pick(c === 2 ? HC : HD), t = d * 24 + hour + R();
+      if (d === DAYS - 1 && t - d * 24 > NOW) continue;
+      const m = pick(MODEL.map((M, i) => M.w * (i === 3 ? .3 + 1.4 * d / DAYS : 1) * (c === 2 && i === 2 ? 2.5 : 1))), M = MODEL[m];
+      /* on the incident day Openrange fails most calls, and the fallback to Helix Cloud runs into its rate limit */
+      const bad = d === INCIDENT && M.prov === 2, spill = d === INCIDENT && M.prov === 1, p = R();
+      const status = p < (bad ? .5 : .011) ? 1 : p < (bad ? .72 : spill ? .2 : .028 + (m === 3 ? .02 : 0)) ? 2 : 0;
+      const tin = Math.round(logn(c === 2 ? 16000 : 8500, .62));
+      const cache = Math.round(tin * Math.min(.92, Math.max(0, .4 + .14 * gauss() + .2 * d / DAYS)));
+      const tout = status ? 0 : Math.round(logn(m === 3 ? 2600 : 850, .7));
+      const ms = status === 2 ? Math.round(logn(110, .4)) : Math.round(logn(M.ms, .32) * (1 + tout / 5000) * (status ? 1.8 : 1));
+      const cost = status === 2 ? 0 : ((tin - cache) * M.pin + cache * M.pin * .1 + tout * M.pout) / 1e6;
+      reqs.push({ id: 'req_' + Math.floor(R() * 36 ** 8).toString(36).padStart(8, '0'), d, dow, hour, t, m, c, status, tin, cache, tout, ms, cost });
+    }
+    day.push({ d, date, dow });
+  }
+  reqs.sort((x, y) => x.t - y.t);
+  return { DAYS, END, NOW, MODEL, PROV, CLIENT, STATUS, reqs, day };
+})();
+const { MODEL, PROV, CLIENT, STATUS } = DATA;
+/* the chart groups: the four larger models, then "other" */
+const GROUP = [0, 1, 2, 3].map(i => ({ label: MODEL[i].name, c: MODEL[i].c })).concat({ label: 'other', c: '--s0' });
+const groupOf = m => Math.min(m, 4);
+
+/* the audit trail: h is hours before now */
+const AUDIT = [
+  { h: .03, w: 'Raised the monthly limit to $60', who: 'ana@sample.test', k: 'billing' },
+  { h: 1.4, w: 'Rotated API key terminal-02', who: 'ana@sample.test', k: 'keys' },
+  { h: 5.2, w: 'Enabled vega-reasoner', who: 'lee@sample.test', k: 'models' },
+  { h: 26, w: 'Added $100.00 in credits', who: 'ana@sample.test', k: 'billing' },
+  { h: 31, w: 'Created API key ci-nightly', who: 'deploy-bot', k: 'keys' },
+  { h: 52, w: 'Set the default model to quill-coder', who: 'lee@sample.test', k: 'models' },
+  { h: 75, w: 'Turned on provider fallback', who: 'System', k: 'models' },
+  { h: 98, w: 'Invited lee@sample.test', who: 'ana@sample.test', k: 'members' },
+  { h: 140, w: 'Created API key terminal-02', who: 'ana@sample.test', k: 'keys' },
+  { h: 190, w: 'Paused nimbus-7b for ci-runner', who: 'lee@sample.test', k: 'models' },
+  { h: 260, w: 'Connected Acme Desktop', who: 'ana@sample.test', k: 'keys' },
+  { h: 402, w: 'Created billing settings', who: 'System', k: 'billing' },
+  { h: 402.2, w: 'Created workspace Sandbox', who: 'System', k: 'members' },
+  { h: 402.3, w: 'Created ana@sample.test', who: 'System', k: 'members' },
+];
+let balance = 63.4;
+
+/* ---------- the slice every view reads: the last N days, and the N days before them ---------- */
+function slice(N) {
+  const d0 = DATA.DAYS - N;
+  return { N, d0, days: DATA.day.slice(d0), cur: DATA.reqs.filter(r => r.d >= d0), prev: DATA.reqs.filter(r => r.d >= d0 - N && r.d < d0) };
+}
+
+/* ---------- small helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const sum = a => a.reduce((s, v) => s + v, 0);
+const total = (rows, f) => rows.reduce((s, r) => s + f(r), 0);
+const quant = (a, q) => { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y), i = (s.length - 1) * q; return s[Math.floor(i)] + (s[Math.ceil(i)] - s[Math.floor(i)]) * (i % 1); };
+const NF = new Intl.NumberFormat('en-US'), fmt = n => NF.format(Math.round(n));
+const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+const usd = v => '$' + (v >= 1000 ? fmt(v) : v.toFixed(2));
+const usdAxis = v => '$' + (v >= 1000 ? fmt(v) : +v.toFixed(2));
+const tok = v => v >= 1e9 ? r1(v / 1e9) + 'B' : v >= 1e6 ? r1(v / 1e6) + 'M' : v >= 1e3 ? Math.round(v / 1e3) + 'K' : fmt(v);
+const fms = v => v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 's' : Math.round(v) + 'ms';
+const DF = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }), dl = date => DF.format(date);
+const WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const hh = h => String(h).padStart(2, '0') + ':00';
+const r1 = v => Math.round(v * 10) / 10;
+const ago = h => h < .1 ? 'just now' : h < 1 ? Math.round(h * 60) + 'm ago' : h < 24 ? Math.round(h) + 'h ago' : Math.round(h / 24) + 'd ago';
+const T = (x, y, s, cls = 't3', anchor = 'start') => `<text class="${cls}" x="${r1(x)}" y="${r1(y)}" text-anchor="${anchor}">${esc(s)}</text>`;
+const nice = (max, n = 4) => { const raw = Math.max(max, 1e-9) / n, p = 10 ** Math.floor(Math.log10(raw)), f = raw / p, step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p, out = []; for (let v = 0; v < max + step - 1e-9; v += step) out.push(+v.toFixed(6)); return out; };
+/* the width of a label at the plots' 12px type, in the page's sans */
+let ctx2d; const tw = s => { ctx2d = ctx2d || document.createElement('canvas').getContext('2d'); ctx2d.font = '12px ' + getComputedStyle(document.body).fontFamily; return ctx2d.measureText(String(s)).width; };
+/* days when the range is short, three-day blocks when it is long */
+function buckets(S, size = S.N <= 30 ? 1 : 3) {
+  if (size === 1) return S.days.map(x => ({ label: dl(x.date), from: x.d, to: x.d }));
+  const out = [];
+  for (let to = DATA.DAYS - 1; to >= S.d0; to -= size) { const from = Math.max(S.d0, to - size + 1); out.unshift({ label: `${dl(DATA.day[from].date)} to ${dl(DATA.day[to].date)}`, short: dl(DATA.day[from].date), from, to }); }
+  return out;
+}
+const inB = (rows, b) => rows.filter(r => r.d >= b.from && r.d <= b.to);
+/* rounded at the top, square on the baseline */
+const roundTop = (x, y, w, h, r) => { r = Math.min(r, w / 2, h); return `M${r1(x)} ${r1(y + h)}V${r1(y + r)}Q${r1(x)} ${r1(y)} ${r1(x + r)} ${r1(y)}H${r1(x + w - r)}Q${r1(x + w)} ${r1(y)} ${r1(x + w)} ${r1(y + r)}V${r1(y + h)}Z`; };
+
+/* a y axis drawn the reference's way: labels flush left, faint rules, a firmer baseline */
+function axes(W, H, top, o = {}) {
+  const f = o.fmt || fmt, ticks = nice(top, o.n || 4), max = ticks[ticks.length - 1], labels = ticks.map(f);
+  const m = { l: Math.ceil(Math.max(...labels.map(tw))) + 14, r: 4, t: 8, b: 26, ...o.m };
+  const x0 = m.l, x1 = W - m.r, y1 = H - m.b, y0 = m.t;
+  let body = '';
+  ticks.forEach((t, i) => { const y = Math.round(y1 - (y1 - y0) * i / (ticks.length - 1)) + .5; body += `<path class="${i ? 'gl' : 'base'}" d="M${x0} ${y}H${x1}"/>` + T(0, y + 4, labels[i]); });
+  return { body, y: v => y1 - (v / max) * (y1 - y0), x0, x1, y0, y1, max, w: x1 - x0 };
+}
+/* labels under a time axis, counted back from the latest so the last period is always named */
+function xLabels(n, x, label, y, w) {
+  const step = Math.ceil(n / Math.max(2, Math.floor(w / 70))); let s = '';
+  for (let i = n - 1; i >= 0; i -= step) s += T(x(i), y, label(i), 't3', 'middle');
+  return s;
+}
+/* stacked columns: one column per bucket, one segment per group, a 1.5px gap between segments, the top one rounded.
+   o = { fmt, tip(b, i, vals), marks: [{ i, label }] dashed rules before bucket i } */
+function stackCols(W, H, B, groups, val, o) {
+  const V = B.map((b, i) => groups.map((g, gi) => val(b, gi, i))), tot = V.map(sum);
+  const ax = axes(W, H, Math.max(...tot, 1e-9) * 1.04, { fmt: o.fmt }), n = B.length, step = ax.w / n, bw = Math.max(2, Math.min(26, step * (n > 40 ? .72 : .6)));
+  let body = ax.body; const pts = [];
+  (o.marks || []).forEach(mk => { const x = Math.round(ax.x0 + step * mk.i) + .5; body += `<path class="cyc" d="M${x} ${ax.y0 - 2}V${ax.y1}"/>` + T(x + 6, ax.y0 + 9, mk.label); });
+  B.forEach((b, i) => {
+    const cx = ax.x0 + step * (i + .5), x = cx - bw / 2, vals = V[i], last = vals.reduce((L, v, gi) => v > 0 ? gi : L, -1);
+    let y = ax.y1, s = '';
+    vals.forEach((v, gi) => {
+      if (v <= 0) return; const h = ax.y1 - ax.y(v), top = y - h;
+      s += gi === last ? `<path d="${roundTop(x, top, bw, Math.max(1, h), 2.5)}" style="fill:var(${groups[gi].c})"/>` : `<rect x="${r1(x)}" y="${r1(top + 1.5)}" width="${r1(bw)}" height="${r1(Math.max(.6, h - 1.5))}" style="fill:var(${groups[gi].c})"/>`;
+      y = top;
+    });
+    if (last < 0) s = `<rect class="zero" x="${r1(x)}" y="${ax.y1 - 3}" width="${r1(bw)}" height="3"/>`;
+    body += `<g data-i="${i}">${s}</g>`;
+    pts.push({ x: cx, y: ax.y(tot[i]), box: [x - 4, ax.y0 - 2, bw + 8, ax.y1 - ax.y0 + 4], tip: o.tip(b, i, vals) });
+  });
+  body += xLabels(n, i => ax.x0 + step * (i + .5), i => B[i].short || B[i].label, H - 7, ax.w);
+  return { body, pts, hover: 'x', dim: true };
+}
+/* lines on one axis, each labelled at its end. series = [{ label, c, v: [] }]. o = { fmt, tip(i), xl(i), area } */
+function lines(W, H, n, series, o) {
+  const top = Math.max(...series.flatMap(s => s.v), 1e-9) * 1.08, endW = Math.ceil(Math.max(...series.map(s => tw(s.label)))) + 16;
+  const ax = axes(W, H, top, { fmt: o.fmt, m: { r: endW } }), x = i => ax.x0 + (n < 2 ? ax.w / 2 : ax.w * i / (n - 1));
+  let body = ax.body; const path = s => s.v.map((v, i) => (i ? 'L' : 'M') + r1(x(i)) + ' ' + r1(ax.y(v))).join('');
+  series.forEach(s => {
+    if (o.area) body += `<path class="area" style="fill:var(${s.c})" d="${path(s)}L${r1(x(n - 1))} ${ax.y1}L${r1(x(0))} ${ax.y1}Z"/>`;
+    body += `<path class="ln" style="stroke:var(${s.c})" d="${path(s)}"/>`;
+  });
+  const ends = series.map(s => ({ s, y: ax.y(s.v[n - 1]) })).sort((p, q) => p.y - q.y);
+  for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 13) ends[i].y = ends[i - 1].y + 13;
+  ends.forEach(e => { body += `<circle cx="${r1(x(n - 1))}" cy="${r1(ax.y(e.s.v[n - 1]))}" r="2.5" style="fill:var(${e.s.c})"/>` + T(x(n - 1) + 8, e.y + 4, e.s.label, 't2'); });
+  const pts = Array.from({ length: n }, (_, i) => ({ x: x(i), y: Math.min(...series.map(s => ax.y(s.v[i]))),
+    hov: `<path class="xh" d="M${r1(x(i))} ${ax.y0}V${ax.y1}"/>` + series.map(s => `<circle class="hd" cx="${r1(x(i))}" cy="${r1(ax.y(s.v[i]))}" r="4" style="fill:var(${s.c})"/>`).join(''), tip: o.tip(i) }));
+  body += xLabels(n, x, o.xl, H - 7, ax.w);
+  return { body, pts, hover: 'x' };
+}
+/* ranked bars: one row per item, a bar with its value at the tip. rows = [{ label, v, c, note, tip }] */
+function rankBars(W, H, rows, o) {
+  const bar = o.bar || 8, x0 = Math.ceil(Math.max(...rows.map(r => tw(r.label)))) + 16, vw = Math.ceil(Math.max(...rows.map(r => tw(o.f(r.v) + (r.note ? '   ' + r.note : ''))))) + 14;
+  const pitch = Math.min(o.pitch || 38, (H - 8) / rows.length), max = Math.max(...rows.map(r => r.v), 1e-9), pts = [];
+  let body = `<path class="base" d="M${x0 + .5} 4V${r1(4 + pitch * rows.length)}"/>`;
+  rows.forEach((r, i) => {
+    const y = 4 + pitch * (i + .5), w = Math.max(3, (r.v / max) * (W - x0 - vw - 4)), v = o.f(r.v);
+    body += `<g data-i="${i}">${T(x0 - 10, y + 4, r.label, 't2', 'end')}<rect class="trk" x="${x0 + 1}" y="${r1(y - bar / 2)}" width="${r1(W - x0 - vw - 3)}" height="${bar}" rx="2"/><rect x="${x0 + 1}" y="${r1(y - bar / 2)}" width="${r1(w)}" height="${bar}" rx="2" style="fill:var(${r.c || o.c})"/>${T(W - vw + 10, y + 4, v, 't1 tb5')}${r.note ? T(W - vw + 10 + tw(v) + 8, y + 4, r.note) : ''}</g><rect class="hit" data-i="${i}" y="${r1(y - pitch / 2)}" width="${W}" height="${r1(pitch)}"/>`;
+    pts.push({ x: x0 + w, y, box: [x0 - 4 - tw(r.label) - 10, y - pitch / 2 + 3, W - (x0 - 4 - tw(r.label) - 10) + 2, pitch - 6], tip: r.tip });
+  });
+  return { body, pts, dim: true, H: Math.ceil(8 + pitch * rows.length) };
+}
+
+/* ================= cards: card(id, options, draw) =================
+   options: { view, sec (the data-grid it goes in), span, title, form, cap, h } or { view, host } to draw into markup already on the page.
+   draw({ W, H, S }) returns { body, legend, pts, table, hover, dim, aria, H }.
+   pts[i] = { x, y, box: [x, y, w, h], hov (svg drawn on hover), tip: { t, rows: [[colourToken, label, value]] } } is what hover, focus and the arrow keys read.
+   Marks that belong to point i carry data-i="i". hover: 'x' snaps to the nearest column, default is the mark under the pointer. */
+const cards = [], card = (id, o, draw) => cards.push({ id, ...o, draw });
+let S, N = 30, view = 'activity';
+const tipEl = $('#tip');
+
+function mount() {
+  for (const c of cards) {
+    let a = c.host && $(c.host);
+    if (!a) {
+      a = document.createElement('article'); a.className = 'card chart s' + c.span; a.id = 'c-' + c.id;
+      a.innerHTML = '<header class="ch"><div><h3></h3><p class="form"></p></div><button type="button" class="tb" aria-pressed="false">table</button></header><div class="fig" tabindex="0" role="img"><div class="plot"></div></div><div class="tv" hidden></div><div class="lg"></div><p class="cap"></p>';
+      $('h3', a).textContent = c.title; $('.form', a).textContent = c.form; $('.cap', a).textContent = c.cap || '';
+      $(`[data-grid="${c.sec}"]`).append(a);
+    }
+    Object.assign(c, { el: a, fig: $('.fig', a), plot: $('.plot', a), lg: $('.lg', a), tv: $('.tv', a), btn: $('.tb', a), cur: -1 });
+    wire(c);
+  }
+}
+function render(c, grow = 0) {
+  const shown = !c.fig.hidden, W = shown ? (c.W = Math.max(200, Math.floor(c.plot.clientWidth))) : c.W || 600, o = c.out = c.draw({ W, H: (c.h || 240) + grow, S }), H = o.H || (c.h || 240) + grow;
+  legend(c.lg, o.legend || []);
+  if (!shown) return table(c);
+  c.plot.innerHTML = `<svg class="plate" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">${o.body}<g class="hov"></g></svg>`;
+  c.fig.setAttribute('aria-label', `${c.title || o.title}. ${o.aria || c.cap || ''} Use the arrow keys to step through the values.`);
+  c.cur = -1;
+}
+/* cards in one row are as tall as the tallest: a plot with room left over is drawn again to fill its panel */
+function fill(c) {
+  if (c.host || c.fixed || c.fig.hidden) return;
+  const room = c.fig.clientHeight - c.plot.offsetHeight;
+  if (room > 6) render(c, Math.min(200, Math.floor(room)));
+}
+function legend(el, items) {
+  if (!el) return;
+  el.replaceChildren(...items.map(it => {
+    const s = document.createElement('span'), i = document.createElement('i'); i.className = 'sw' + (it.kind ? ' ' + it.kind : ''); i.style.setProperty('--c', `var(${it.c})`);
+    s.append(i, it.label);
+    if (it.note) { const b = document.createElement('b'); b.textContent = it.note; s.append(b); }
+    return s;
+  }));
+}
+function table(c) {
+  if (!c.tv) return;
+  const t = c.out.table, el = document.createElement('table'), head = document.createElement('thead'), body = document.createElement('tbody');
+  const row = (cells, tag) => { const tr = document.createElement('tr'); cells.forEach(v => { const x = document.createElement(tag); x.textContent = v; tr.append(x); }); return tr; };
+  head.append(row(t.head, 'th')); t.rows.forEach(r => body.append(row(r, 'td'))); el.append(head, body);
+  c.tv.replaceChildren(el);
+}
+let tipFor;
+function tipShow(t, x, y) {
+  if (t !== tipFor) {
+    tipFor = t; tipEl.replaceChildren();
+    if (t.t) { const p = document.createElement('p'); p.className = 'tip-t'; p.textContent = t.t; tipEl.append(p); }
+    for (const [c, l, v] of t.rows) {
+      const r = document.createElement('div'), s = document.createElement('span'), b = document.createElement('b'); r.className = 'tip-r';
+      if (c) { const i = document.createElement('i'); i.style.setProperty('--c', `var(${c})`); r.append(i); }
+      s.textContent = l; b.textContent = v; r.append(s, b); tipEl.append(r);
+    }
+  }
+  const w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  let left = x + 14, top = y - h - 12;
+  if (left + w > innerWidth - 8) left = x - w - 14; if (left < 8) left = 8; if (top < 8) top = y + 18;
+  tipEl.style.transform = `translate(${Math.round(left)}px,${Math.round(top)}px)`; tipEl.classList.add('show');
+}
+function locate(c, e) {
+  const o = c.out, pts = o.pts || []; if (!pts.length) return -1;
+  if (o.hover === 'x') { const x = e.clientX - c.plot.firstElementChild.getBoundingClientRect().left; if (x < pts[0].x - 24 || x > pts[pts.length - 1].x + 24) return -1; let b = 0; pts.forEach((p, i) => { if (Math.abs(p.x - x) < Math.abs(pts[b].x - x)) b = i; }); return b; }
+  if (o.hover === 'xy') { const r = c.plot.firstElementChild.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; let b = -1, best = 400; pts.forEach((p, i) => { const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < best) { best = d; b = i; } }); return b; }
+  const t = e.target.closest('[data-i]'); return t ? +t.dataset.i : -1;
+}
+function show(c, i, cx, cy) {
+  const o = c.out, p = o.pts[i]; if (!p) return;
+  if (c.cur !== i) {
+    c.fig.querySelectorAll('.on').forEach(el => el.classList.remove('on'));
+    c.fig.querySelectorAll(`[data-i="${i}"]`).forEach(el => el.classList.add('on'));
+    c.fig.classList.toggle('dim', !!o.dim);
+    const b = p.box; $('.hov', c.fig).innerHTML = p.hov || (b ? `<rect class="cursor" x="${r1(b[0])}" y="${r1(b[1])}" width="${r1(b[2])}" height="${r1(b[3])}" rx="4"/>` : '');
+    c.cur = i;
+  }
+  const r = c.plot.firstElementChild.getBoundingClientRect();
+  tipShow(p.tip, cx == null ? r.left + p.x : cx, cy == null ? r.top + p.y : cy);
+}
+function leave(c) {
+  if (c.cur < 0 && !tipEl.classList.contains('show')) return;
+  c.cur = -1; c.fig.classList.remove('dim'); c.fig.querySelectorAll('.on').forEach(el => el.classList.remove('on'));
+  const h = $('.hov', c.fig); if (h) h.innerHTML = '';
+  tipEl.classList.remove('show');
+}
+function wire(c) {
+  const f = c.fig;
+  f.addEventListener('pointermove', e => { const i = locate(c, e); if (i < 0) leave(c); else show(c, i, e.clientX, e.clientY); });
+  f.addEventListener('pointerleave', () => leave(c));
+  f.addEventListener('blur', () => leave(c));
+  f.addEventListener('keydown', e => {
+    const n = (c.out.pts || []).length, k = e.key; if (!n) return; let i = c.cur;
+    if (k === 'ArrowRight' || k === 'ArrowDown') i = i < 0 ? 0 : (i + 1) % n; else if (k === 'ArrowLeft' || k === 'ArrowUp') i = i < 0 ? n - 1 : (i - 1 + n) % n;
+    else if (k === 'Home') i = 0; else if (k === 'End') i = n - 1; else if (k === 'Escape') return leave(c); else return;
+    e.preventDefault(); show(c, i);
+  });
+  if (c.btn) c.btn.addEventListener('click', () => {
+    const on = c.btn.getAttribute('aria-pressed') !== 'true'; c.btn.setAttribute('aria-pressed', on); leave(c);
+    if (on) { c.tv.style.height = Math.max(160, c.fig.offsetHeight) + 'px'; table(c); }
+    c.fig.hidden = on; c.tv.hidden = !on; c.btn.textContent = on ? 'chart' : 'table';
+    if (!on) { render(c); fill(c); }
+  });
+}
+
+/* ================= Activity ================= */
+/* the get-started stack: three required steps and two optional ones */
+const STEPS = [
+  { t: 'Connect a client', d: 'Sign in from Acme Desktop or the CLI, or set up another coding agent.', req: 1, done: true, g: ['Install Acme Desktop or the CLI.', 'Sign in and pick Sandbox.', 'For anything else, use Connect other coding agents in the tab bar.'] },
+  { t: 'Add credits', d: 'Top up the balance so requests are never refused for funds.', req: 1, g: ['Open Add credits in the top bar.', 'Pick an amount.', 'The balance updates at once.'] },
+  { t: 'Set a monthly limit', d: 'Cap what the workspace can spend in one billing cycle.', req: 1, done: true, g: ['Go to Settings → Limits.', 'Enter a dollar amount.', 'Requests over the cap are refused with a clear error.'] },
+  { t: 'Invite a teammate', d: 'Share the workspace, its keys and its limits with someone else.', req: 0, g: ['Go to Settings → Members.', 'Enter their address.', 'They join with the role you pick.'] },
+  { t: 'Choose a default model', d: 'Requests that name no model go to this one.', req: 0, g: ['Go to Models.', 'Open the model you want.', 'Choose Make default.'] },
+];
+let stepAt = 1;
+function steps() {
+  const s = STEPS[stepAt], req = STEPS.filter(x => x.req), opt = STEPS.filter(x => !x.req);
+  $('#progress').innerHTML = `${req.filter(x => x.done).length} of ${req.length} required<i>·</i>${opt.filter(x => x.done).length} of ${opt.length} optional`;
+  const n = s.req ? STEPS.indexOf(s) + 1 : 0;
+  $('#stepcard').innerHTML = `<p class="st">${s.req ? 'Step ' + n : 'Optional'}<i>·</i>${esc(s.t)}</p><p class="sd">${esc(s.d)}</p><ol id="stepguide" hidden>${s.g.map(x => `<li>${esc(x)}</li>`).join('')}</ol>`
+    + `<div class="sa"><button class="go" type="button" aria-expanded="false" aria-controls="stepguide"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4" stroke-width="2"/></svg><span>Show guide</span></button>${s.done ? '<span class="ok"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke-width="2"/></svg>Done</span>' : '<button class="done" type="button">Mark as done</button>'}</div>`;
+}
+function stepsWire() {
+  const sc = $('#stepcard');
+  sc.addEventListener('click', e => {
+    const go = e.target.closest('.go'), done = e.target.closest('.done');
+    if (go) { const open = go.getAttribute('aria-expanded') !== 'true'; go.setAttribute('aria-expanded', open); $('#stepguide').hidden = !open; $('span', go).textContent = open ? 'Hide guide' : 'Show guide'; }
+    if (done) { STEPS[stepAt].done = true; steps(); $('.go', sc).focus(); }
+  });
+  const move = d => { stepAt = (stepAt + d + STEPS.length) % STEPS.length; steps(); };
+  $('#prev').addEventListener('click', () => move(-1)); $('#next').addEventListener('click', () => move(1));
+  const off = on => { $('#started-on').hidden = on; $('#started-off').hidden = !on; $('.arrows').hidden = on; };
+  $('#dismiss-steps').addEventListener('click', () => { off(true); $('#restore-steps').focus(); });
+  $('#restore-steps').addEventListener('click', () => off(false));
+  steps();
+}
+
+/* the audit list: the rail shows the latest four, the Audit view all of them grouped by day */
+const KIND = { keys: 'API keys', billing: 'Billing', models: 'Models', members: 'Members' };
+const auditItem = (x, i) => `<li${i === 0 && x.h < 1 ? ' class="new"' : ''}><span class="d" aria-hidden="true"></span><div><p class="w">${esc(x.w)}</p><p class="who"><i aria-hidden="true">${esc(x.who[0])}</i>${esc(x.who)}</p></div><time>${ago(x.h)}</time></li>`;
+function audit() {
+  const week = AUDIT.filter(x => x.h < 168).length;
+  $('#audit-sub').textContent = `${week} change${week === 1 ? '' : 's'} this week`;
+  $('#audit-short').innerHTML = AUDIT.slice(0, 4).map(auditItem).join('');
+  const now = DATA.END + DATA.NOW * 36e5, groups = [];
+  AUDIT.forEach((x, i) => { const label = dl(new Date(now - x.h * 36e5)), g = groups[groups.length - 1]; if (g && g.label === label) g.items.push([x, i]); else groups.push({ label, items: [[x, i]] }); });
+  $('#trail').innerHTML = groups.map(g => `<h3>${g.label}</h3><ol>${g.items.map(([x, i]) => auditItem(x, i).replace('</p><p class="who">', `<span class="pill plain kind">${KIND[x.k]}</span></p><p class="who">`)).join('')}</ol>`).join('');
+  $('#audit-scope').textContent = `${AUDIT.length} changes since the workspace was created, newest first.`;
+}
+
+/* the billing cycle runs by calendar month: this month so far, last month whole, the limit from the audit trail */
+const LIMIT = 60;
+const dayCost = new Array(DATA.DAYS).fill(0); for (const r of DATA.reqs) dayCost[r.d] += r.cost;
+const CYC = (() => {
+  const last = DATA.DAYS - 1, today = DATA.day[last].date, n = today.getUTCDate(), y = today.getUTCFullYear(), m = today.getUTCMonth();
+  const len = new Date(Date.UTC(y, m + 1, 0)).getUTCDate(), plen = new Date(Date.UTC(y, m, 0)).getUTCDate(), c0 = last - n + 1, p0 = c0 - plen;
+  const run = (from, k) => { let t = 0; return Array.from({ length: k }, (_, i) => (t += dayCost[from + i])); };
+  const MF = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
+  return { n, len, plen, cur: run(c0, n), prev: run(p0, plen), mon: MF.format(today), pmon: MF.format(DATA.day[p0].date), elapsed: n - 1 + DATA.NOW / 24 };
+})();
+card('cycle', { view: 'activity', sec: 'activity', span: 7, title: 'This billing cycle', form: 'cumulative spend · against last cycle and the limit', cap: 'The dotted line carries this cycle’s daily average to the end of the month. The range switch does not move it: a cycle is a calendar month.' }, ({ W, H }) => {
+  const { n, len, plen, cur, prev, mon, pmon, elapsed } = CYC, D = Math.max(len, plen), now = cur[n - 1], rate = now / elapsed, proj = rate * len, pend = prev[plen - 1];
+  const at = d => d <= n ? cur[d - 1] : now + rate * (d - elapsed);
+  const ends = [{ y: 0, v: proj, s: `${usd(proj)} by ${mon} ${len}`, c: 't1' }, { y: 0, v: pend, s: `${pmon} ${usd(pend)}`, c: 't2' }];
+  const ax = axes(W, H, Math.max(LIMIT, proj, pend) * 1.06, { fmt: usdAxis, m: { r: Math.ceil(Math.max(...ends.map(e => tw(e.s)))) + 16 } });
+  const x = d => ax.x0 + (d - 1) / (D - 1) * ax.w, line = (a, from = 1) => a.map((v, i) => (i ? 'L' : 'M') + r1(x(i + from)) + ' ' + r1(ax.y(v))).join('');
+  let body = ax.body;
+  const ly = Math.round(ax.y(LIMIT)) + .5; body += `<path class="lim" d="M${ax.x0} ${ly}H${ax.x1}"/>` + T(ax.x0 + 6, ly - 7, `limit ${usd(LIMIT)}`, 't2');
+  body += `<path class="prev" d="${line(prev)}"/>`;
+  body += `<path class="proj" style="stroke:var(--accent)" d="M${r1(x(n))} ${r1(ax.y(now))}L${r1(x(len))} ${r1(ax.y(proj))}"/>`;
+  body += `<path class="ln" style="stroke:var(--accent)" d="${line(cur)}"/><circle cx="${r1(x(n))}" cy="${r1(ax.y(now))}" r="3.5" style="fill:var(--accent)" class="hd"/>`;
+  body += T(x(n), ax.y(now) - 10, 'today ' + usd(now), 't1 tb5', n > D - 6 ? 'end' : 'middle');
+  ends.forEach(e => { e.y = ax.y(e.v); }); ends.sort((p, q) => p.y - q.y);
+  for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 14) ends[i].y = ends[i - 1].y + 14;
+  ends.forEach(e => { body += T(ax.x1 + 8, e.y + 4, e.s, e.c); });
+  (ax.w < 320 ? [1, 15, 29] : [1, 8, 15, 22, 29]).filter(d => d <= D).forEach(d => { body += T(x(d), H - 7, `${mon} ${d}`, 't3', 'middle'); });
+  const pts = Array.from({ length: D }, (_, i) => {
+    const d = i + 1, yc = d <= len ? ax.y(at(d)) : null, yp = d <= plen ? ax.y(prev[i]) : null;
+    return { x: x(d), y: Math.min(yc ?? 1e9, yp ?? 1e9), hov: `<path class="xh" d="M${r1(x(d))} ${ax.y0}V${ax.y1}"/>` + (yc != null ? `<circle class="hd" cx="${r1(x(d))}" cy="${r1(yc)}" r="4" style="fill:var(--accent)"/>` : '') + (yp != null ? `<circle class="hd" cx="${r1(x(d))}" cy="${r1(yp)}" r="4" style="fill:var(--s0)"/>` : ''),
+      tip: { t: `Day ${d} of the cycle`, rows: [['--accent', `${mon} ${d}${d > n ? ', projected' : ''}`, d <= len ? usd(at(d)) : '–'], ['--s0', `${pmon} ${d}`, d <= plen ? usd(prev[i]) : '–'], [null, 'limit', usd(LIMIT)]] } };
+  });
+  return { body, pts, hover: 'x',
+    legend: [{ c: '--accent', kind: 'ln', label: `${mon} so far`, note: usd(now) }, { c: '--s0', kind: 'ln', label: `${pmon}, last cycle`, note: usd(pend) }],
+    table: { head: ['Day', `${mon}`, `${pmon}`], rows: pts.map((p, i) => [String(i + 1), i < len ? usd(at(i + 1)) + (i + 1 > n ? ' (projected)' : '') : '–', i < plen ? usd(prev[i]) : '–']) },
+    aria: `${usd(now)} spent so far this cycle, on course for ${usd(proj)} against a ${usd(LIMIT)} limit. Last cycle came to ${usd(pend)}.` };
+});
+
+/* a donut with its own labels: the ring on the left, one row per model on the right */
+const arcPath = (cx, cy, ri, ro, a0, a1) => {
+  const p = (r, a) => `${r1(cx + r * Math.cos(a))} ${r1(cy + r * Math.sin(a))}`, big = a1 - a0 > Math.PI ? 1 : 0;
+  return `M${p(ro, a0)}A${ro} ${ro} 0 ${big} 1 ${p(ro, a1)}L${p(ri, a1)}A${ri} ${ri} 0 ${big} 0 ${p(ri, a0)}Z`;
+};
+card('share', { view: 'activity', sec: 'activity', span: 5, title: 'Spend by model', form: 'donut · share of spend in the range' }, ({ W, H: H0, S }) => {
+  let H = H0;
+  const v = [0, 0, 0, 0, 0], n = [0, 0, 0, 0, 0];
+  for (const r of S.cur) { v[groupOf(r.m)] += r.cost; n[groupOf(r.m)]++; }
+  const all = sum(v) || 1e-9, need = 16 + Math.max(...GROUP.map(g => tw(g.label))) + 14 + tw('100%') + 10 + Math.max(...v.map(x => tw(usd(x))));
+  /* the list goes beside the ring when it fits, under it when it does not */
+  let R = Math.max(48, Math.min(H / 2 - 6, W * .2)); const side = W - (2 * R + 30) >= need; if (!side) R = Math.min(84, W / 2 - 4);
+  const cx = side ? R + 2 : W / 2, ri = R * .66, lx = side ? 2 * R + 30 : 0, rowH = side ? Math.min(30, (H - 8) / GROUP.length) : 28;
+  if (!side) H = 2 * R + 20 + rowH * GROUP.length;
+  const cy = side ? H / 2 : R + 2, listY = side ? cy - rowH * GROUP.length / 2 : 2 * R + 18;
+  let body = '', a = -Math.PI / 2; const pts = [];
+  GROUP.forEach((g, i) => {
+    const a1 = a + v[i] / all * Math.PI * 2, mid = (a + a1) / 2;
+    if (v[i] > 0) body += `<path class="arc" data-i="${i}" d="${arcPath(cx, cy, ri, R, a, a1)}" style="fill:var(${g.c})"/>`;
+    const y = listY + rowH * (i + .5);
+    body += `<g data-i="${i}"><rect x="${lx}" y="${r1(y - 4)}" width="8" height="8" rx="2" style="fill:var(${g.c})"/>${T(lx + 16, y + 4, g.label, 't2')}${T(W - 2, y + 4, usd(v[i]), 't1 tb5', 'end')}${T(W - 2 - tw(usd(v[i])) - 10, y + 4, pct(v[i], all) + '%', 't3', 'end')}</g><rect class="hit" data-i="${i}" x="${lx - 6}" y="${r1(y - rowH / 2)}" width="${r1(W - lx + 6)}" height="${r1(rowH)}"/>`;
+    pts.push({ x: cx + (R + ri) / 2 * Math.cos(mid), y: cy + (R + ri) / 2 * Math.sin(mid), tip: { t: g.label, rows: [[g.c, 'spend', usd(v[i])], [null, 'share', pct(v[i], all) + '%'], [null, 'requests', fmt(n[i])]] } });
+    a = a1;
+  });
+  body += T(cx, cy + 4, usd(all), 't1 t-big', 'middle') + T(cx, cy + 22, `last ${S.N} days`, 't3', 'middle');
+  return { body, pts, dim: true, H, table: { head: ['Model', 'Spend', 'Share', 'Requests'], rows: GROUP.map((g, i) => [g.label, usd(v[i]), pct(v[i], all) + '%', fmt(n[i])]) },
+    aria: `${usd(all)} spent in the last ${S.N} days; ${GROUP.map((g, i) => `${g.label} ${pct(v[i], all)}%`).join(', ')}.` };
+});
+
+/* every finished request as a dot: output tokens across on a log scale, latency up. At most 900 dots, taken evenly */
+card('scatter', { view: 'activity', sec: 'activity', span: 12, title: 'Latency against output', form: 'scatter · one dot per request, output tokens on a log scale', cap: 'Each model keeps to its own band: vega-reasoner takes seconds where atlas-mini takes a fraction of one for the same output. Failed requests are left out.', h: 280 }, ({ W, H, S }) => {
+  const ok = S.cur.filter(r => !r.status && r.tout > 0), step = Math.max(1, Math.ceil(ok.length / 900)), rows = ok.filter((r, i) => i % step === 0).sort((p, q) => p.tout - q.tout);
+  const top = quant(rows.map(r => r.ms), .99) * 1.08, ax = axes(W, H, top, { fmt: fms, m: { r: 8 } });
+  const l0 = Math.log10(Math.max(20, Math.min(...rows.map(r => r.tout)) * .8)), l1 = Math.log10(Math.max(...rows.map(r => r.tout)) * 1.15);
+  const x = v => ax.x0 + (Math.log10(v) - l0) / (l1 - l0) * ax.w, y = ms => Math.max(ax.y0, ax.y(ms));
+  let body = ax.body;
+  for (const t of [30, 100, 300, 1000, 3000, 10000, 30000]) if (Math.log10(t) > l0 && Math.log10(t) < l1) { const xx = Math.round(x(t)) + .5; body += `<path class="gl" d="M${xx} ${ax.y0}V${ax.y1}"/>` + T(xx, H - 7, tok(t), 't3', 'middle'); }
+  body += T(ax.x0 + 8, ax.y0 + 4, '↑ latency', 't3');
+  const order = rows.map((r, i) => i).sort((p, q) => groupOf(rows[q].m) - groupOf(rows[p].m)); /* "other" underneath, atlas-large on top */
+  for (const i of order) { const r = rows[i]; body += `<circle class="sc" data-i="${i}" cx="${r1(x(r.tout))}" cy="${r1(y(r.ms))}" r="2.8" style="fill:var(${GROUP[groupOf(r.m)].c})"/>`; }
+  const pts = rows.map(r => { const g = GROUP[groupOf(r.m)], px = x(r.tout), py = y(r.ms);
+    return { x: px, y: py, hov: `<circle class="hd" cx="${r1(px)}" cy="${r1(py)}" r="5" style="fill:var(${g.c})"/>`, tip: { t: `${r.id} · ${dl(DATA.day[r.d].date)} ${hh(r.hour)}`, rows: [[g.c, MODEL[r.m].name, CLIENT[r.c].name], [null, 'output', fmt(r.tout) + ' tokens'], [null, 'latency', fms(r.ms)]] } }; });
+  const by = GROUP.map((g, gi) => rows.filter(r => groupOf(r.m) === gi));
+  return { body, pts, hover: 'xy', legend: GROUP.map((g, gi) => ({ c: g.c, label: g.label, note: fmt(by[gi].length) })),
+    table: { head: ['Model', 'Dots', 'Median output', 'Median latency', 'p95 latency'], rows: GROUP.map((g, gi) => [g.label, fmt(by[gi].length), fmt(quant(by[gi].map(r => r.tout), .5)), fms(quant(by[gi].map(r => r.ms), .5)), fms(quant(by[gi].map(r => r.ms), .95))]) },
+    aria: `${fmt(rows.length)} of ${fmt(ok.length)} finished requests, latency against output tokens.` };
+});
+
+/* the usage block: the big number, its line, and the stacked spend columns */
+card('spend', { view: 'activity', host: '#usage-block', title: 'Workspace usage', h: 230 }, ({ W, H, S }) => {
+  const B = buckets(S), marks = [];
+  B.forEach((b, i) => { for (let d = b.from; d <= b.to; d++) if (DATA.day[d].date.getUTCDate() === 1 && i) marks.push({ i: i + (d - b.from) / (b.to - b.from + 1), label: 'cycle ' + DF.format(DATA.day[d].date).split(' ')[0] }); });
+  const cell = B.map(b => { const v = [0, 0, 0, 0, 0]; for (const r of inB(S.cur, b)) v[groupOf(r.m)] += r.cost; return v; });
+  const o = stackCols(W, H, B, GROUP, (b, gi, i) => cell[i][gi], { fmt: usdAxis, marks,
+    tip: (b, i, v) => ({ t: b.label, rows: GROUP.map((g, gi) => [g.c, g.label, usd(v[gi])]).reverse().concat([[null, 'total', usd(sum(v))]]) }) });
+  const all = GROUP.map((g, gi) => sum(cell.map(v => v[gi])));
+  o.legend = GROUP.map((g, gi) => ({ c: g.c, label: g.label, note: usd(all[gi]) }));
+  o.table = { head: ['Period'].concat(GROUP.map(g => g.label), 'Total'), rows: B.map((b, i) => [b.label].concat(cell[i].map(usd), usd(sum(cell[i])))) };
+  o.aria = `Spend per ${S.N <= 30 ? 'day' : 'three days'} by model, ${usd(sum(all))} in all.`;
+  return o;
+});
+function usageHead() {
+  const sp = total(S.cur, r => r.cost), pp = total(S.prev, r => r.cost), d = pp ? (sp - pp) / pp * 100 : 0;
+  $('#u-total').textContent = usd(sp);
+  $('#u-sub').innerHTML = `Workspace usage · last ${S.N} days · <b class="${d > 0 ? 'up' : ''}">${d >= 0 ? '+' : '−'}${Math.abs(d).toFixed(0)}%</b> on the ${S.N} before`;
+}
+
+/* the logs strip: the last seven days in three-hour blocks, one bar each; an empty block is a hatched stub */
+card('strip', { view: 'activity', host: '#strip-block', title: 'Requests, last 7 days', h: 64 }, ({ W, H }) => {
+  const from = DATA.DAYS - 7, blocks = Array.from({ length: 56 }, (_, i) => ({ d: from + Math.floor(i / 8), h: (i % 8) * 3, n: 0, err: 0, rl: 0 }));
+  for (const r of DATA.reqs) if (r.d >= from) { const b = blocks[(r.d - from) * 8 + Math.floor(r.hour / 3)]; b.n++; if (r.status === 1) b.err++; if (r.status === 2) b.rl++; }
+  const nowI = 6 * 8 + Math.floor(DATA.NOW / 3), max = Math.max(...blocks.map(b => b.n), 1), step = W / 56, bw = Math.max(2, step * .56), top = 2, base = H - 2, pts = [];
+  let body = '';
+  blocks.forEach((b, i) => {
+    const x = r1(i * step + (step - bw) / 2), cx = i * step + step / 2;
+    if (i > nowI) { body += `<g data-i="${i}"><rect class="trk" x="${x}" y="${top}" width="${r1(bw)}" height="${base - top}" rx="1"/></g>`; }
+    else if (!b.n) body += `<g data-i="${i}"><rect class="zero" x="${x}" y="${top}" width="${r1(bw)}" height="${base - top}" rx="1"/></g>`;
+    else {
+      const h = Math.max(3, (b.n / max) * (base - top)), eh = b.err + b.rl ? Math.max(2, ((b.err + b.rl) / max) * (base - top)) : 0;
+      body += `<g data-i="${i}"><rect class="trk" x="${x}" y="${top}" width="${r1(bw)}" height="${base - top}" rx="1"/><rect class="nb" x="${x}" y="${r1(base - h)}" width="${r1(bw)}" height="${r1(h)}" rx="1"/>${eh ? `<rect x="${x}" y="${r1(base - h)}" width="${r1(bw)}" height="${r1(Math.min(eh, h))}" rx="1" style="fill:var(--err)"/>` : ''}</g>`;
+    }
+    const when = `${dl(DATA.day[b.d].date)} · ${hh(b.h)}–${hh(b.h + 3 === 24 ? 0 : b.h + 3)}`;
+    pts.push({ x: cx, y: top, box: [i * step + 1, 0, step - 2, H], tip: i > nowI ? { t: when, rows: [[null, 'not yet', '']] } : { t: when, rows: [['--bar', 'requests', fmt(b.n)], ['--err', 'failed', fmt(b.err + b.rl)]] } });
+  });
+  const n7 = blocks.reduce((s, b) => s + b.n, 0), f7 = blocks.reduce((s, b) => s + b.err + b.rl, 0);
+  $('#logs-sub').textContent = `${fmt(n7)} requests in the last 7 days`;
+  return { body, pts, hover: 'x', legend: [{ c: '--bar', label: 'requests' }, { c: '--err', label: 'failed', note: fmt(f7) }], aria: `${fmt(n7)} requests and ${fmt(f7)} failures in the last seven days, in three-hour blocks.`,
+    table: { head: ['Block', 'Requests', 'Failed'], rows: blocks.slice(0, nowI + 1).map(b => [`${dl(DATA.day[b.d].date)} ${hh(b.h)}`, fmt(b.n), fmt(b.err + b.rl)]) } };
+});
+
+/* ================= Usage ================= */
+function kpis() {
+  const B = buckets(S), per = f => B.map(b => f(inB(S.cur, b))), rel = (a, b) => b ? (a - b) / b * 100 : 0;
+  const tk = r => r.tin + r.tout, med = rows => quant(rows.filter(r => r.status !== 2).map(r => r.ms), .5);
+  const tiles = [
+    { l: 'Requests', v: fmt(S.cur.length), d: rel(S.cur.length, S.prev.length), good: 1, sp: per(rs => rs.length) },
+    { l: 'Spend', v: usd(total(S.cur, r => r.cost)), d: rel(total(S.cur, r => r.cost), total(S.prev, r => r.cost)), good: 0, sp: per(rs => total(rs, r => r.cost)) },
+    { l: 'Tokens', v: tok(total(S.cur, tk)), d: rel(total(S.cur, tk), total(S.prev, tk)), good: 0, sp: per(rs => total(rs, tk)) },
+    { l: 'Median latency', v: fms(med(S.cur)), d: rel(med(S.cur), med(S.prev)), good: -1, sp: per(med) },
+  ];
+  $('#kpis').innerHTML = tiles.map(t => {
+    const max = Math.max(...t.sp, 1e-9), n = t.sp.length, pts = t.sp.map((v, i) => `${r1(i / Math.max(1, n - 1) * 100)},${r1(28 - v / max * 26)}`);
+    const cls = !t.good || Math.abs(t.d) < .5 ? 'flat' : (t.d > 0) === (t.good > 0) ? 'good' : 'bad';
+    return `<article class="card kpi"><p class="kl">${t.l}</p><p class="kv">${t.v}</p><p class="kd"><b class="${cls}">${t.d >= 0 ? '+' : '−'}${Math.abs(t.d).toFixed(1)}%</b> on the ${S.N} days before</p><svg viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><path class="sa" d="M0,30L${pts.join('L')}L100,30Z"/><path class="sl" vector-effect="non-scaling-stroke" d="M${pts.join('L')}"/></svg></article>`;
+  }).join('');
+  $('#usage-scope').textContent = `Last ${S.N} days, ${dl(S.days[0].date)} to ${dl(S.days[S.days.length - 1].date)} · ${fmt(S.cur.length)} requests from ${CLIENT.length} clients`;
+}
+
+card('tokens', { view: 'usage', sec: 'usage', span: 8, title: 'Tokens', form: 'lines · per day or three days', cap: 'Cache reads are input tokens served from the prompt cache, billed at a tenth.' }, ({ W, H, S }) => {
+  const B = buckets(S), rows = B.map(b => { const rs = inB(S.cur, b); return [total(rs, r => r.tin - r.cache), total(rs, r => r.cache), total(rs, r => r.tout)]; });
+  const series = [{ label: 'input', c: '--s1', v: rows.map(r => r[0]) }, { label: 'cache read', c: '--s2', v: rows.map(r => r[1]) }, { label: 'output', c: '--s3', v: rows.map(r => r[2]) }];
+  const o = lines(W, H, B.length, series, { fmt: tok, xl: i => B[i].short || B[i].label, tip: i => ({ t: B[i].label, rows: series.map(s => [s.c, s.label, tok(s.v[i])]) }) });
+  o.legend = series.map(s => ({ c: s.c, label: s.label, kind: 'ln', note: tok(sum(s.v)) }));
+  o.table = { head: ['Period', 'Input', 'Cache read', 'Output'], rows: B.map((b, i) => [b.label].concat(rows[i].map(fmt))) };
+  return o;
+});
+card('clients', { view: 'usage', sec: 'usage', span: 4, title: 'Requests by client', form: 'ranked bars', cap: 'Where the requests came from.' }, ({ W, H, S }) => {
+  const n = CLIENT.map((c, i) => S.cur.filter(r => r.c === i).length), all = sum(n);
+  const rows = CLIENT.map((c, i) => ({ label: c.name, v: n[i], note: pct(n[i], all) + '%', tip: { t: c.name, rows: [['--accent', 'requests', fmt(n[i])], [null, 'share', pct(n[i], all) + '%'], [null, 'spend', usd(total(S.cur.filter(r => r.c === i), r => r.cost))]] } })).sort((p, q) => q.v - p.v);
+  const o = rankBars(W, H, rows, { c: '--accent', f: fmt, pitch: 40 });
+  o.table = { head: ['Client', 'Requests', 'Share'], rows: rows.map(r => [r.label, fmt(r.v), r.note]) };
+  return o;
+});
+card('latency', { view: 'usage', sec: 'usage', span: 6, title: 'Latency', form: 'lines · median and 95th percentile', cap: 'Rate-limited requests are left out: they answer in about a tenth of a second.' }, ({ W, H, S }) => {
+  const B = buckets(S), ms = B.map(b => inB(S.cur, b).filter(r => r.status !== 2).map(r => r.ms));
+  const series = [{ label: 'p95', c: '--s4', v: ms.map(a => quant(a, .95)) }, { label: 'median', c: '--s1', v: ms.map(a => quant(a, .5)) }];
+  const o = lines(W, H, B.length, series, { fmt: fms, xl: i => B[i].short || B[i].label, tip: i => ({ t: B[i].label, rows: series.map(s => [s.c, s.label, fms(s.v[i])]) }) });
+  o.legend = series.map(s => ({ c: s.c, label: s.label, kind: 'ln' }));
+  o.table = { head: ['Period', 'Median', 'p95'], rows: B.map((b, i) => [b.label, fms(series[1].v[i]), fms(series[0].v[i])]) };
+  return o;
+});
+card('failures', { view: 'usage', sec: 'usage', span: 6, title: 'Failed requests', form: 'stacked columns', cap: 'The tall day is an incident at Openrange: most of its calls failed, and the fallback hit Helix Cloud’s rate limit.' }, ({ W, H, S }) => {
+  const B = buckets(S), G = [{ label: 'error', c: '--err' }, { label: 'rate limited', c: '--warn' }], cell = B.map(b => { const rs = inB(S.cur, b); return [rs.filter(r => r.status === 1).length, rs.filter(r => r.status === 2).length, rs.length]; });
+  const o = stackCols(W, H, B, G, (b, gi, i) => cell[i][gi], { fmt, tip: (b, i, v) => ({ t: b.label, rows: [['--err', 'error', fmt(v[0])], ['--warn', 'rate limited', fmt(v[1])], [null, 'of all requests', (100 * (v[0] + v[1]) / Math.max(1, cell[i][2])).toFixed(1) + '%']] }) });
+  o.legend = G.map((g, gi) => ({ c: g.c, label: g.label, note: fmt(sum(cell.map(v => v[gi]))) }));
+  o.table = { head: ['Period', 'Error', 'Rate limited', 'Requests'], rows: B.map((b, i) => [b.label].concat(cell[i].map(fmt))) };
+  return o;
+});
+card('hours', { view: 'usage', sec: 'usage', span: 8, title: 'When requests arrive', form: 'heat grid · weekday × hour, UTC', cap: 'People work the afternoon; the CI runner fires at 02:00, 08:00, 14:00 and 20:00.' }, ({ W, S }) => {
+  const g = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  for (const r of S.cur) g[r.dow][r.hour]++;
+  const max = Math.max(...g.flat(), 1), lw = 34, cw = (W - lw) / 24, chh = Math.min(26, Math.max(14, cw * .9)), H = chh * 7 + 22, steps = [12, 30, 50, 72, 100], pts = [];
+  let body = '';
+  g.forEach((row, d) => {
+    body += T(0, d * chh + chh / 2 + 4, WD[d], 't3');
+    row.forEach((v, h) => {
+      const i = d * 24 + h, k = v ? Math.min(4, Math.floor(v / max * 5)) : -1, x = lw + h * cw;
+      body += `<rect data-i="${i}" x="${r1(x + 1)}" y="${r1(d * chh + 1)}" width="${r1(cw - 2)}" height="${r1(chh - 2)}" rx="2" style="fill:${k < 0 ? 'var(--track)' : `color-mix(in oklab, var(--accent) ${steps[k]}%, var(--card))`}"/>`;
+      pts.push({ x: x + cw / 2, y: d * chh, box: [x, d * chh, cw, chh], tip: { t: `${WD[d]} · ${hh(h)}`, rows: [['--accent', 'requests', fmt(v)]] } });
+    });
+  });
+  for (let h = 0; h < 24; h += 3) body += T(lw + h * cw + cw / 2, 7 * chh + 15, hh(h).slice(0, 2), 't3', 'middle');
+  return { body, pts, H, legend: [{ c: '--accent', label: 'darker is busier', note: `busiest hour ${fmt(max)}` }],
+    table: { head: ['Day'].concat(Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'))), rows: g.map((row, d) => [WD[d]].concat(row.map(String))) }, aria: `Requests by weekday and hour; the busiest hour had ${fmt(max)}.` };
+});
+card('cache', { view: 'usage', sec: 'usage', span: 4, title: 'Cache hit rate', form: 'line · share of input tokens', cap: 'Longer sessions reuse more of their prompt.' }, ({ W, H, S }) => {
+  const B = buckets(S), v = B.map(b => { const rs = inB(S.cur, b), tin = total(rs, r => r.tin); return tin ? 100 * total(rs, r => r.cache) / tin : 0; });
+  const o = lines(W, H, B.length, [{ label: 'hit rate', c: '--s2', v }], { fmt: x => Math.round(x) + '%', area: true, xl: i => B[i].short || B[i].label, tip: i => ({ t: B[i].label, rows: [['--s2', 'cache hit rate', v[i].toFixed(1) + '%']] }) });
+  o.table = { head: ['Period', 'Hit rate'], rows: B.map((b, i) => [b.label, v[i].toFixed(1) + '%']) };
+  return o;
+});
+
+/* ================= Models ================= */
+card('model-spend', { view: 'models', sec: 'models', span: 6, title: 'Spend by model', form: 'ranked bars', cap: 'vega-reasoner is a small share of requests and a large share of spend.' }, ({ W, H, S }) => {
+  const rows = MODEL.map((M, i) => { const rs = S.cur.filter(r => r.m === i), sp = total(rs, r => r.cost); return { label: M.name, v: sp, c: M.c, note: pct(sp, total(S.cur, r => r.cost)) + '%', tip: { t: M.name, rows: [[M.c, 'spend', usd(sp)], [null, 'requests', fmt(rs.length)], [null, 'per request', usd(rs.length ? sp / rs.length : 0)]] } }; }).sort((p, q) => q.v - p.v);
+  const o = rankBars(W, H, rows, { f: usd, pitch: 36 });
+  o.table = { head: ['Model', 'Spend', 'Share'], rows: rows.map(r => [r.label, usd(r.v), r.note]) };
+  return o;
+});
+card('providers', { view: 'models', sec: 'models', span: 6, title: 'Requests by provider', form: 'ranked bars', cap: 'Each model is served by one provider; fallback is on for Openrange.' }, ({ W, H, S }) => {
+  const rows = PROV.map((p, i) => { const rs = S.cur.filter(r => MODEL[r.m].prov === i), f = rs.filter(r => r.status).length; return { label: p, v: rs.length, note: (100 * f / Math.max(1, rs.length)).toFixed(1) + '% failed', tip: { t: p, rows: [['--accent', 'requests', fmt(rs.length)], ['--err', 'failed', fmt(f)], [null, 'models', MODEL.filter(M => M.prov === i).map(M => M.name).join(', ')]] } }; }).sort((p, q) => q.v - p.v);
+  const o = rankBars(W, H, rows, { c: '--accent', f: fmt, pitch: 48 });
+  o.table = { head: ['Provider', 'Requests', 'Failed'], rows: rows.map(r => [r.label, fmt(r.v), r.note]) };
+  return o;
+});
+function modelsTable() {
+  const all = S.cur.length, rows = MODEL.map((M, i) => { const rs = S.cur.filter(r => r.m === i); return { M, n: rs.length, tin: total(rs, r => r.tin), tout: total(rs, r => r.tout), ms: quant(rs.filter(r => r.status !== 2).map(r => r.ms), .5), sp: total(rs, r => r.cost) }; }).sort((p, q) => q.n - p.n);
+  $('#models-table').innerHTML = `<thead><tr><th>Model</th><th>Requests</th><th>Share</th><th>Input</th><th>Output</th><th>Median latency</th><th>Spend</th><th>Price in / out</th></tr></thead><tbody>`
+    + rows.map(r => `<tr><td><span class="mdl"><i class="sw" style="--c:var(${r.M.c})"></i>${esc(r.M.name)}<small>${esc(PROV[r.M.prov])}</small></span></td><td>${fmt(r.n)}</td><td><span class="share" style="--c:var(${r.M.c});--v:${pct(r.n, all)}%">${pct(r.n, all)}%<i></i></span></td><td>${tok(r.tin)}</td><td>${tok(r.tout)}</td><td>${fms(r.ms)}</td><td>${usd(r.sp)}</td><td>$${r.M.pin.toFixed(2)} / $${r.M.pout.toFixed(2)}</td></tr>`).join('') + '</tbody>';
+  $('#models-scope').textContent = `${MODEL.length} models from ${PROV.length} providers, last ${S.N} days. The two smallest share the grey “other” in the usage charts.`;
+}
+
+/* ================= Logs: the records table ================= */
+/* ================= records table: recordsTable(root, options) =================
+   One table with a search box, a segmented filter, choosers, sortable columns and pages. It only writes markup and rt-* classes: the look is the page's CSS.
+   options  rows      the records, plain objects
+            columns   [{ key, label, num, cls, cell(row), sort(row) }]  cell returns the cell's HTML and sort what to order by; both default to row[key]. sort: false leaves a column unsortable
+            search    the keys the search box reads
+            seg       { key, label, options }  one filter as a row of switches, each with its count
+            picks     [{ key, label, options }]  filters as choosers; without options they list the values found in the rows
+            sort      { key, dir }   size, sizes  rows a page   noun  ['run', 'runs']   glyph  { search, prev, next } as HTML
+            cls       { search, seg, pick, reset, table, step }  class names to add, so a part can wear a control the page already has
+   Returns { rows(next) }: swap the records, keep the filters and the sort, and go back to the first page. */
+function recordsTable(root, o) {
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const cols = o.columns, picks = o.picks || [], noun = o.noun || ['row', 'rows'], sizes = o.sizes || [10, 25, 50], id = 'rt' + (recordsTable.n = (recordsTable.n || 0) + 1);
+  const G = Object.assign({ search: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3.5 3.5"/></svg>', prev: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.500"/></svg>', next: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.500 4.500 4.500-4.500 4.500"/></svg>' }, o.glyph);
+  const K = o.cls || {}, cl = k => 'rt-' + k + (K[k] ? ' ' + K[k] : '');
+  const st = { q: '', seg: '', pick: {}, sort: o.sort ? { ...o.sort } : null, page: 0, size: o.size || sizes[0] };
+  let rows = o.rows;
+  const found = k => Array.from(new Set(rows.map(r => String(r[k])))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  /* does a row pass every filter, leaving out the one whose options are being counted */
+  const pass = (r, skip) => (!st.q || o.search.some(k => String(r[k]).toLowerCase().includes(st.q)))
+    && (!o.seg || skip === o.seg.key || !st.seg || String(r[o.seg.key]) === st.seg)
+    && picks.every(p => skip === p.key || !st.pick[p.key] || String(r[p.key]) === st.pick[p.key]);
+  const tally = k => { const n = { '': 0 }; for (const r of rows) if (pass(r, k)) { n[r[k]] = (n[r[k]] || 0) + 1; n['']++; } return n; };
+  const pick = (k, label) => `<button type="button" class="${cl('pick')}" data-k="${k}" aria-haspopup="listbox" aria-expanded="false"><span>${esc(label)}</span><b></b><i aria-hidden="true"></i></button>`;
+  const nf = n => (n || 0).toLocaleString('en-US');
+  const tdc = c => [c.num ? 'num' : '', c.cls || ''].join(' ').trim();
+
+  root.classList.add('rt');
+  root.innerHTML = `<div class="rt-bar"><label class="${cl('search')}">${G.search}<input type="search" placeholder="${esc(o.placeholder || 'Filter ' + noun[1])}" aria-label="${esc(o.placeholder || 'Filter ' + noun[1])}" spellcheck="false" autocomplete="off"></label>`
+    + (o.seg ? `<div class="${cl('seg')}" role="group" aria-label="${esc(o.seg.label)}">${[''].concat(o.seg.options || found(o.seg.key)).map(v => `<button type="button" data-v="${esc(v)}" aria-pressed="${!v}">${esc(v || 'All')}<b></b></button>`).join('')}</div>` : '')
+    + picks.map(p => pick(p.key, p.label)).join('') + `<button type="button" class="${cl('reset')}" hidden>Reset</button></div>`
+    + `<div class="rt-scroll"><table class="${cl('table')}" aria-label="${esc(o.label || noun[1])}"><thead><tr>${cols.map(c => `<th scope="col"${tdc(c) ? ` class="${tdc(c)}"` : ''}${c.sort === false ? `>${esc(c.label)}` : ` aria-sort="none"><button type="button" data-k="${c.key}">${esc(c.label)}<i aria-hidden="true"></i></button>`}</th>`).join('')}</tr></thead><tbody></tbody></table></div>`
+    + `<div class="rt-foot"><span class="rt-count" role="status"></span><span class="rt-pager">${pick('#size', 'Rows')}<button type="button" class="${cl('step')}" data-d="-1" aria-label="Previous page">${G.prev}</button><span class="rt-page"></span><button type="button" class="${cl('step')}" data-d="1" aria-label="Next page">${G.next}</button></span></div>`;
+  const $ = s => root.querySelector(s), input = $('input'), body = $('tbody'), steps = root.querySelectorAll('.rt-step');
+
+  function draw() {
+    const c = st.sort && cols.find(c => c.key === st.sort.key), dir = st.sort && st.sort.dir === 'desc' ? -1 : 1, by = r => typeof c.sort === 'function' ? c.sort(r) : r[c.key];
+    const all = rows.filter(r => pass(r));
+    if (c) all.sort((a, b) => { const x = by(a), y = by(b); return dir * (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })); });
+    const pages = Math.max(1, Math.ceil(all.length / st.size)); st.page = Math.max(0, Math.min(st.page, pages - 1));
+    const from = st.page * st.size, part = all.slice(from, from + st.size);
+    body.innerHTML = part.length ? part.map(r => '<tr>' + cols.map(c => `<td${tdc(c) ? ` class="${tdc(c)}"` : ''}>${c.cell ? c.cell(r) : esc(r[c.key])}</td>`).join('') + '</tr>').join('')
+      : `<tr class="rt-none"><td colspan="${cols.length}">No ${esc(noun[1])} match these filters. <button type="button" class="rt-clear">Clear filters</button></td></tr>`;
+    $('.rt-count').textContent = (all.length ? `${from + 1}–${from + part.length} of ${nf(all.length)}` : '0') + ' ' + noun[all.length === 1 ? 0 : 1] + (all.length < rows.length ? `, filtered from ${nf(rows.length)}` : '');
+    $('.rt-page').textContent = `${st.page + 1} / ${pages}`; steps[0].disabled = st.page === 0; steps[1].disabled = st.page >= pages - 1;
+    if (o.seg) { const n = tally(o.seg.key); root.querySelectorAll('.rt-seg button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.v === st.seg); b.lastElementChild.textContent = nf(n[b.dataset.v]); }); }
+    root.querySelectorAll('.rt-pick').forEach(b => { const k = b.dataset.k; b.querySelector('b').textContent = k === '#size' ? st.size : st.pick[k] || 'All'; b.classList.toggle('on', k !== '#size' && !!st.pick[k]); });
+    root.querySelectorAll('th[aria-sort]').forEach(th => th.setAttribute('aria-sort', c && th.firstElementChild.dataset.k === c.key ? (dir > 0 ? 'ascending' : 'descending') : 'none'));
+    $('.rt-reset').hidden = !(st.q || st.seg || picks.some(p => st.pick[p.key]));
+  }
+
+  /* a chooser's list: a listbox the page draws, so it wears the theme and never the system's popup. Arrow keys, Home/End, typing a name, Enter, Escape */
+  const menu = document.createElement('div'); menu.className = 'rt-menu'; menu.setAttribute('role', 'listbox'); menu.tabIndex = -1; menu.hidden = true; document.body.append(menu);
+  let forBtn = null, opts = [], at = -1, typed = '', typedAt = 0;
+  const setAt = (i, quiet) => { at = i; opts.forEach((el, n) => el.classList.toggle('act', n === i)); const el = opts[i]; if (!el) return; menu.setAttribute('aria-activedescendant', el.id); if (!quiet) el.scrollIntoView({ block: 'nearest' }); };
+  function open(btn) {
+    close(); const k = btn.dataset.k, p = picks.find(p => p.key === k), n = p && tally(k), cur = p ? st.pick[k] || '' : String(st.size);
+    const list = p ? [['', 'All']].concat((p.options || found(k)).map(v => [v, v])) : sizes.map(v => [String(v), v + ' rows']);
+    menu.innerHTML = list.map(([v, label], i) => `<div role="option" id="${id}-${i}" data-v="${esc(v)}" aria-selected="${v === cur}"><span>${esc(label)}</span>${n ? `<b>${nf(n[v])}</b>` : ''}</div>`).join('');
+    opts = Array.from(menu.children); forBtn = btn; typed = ''; btn.setAttribute('aria-expanded', 'true'); menu.setAttribute('aria-label', p ? p.label : 'Rows a page'); menu.hidden = false; menu.scrollTop = 0;
+    const r = btn.getBoundingClientRect(), below = innerHeight - r.bottom, up = below < 200 && r.top > below; /* above the control only when there is no room under it */
+    menu.style.minWidth = Math.round(r.width) + 'px'; menu.style.maxHeight = Math.max(120, Math.min(340, (up ? r.top : below) - 12)) + 'px';
+    menu.style.left = Math.max(8, Math.min(innerWidth - menu.offsetWidth - 8, r.left)) + 'px';
+    menu.style.top = up ? 'auto' : r.bottom + 4 + 'px'; menu.style.bottom = up ? innerHeight - r.top + 4 + 'px' : 'auto';
+    setAt(Math.max(0, opts.findIndex(el => el.getAttribute('aria-selected') === 'true'))); menu.focus({ preventScroll: true });
+  }
+  function close(refocus) { if (!forBtn) return; const b = forBtn; forBtn = null; menu.hidden = true; b.setAttribute('aria-expanded', 'false'); if (refocus) b.focus({ preventScroll: true }); }
+  function choose(i) { const b = forBtn, el = opts[i]; close(true); if (!b || !el) return; if (b.dataset.k === '#size') st.size = +el.dataset.v; else st.pick[b.dataset.k] = el.dataset.v; st.page = 0; draw(); }
+  menu.addEventListener('keydown', e => {
+    const n = opts.length, k = e.key;
+    if (k === 'ArrowDown') setAt((at + 1) % n); else if (k === 'ArrowUp') setAt((at - 1 + n) % n);
+    else if (k === 'Home' || k === 'PageUp') setAt(0); else if (k === 'End' || k === 'PageDown') setAt(n - 1);
+    else if (k === 'Enter' || k === ' ') choose(at); else if (k === 'Escape') close(true);
+    else if (k === 'Tab') { close(true); return; } /* focus is back on the control, so Tab moves on from there */
+    else if (k.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) { /* type a name to jump to it */
+      const t = Date.now(); typed = (t - typedAt > 700 ? '' : typed) + k.toLowerCase(); typedAt = t;
+      for (let j = 0, from = typed.length > 1 ? at : at + 1; j < n; j++) { const i = (from + j) % n; if (opts[i].textContent.trim().toLowerCase().startsWith(typed)) { setAt(i); break; } }
+    } else return;
+    e.preventDefault(); e.stopPropagation();
+  });
+  menu.addEventListener('click', e => { const el = e.target.closest('[role="option"]'); if (el) choose(opts.indexOf(el)); });
+  menu.addEventListener('pointermove', e => { const i = opts.indexOf(e.target.closest('[role="option"]')); if (i >= 0 && i !== at) setAt(i, true); });
+  menu.addEventListener('focusout', e => { if (forBtn && e.relatedTarget !== forBtn && !menu.contains(e.relatedTarget)) close(); });
+  document.addEventListener('pointerdown', e => { if (forBtn && !menu.contains(e.target) && !forBtn.contains(e.target)) close(); }, true);
+  addEventListener('resize', () => close()); addEventListener('scroll', e => { if (e.target !== menu) close(); }, true);
+
+  root.addEventListener('keydown', e => { const b = e.target.closest('.rt-pick'); if (b && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); open(b); } });
+  root.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.classList.contains('rt-pick')) return forBtn === b ? close(true) : open(b);
+    if (b.classList.contains('rt-step')) st.page += +b.dataset.d;
+    else {
+      if (b.closest('.rt-seg')) st.seg = b.dataset.v;
+      else if (b.closest('thead')) { const k = b.dataset.k, same = st.sort && st.sort.key === k; st.sort = { key: k, dir: same ? (st.sort.dir === 'asc' ? 'desc' : 'asc') : cols.find(c => c.key === k).num ? 'desc' : 'asc' }; } /* numbers start from the largest */
+      else if (b.matches('.rt-reset, .rt-clear')) { st.q = input.value = ''; st.seg = ''; st.pick = {}; input.focus({ preventScroll: true }); } /* the button is about to go */
+      else return;
+      st.page = 0;
+    }
+    draw();
+  });
+  input.addEventListener('input', () => { st.q = input.value.trim().toLowerCase(); st.page = 0; draw(); });
+  draw();
+  return { rows(next) { rows = next; st.page = 0; draw(); } };
+}
+
+
+/* the request log: one row per request in the range. It keeps its filters when the range changes */
+let recs;
+const PILL = { ok: 'ok', error: 'err', 'rate limited': 'warn' };
+function records() {
+  const rows = S.cur.map(r => ({ id: r.id, client: CLIENT[r.c].name, model: MODEL[r.m].name, c: MODEL[r.m].c, provider: PROV[MODEL[r.m].prov], status: STATUS[r.status], tin: r.tin, cache: r.cache, tout: r.tout, ms: r.ms, cost: r.cost, t: r.t,
+    when: `${dl(DATA.day[r.d].date)} ${String(r.hour).padStart(2, '0')}:${String(Math.floor((r.t % 1) * 60)).padStart(2, '0')}` }));
+  $('#logs-scope').textContent = `${fmt(rows.length)} requests in the last ${S.N} days. Press ⌘K anywhere to search them.`;
+  if (recs) return recs.rows(rows);
+  recs = recordsTable($('#records-table'), {
+    rows, noun: ['request', 'requests'], label: 'All requests in the range', placeholder: 'Filter by id, model or client', search: ['id', 'client', 'model', 'provider'], size: 25, sizes: [25, 50, 100], sort: { key: 't', dir: 'desc' },
+    cls: { seg: 'range', reset: 'tb' },
+    seg: { key: 'status', label: 'Status', options: STATUS },
+    picks: [{ key: 'model', label: 'Model', options: MODEL.map(M => M.name) }, { key: 'client', label: 'Client', options: CLIENT.map(c => c.name) }, { key: 'provider', label: 'Provider', options: PROV }],
+    columns: [
+      { key: 't', label: 'Time', cell: r => r.when },
+      { key: 'id', label: 'Request', cell: r => `<b>${r.id}</b><small>${esc(r.client)}</small>` },
+      { key: 'model', label: 'Model', cell: r => `<span class="mdl"><i class="sw" style="--c:var(${r.c})"></i>${esc(r.model)}</span>` },
+      { key: 'status', label: 'Status', cell: r => `<span class="pill ${PILL[r.status]}">${r.status}</span>` },
+      { key: 'tin', label: 'Input', num: true, cell: r => `${fmt(r.tin)}<small>${pct(r.cache, r.tin)}% cached</small>` },
+      { key: 'tout', label: 'Output', num: true, cell: r => fmt(r.tout) },
+      { key: 'ms', label: 'Latency', num: true, cell: r => fms(r.ms) },
+      { key: 'cost', label: 'Cost', num: true, cell: r => '$' + r.cost.toFixed(4) },
+    ],
+  });
+}
+
+/* ================= boot: routes, range, chrome ================= */
+const VIEWS = ['activity', 'usage', 'models', 'logs', 'audit'];
+const dirty = new Set();
+function renderView() {
+  if (view === 'activity') usageHead();
+  if (view === 'usage') kpis();
+  if (view === 'models') modelsTable();
+  const mine = cards.filter(c => c.view === view);
+  mine.forEach(c => render(c)); mine.forEach(fill);
+  dirty.delete(view);
+}
+function route() {
+  const v = location.hash.slice(1); view = VIEWS.includes(v) ? v : 'activity';
+  VIEWS.forEach(k => { $('#v-' + k).hidden = k !== view; });
+  document.querySelectorAll('.tabs nav a').forEach(a => { if (a.getAttribute('href') === '#' + view) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  document.title = `Console · ${view[0].toUpperCase() + view.slice(1)}`;
+  tipEl.classList.remove('show');
+  if (dirty.has(view)) renderView();
+}
+function setRange(n) {
+  N = n; S = slice(N);
+  document.querySelectorAll('#range button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === N)));
+  VIEWS.forEach(v => dirty.add(v)); renderView(); records();
+}
+mount(); stepsWire(); audit();
+route(); setRange(30);
+addEventListener('hashchange', () => { route(); scrollTo(0, 0); });
+$('#range').addEventListener('click', e => { const b = e.target.closest('button[data-n]'); if (b) setRange(+b.dataset.n); });
+let resizeTimer; addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { VIEWS.forEach(v => dirty.add(v)); renderView(); }, 120); });
+addEventListener('scroll', () => tipEl.classList.remove('show'), { passive: true });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { VIEWS.forEach(v => dirty.add(v)); renderView(); });
+document.addEventListener('tweakchange', () => { VIEWS.forEach(v => dirty.add(v)); renderView(); });
+
+/* ⌘K / Ctrl+K: the request log's search */
+const toSearch = () => { if (view !== 'logs') location.hash = '#logs'; requestAnimationFrame(() => { const i = $('#records-table input'); if (i) { i.focus(); i.select(); } }); };
+$('#searchbtn').addEventListener('click', toSearch);
+addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); toSearch(); } });
+
+/* the two popovers open under their button, kept inside the window */
+[['#creditsbtn', '#credits'], ['#agentsbtn', '#agents']].forEach(([b, p]) => {
+  const btn = $(b), pop = $(p);
+  pop.addEventListener('toggle', e => { btn.setAttribute('aria-expanded', e.newState === 'open'); if (e.newState !== 'open') return; const r = btn.getBoundingClientRect(); pop.style.top = r.bottom + 6 + 'px'; pop.style.left = Math.max(8, Math.min(innerWidth - pop.offsetWidth - 8, r.right - pop.offsetWidth)) + 'px'; });
+});
+$('#agents').addEventListener('click', e => { if (e.target.closest('a')) $('#agents').hidePopover(); });
+
+/* credits: a top-up changes the balance and writes the audit trail */
+(() => {
+  const pop = $('#credits'), btn = $('#creditsbtn'), show = () => { $('#balance').textContent = usd(balance); };
+  pop.addEventListener('toggle', e => { if (e.newState === 'open') show(); });
+  pop.addEventListener('click', e => {
+    const b = e.target.closest('[data-add]'); if (!b) return;
+    const v = +b.dataset.add; balance += v; show();
+    AUDIT.forEach(x => { x.h += .01; }); AUDIT.unshift({ h: 0, w: `Added $${v.toFixed(2)} in credits`, who: 'ana@sample.test', k: 'billing' });
+    STEPS[1].done = true; steps(); audit();
+  });
+})();
+
+/* the theme switch: the tweak dock owns the scheme when it is on the page */
+(() => {
+  const root = document.documentElement, btn = $('#themebtn'), sys = matchMedia('(prefers-color-scheme: light)');
+  const active = () => root.dataset.theme || (sys.matches ? 'light' : 'dark');
+  const sync = () => { const to = active() === 'dark' ? 'light' : 'dark'; btn.dataset.to = to; btn.title = `Switch to ${to} theme`; btn.setAttribute('aria-label', btn.title); };
+  btn.addEventListener('click', () => {
+    const to = active() === 'dark' ? 'light' : 'dark';
+    if (window.Tweaks) Tweaks.set({ mode: to }); else { root.dataset.theme = to; try { localStorage.setItem('ca-theme', to); } catch (e) {} }
+    sync();
+  });
+  sys.addEventListener('change', sync); document.addEventListener('tweakchange', sync); sync();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Status filter · Component tree (sample)</title>
+<meta name="description" content="Sample canvas page: the component tree behind a dashboard status filter, drawn as preview cards on a dot-grid canvas with source pills, elbow edges, collapsible branches and a floating toolbar.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23171717'/%3E%3Cpath d='M11 22 21 10M16 23l6-7' stroke='%23fff' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Parser-blocking on purpose: the stored scheme has to land before the first paint. -->
+<script>
+(function () {
+  var t = null;
+  try { t = localStorage.getItem("ak-ctree-theme"); } catch (e) {}
+  if (t !== "light" && t !== "dark") t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.dataset.theme = t;
+})();
+</script>
+<!--
+  Component tree canvas. Content is plain data near the top of the script:
+    SOURCES  the libraries a node can come from (pill label, icon, colour role)
+    NODES    one entry per component: id, parent, name, path, source, card width, preview kind, note and counts
+  The layout is computed (a tidy tree, top-down or left-right), so adding a node means adding one entry.
+  Blocks: .hud-title (name, legend, selection note) · .hud-tools (fit, previews, frame, keys, scheme) · .dock (zoom, selection, counts, reset, save, layout)
+-->
+<style>
+:root {
+  color-scheme: light;
+  --paper: light-dark(#f7f7f7, #0f0f10);
+  --dot: light-dark(#dcdcdc, #2a2a2d);
+  --card: light-dark(#ffffff, #19191b);
+  --card-line: light-dark(#e7e7e7, #2b2b2f);
+  --well: light-dark(#fafafa, #141416);
+  --well-line: light-dark(#ececec, #27272a);
+  --well-dot: light-dark(#e4e4e4, #26262a);
+  --ink: light-dark(#171717, #ededed);
+  --ink-2: light-dark(#3f3f3f, #c9c9cc);
+  --muted: light-dark(#6b6b6b, #9a9aa0);
+  --faint: light-dark(#a3a3a3, #6a6a70);
+  --edge: light-dark(#8c8c8c, #6f6f75);
+  --ring: light-dark(#6b9be8, #6b9be8);
+  --ring-soft: light-dark(rgb(107 155 232 / 0.16), rgb(107 155 232 / 0.22));
+  --hud: light-dark(rgb(246 246 246 / 0.92), rgb(28 28 30 / 0.92));
+  --hud-line: light-dark(#e4e4e4, #2e2e32);
+  --hud-hover: light-dark(#ebebeb, #2a2a2e);
+  --hud-on: light-dark(#ffffff, #3a3a3f);
+  --ctl: light-dark(#ffffff, #232326);
+  --ctl-line: light-dark(#dedede, #36363b);
+  --track: light-dark(#efefef, #222225);
+  --track-line: light-dark(#e2e2e2, #303034);
+  --slot: light-dark(#c9c9c9, #48484e);
+  --tip-bg: light-dark(#0b0b0b, #f2f2f2);
+  --tip-ink: light-dark(#ffffff, #111111);
+  /* source pills */
+  --src-shadcn-bg: light-dark(#eeeeee, #2a2a2d); --src-shadcn: light-dark(#333333, #d4d4d8);
+  --src-custom-bg: light-dark(#e5eefc, rgb(80 130 235 / 0.18)); --src-custom: light-dark(#2f66d6, #8fb3ff);
+  --src-huge-bg: light-dark(#fcebdd, rgb(230 128 60 / 0.18)); --src-huge: light-dark(#ad5418, #f2a46c);
+  --src-app-bg: light-dark(#e3f3e6, rgb(70 170 100 / 0.18)); --src-app: light-dark(#2d7a42, #7fd498);
+  /* count chips in the dock */
+  --c-props: light-dark(#d9406f, #f27aa0); --c-props-bg: light-dark(#fce6ee, rgb(242 122 160 / 0.16));
+  --c-vars: light-dark(#3767db, #86a9f5); --c-vars-bg: light-dark(#e6eefd, rgb(134 169 245 / 0.16));
+  --c-toks: light-dark(#7a4bd6, #b597f2); --c-toks-bg: light-dark(#efe8fc, rgb(181 151 242 / 0.16));
+  --c-uses: light-dark(#13807f, #5fd0cc); --c-uses-bg: light-dark(#ddf3f2, rgb(95 208 204 / 0.14));
+  --sel-dash: light-dark(#cf7189, #e48aa2); --sel-bg: light-dark(#fff7f9, rgb(228 138 162 / 0.08));
+  --badge: light-dark(#ececec, #2c2c30);
+  --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 14px rgb(0 0 0 / 0.035);
+  --shadow-hud: 0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px rgb(0 0 0 / 0.07);
+}
+:root[data-theme="dark"] { color-scheme: dark; --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 18px rgb(0 0 0 / 0.3); --shadow-hud: 0 1px 2px rgb(0 0 0 / 0.5), 0 10px 28px rgb(0 0 0 / 0.45); }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--sans); font-size: 13px; line-height: 1.45; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+svg { display: block; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding-inline: 5px; border: 1px solid var(--ctl-line); border-bottom-width: 2px; border-radius: 5px; background: var(--ctl); font: 500 11px/1 var(--mono); color: var(--ink-2); }
+
+/* ── canvas ─────────────────────────────────────────────────────────── */
+.canvas { position: fixed; inset: 0; overflow: hidden; touch-action: none; cursor: grab; }
+.canvas.panning { cursor: grabbing; }
+.world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.world.ease { transition: transform 260ms var(--ease-out); }
+.world::before {
+  content: ""; position: absolute; left: -4000px; top: -4000px; width: 12000px; height: 12000px; pointer-events: none;
+  background-image: radial-gradient(circle, var(--dot) 1px, transparent 1.3px); background-size: 16px 16px; background-position: 4000px 4000px;
+}
+.edges { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
+.edges path { fill: none; stroke: var(--edge); stroke-width: 1.5; }
+.edges .arrow { fill: var(--edge); stroke: none; }
+
+/* ── nodes ──────────────────────────────────────────────────────────── */
+.slot { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: opacity 200ms; }
+.slot.gone { visibility: hidden; pointer-events: none; }
+.slot.appear { animation: appear 300ms var(--ease-out) both; }
+@keyframes appear { from { opacity: 0; } }
+body[data-focus] .slot:not(.match) { opacity: 0.3; }
+
+.src {
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 9px;
+  font-size: 13px; font-weight: 450; white-space: nowrap; background: var(--src-shadcn-bg); color: var(--src-shadcn);
+}
+.src svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.src[data-src="custom"] { background: var(--src-custom-bg); color: var(--src-custom); }
+.src[data-src="huge"] { background: var(--src-huge-bg); color: var(--src-huge); }
+.src[data-src="app"] { background: var(--src-app-bg); color: var(--src-app); }
+
+.card {
+  display: flex; flex-direction: column; width: 100%; padding: 6px; border: 1px solid var(--card-line); border-radius: 15px;
+  background: var(--card); box-shadow: var(--shadow-card); text-align: left; cursor: pointer;
+  transition: border-color 140ms, box-shadow 140ms;
+}
+.card:hover { border-color: color-mix(in srgb, var(--card-line), var(--ink) 12%); }
+.card[aria-pressed="true"] { border-color: var(--ring); box-shadow: 0 0 0 1.5px var(--ring), 0 0 0 6px var(--ring-soft), var(--shadow-card); }
+.card:focus-visible { outline: none; box-shadow: 0 0 0 1.5px var(--ring), var(--shadow-card); }
+.well {
+  display: grid; place-items: center; height: 84px; overflow: hidden; border: 1px solid var(--well-line); border-radius: 10px;
+  background-color: var(--well); background-image: radial-gradient(circle, var(--well-dot) 0.9px, transparent 1.2px); background-size: 7px 7px;
+  pointer-events: none;
+}
+body.no-wells .well { display: none; }
+.meta { display: block; padding: 10px 8px 6px; min-width: 0; }
+.meta b { display: block; font-size: 15px; font-weight: 500; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meta span { display: block; margin-top: 3px; font: 12.5px/1.4 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* collapse knob: the dot at the bottom of a parent */
+.knob {
+  position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 24px; height: 24px; margin: -12px 0 0 -12px;
+  padding: 0; border: 0; background: none; cursor: pointer;
+}
+.knob i { display: grid; place-items: center; width: 8px; height: 8px; border-radius: 50%; background: var(--edge); font: 600 10px/1 var(--mono); font-style: normal; color: transparent; transition: width 140ms, height 140ms, background-color 140ms; }
+.knob:hover i { width: 18px; height: 18px; background: var(--card); color: var(--ink-2); box-shadow: 0 0 0 1px var(--ctl-line); }
+.knob:hover i::before { content: "−"; }
+.knob[aria-expanded="false"] { width: auto; min-width: 24px; margin-left: 0; translate: -50% 0; }
+.knob[aria-expanded="false"] i, .knob[aria-expanded="false"]:hover i { width: auto; height: 20px; padding: 0 7px; border-radius: 7px; background: var(--card); color: var(--ink-2); box-shadow: 0 0 0 1px var(--ctl-line); }
+.knob[aria-expanded="false"] i::before { content: attr(data-n); }
+.edges, .knob { transition: opacity 160ms; }
+
+/* ── previews (inside the wells) ───────────────────────────────────── */
+.pv-row { display: flex; align-items: center; gap: 6px; }
+.pv-input { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 6px 0 9px; border: 1px solid var(--ctl-line); border-radius: 9px; background: var(--ctl); color: var(--faint); font-size: 12.5px; }
+.pv-input .ic { width: 14px; height: 14px; }
+.pv-input kbd { height: 18px; min-width: 0; font-size: 10px; border-bottom-width: 1px; margin-left: 10px; }
+.pv-btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid var(--ctl-line); border-radius: 9px; background: var(--ctl); font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+.pv-btn .ic { width: 14px; height: 14px; color: var(--muted); }
+.pv-seg { position: relative; display: flex; padding: 3px; border: 1px solid var(--track-line); border-radius: 11px; background: var(--track); }
+.pv-seg span { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border-radius: 8px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.pv-seg span em { font: 500 10.5px var(--mono); font-style: normal; color: var(--faint); }
+.pv-seg span.on { background: var(--ctl); color: var(--ink); box-shadow: 0 0 0 1px var(--ctl-line), 0 1px 2px rgb(0 0 0 / 0.06); }
+.pv-seg span.on em { color: var(--ink-2); }
+.pv-seg.mini span { height: 20px; padding: 0 6px; font-size: 10.5px; }
+.pv-slots { display: flex; gap: 2px; padding: 4px; border: 1px solid var(--track-line); border-radius: 12px; background: var(--track); }
+.pv-slots i { width: 30px; height: 32px; border: 1px dashed var(--slot); border-radius: 9px; }
+.pv-thumbwrap { padding: 5px; border-radius: 15px; border: 1px solid var(--track-line); background: var(--track); }
+.pv-thumb { width: 140px; height: 32px; border-radius: 11px; background: var(--ctl); box-shadow: 0 0 0 1px var(--ctl-line), 0 2px 5px rgb(0 0 0 / 0.08); }
+.pv-tip { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 8px; background: var(--tip-bg); color: var(--tip-ink); font-size: 13px; font-weight: 500; }
+.pv-item { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 8px 0 10px; border: 1.5px dashed var(--sel-dash); border-radius: 10px; background: var(--sel-bg); font-size: 14px; color: var(--ink); }
+.pv-badge { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 99px; background: var(--badge); font: 500 11.5px/1 var(--mono); color: var(--ink-2); }
+.pv-badge.lg { min-width: 26px; height: 26px; font-size: 12.5px; }
+.pv-icons { display: flex; gap: 12px; color: var(--ink-2); }
+.pv-icons svg { width: 22px; height: 22px; }
+.pv-pop { width: 150px; padding: 8px; border: 1px solid var(--ctl-line); border-radius: 10px; background: var(--ctl); box-shadow: 0 6px 16px rgb(0 0 0 / 0.08); display: grid; gap: 5px; }
+.pv-pop i { height: 6px; border-radius: 3px; background: var(--track); }
+.pv-pop i:nth-child(1) { width: 60%; background: var(--slot); opacity: 0.6; }
+.pv-pop i:nth-child(3) { width: 80%; }
+.pv-cal { display: grid; grid-template-columns: repeat(7, 18px); gap: 2px; font: 500 9.5px/18px var(--mono); text-align: center; color: var(--muted); }
+.pv-cal b { font-weight: 500; border-radius: 5px; }
+.pv-cal b.in { background: var(--track); color: var(--ink-2); border-radius: 0; }
+.pv-cal b.end { background: var(--tip-bg); color: var(--tip-ink); }
+.pv-toolbar { display: flex; align-items: center; gap: 6px; transform: scale(0.92); }
+
+/* ── HUD ────────────────────────────────────────────────────────────── */
+.hud { position: fixed; z-index: 10; }
+.hud-title {
+  left: 16px; top: 16px; width: min(320px, calc(100vw - 196px)); padding: 12px 14px; border: 1px solid var(--hud-line); border-radius: 14px;
+  background: var(--hud); backdrop-filter: blur(10px); box-shadow: var(--shadow-hud);
+}
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand svg { width: 22px; height: 22px; flex: none; }
+.brand h1 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand small { margin-left: auto; font: 11.5px var(--mono); color: var(--muted); white-space: nowrap; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
+.legend button { height: 24px; border: 0; cursor: pointer; transition: box-shadow 140ms, opacity 140ms; }
+.legend button em { font: 500 11px var(--mono); font-style: normal; opacity: 0.75; }
+.legend button[aria-pressed="true"] { box-shadow: 0 0 0 1.5px currentColor; }
+body[data-focus] .legend button[aria-pressed="false"] { opacity: 0.45; }
+.sel-note { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--hud-line); color: var(--ink-2); }
+.sel-note b { font-weight: 500; color: var(--ink); }
+.sel-note code { display: block; margin-top: 2px; font: 11.5px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.hud-tools { right: 16px; top: 16px; display: flex; gap: 6px; align-items: flex-start; }
+.cluster { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--hud-line); border-radius: 11px; background: var(--hud); backdrop-filter: blur(10px); box-shadow: var(--shadow-hud); }
+.tb { position: relative; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; transition: background-color 120ms, color 120ms; }
+.tb::after { content: ""; position: absolute; inset: -4px -1px; }
+.tb:hover { background: var(--hud-hover); color: var(--ink); }
+.tb[aria-pressed="true"] { background: var(--hud-on); color: var(--ink); box-shadow: 0 0 0 1px var(--hud-line), 0 1px 2px rgb(0 0 0 / 0.06); }
+.tb:disabled { color: var(--faint); opacity: 0.6; cursor: default; background: transparent; }
+:root[data-theme="dark"] .t-moon, :root[data-theme="light"] .t-sun { display: none; }
+.keys {
+  position: absolute; right: 0; top: 42px; width: 248px; padding: 10px 12px; margin: 0; border: 1px solid var(--hud-line); border-radius: 12px;
+  background: var(--hud); backdrop-filter: blur(10px); box-shadow: var(--shadow-hud);
+  display: grid; grid-template-columns: auto 1fr; gap: 7px 10px; align-items: center; color: var(--muted); font-size: 12px;
+}
+.keys dt { display: flex; gap: 3px; }
+.keys dd { margin: 0; }
+
+.dock {
+  left: 50%; bottom: 18px; translate: -50% 0; display: flex; align-items: center; gap: 4px; max-width: calc(100vw - 32px);
+  height: 42px; padding: 0 5px; border: 1px solid var(--hud-line); border-radius: 13px; background: var(--hud); backdrop-filter: blur(10px); box-shadow: var(--shadow-hud);
+}
+.zlabel { min-width: 44px; text-align: center; font: 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.sep { width: 1px; height: 18px; margin: 0 4px; background: var(--hud-line); flex: none; }
+.selname { display: flex; align-items: center; gap: 7px; padding: 0 6px; min-width: 0; font-size: 12.5px; font-weight: 500; white-space: nowrap; }
+.selname span { overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+.selname .glyph { width: 16px; height: 16px; flex: none; border-radius: 50%; background: conic-gradient(var(--src-custom) 0 50%, transparent 0); box-shadow: inset 0 0 0 1.5px var(--src-custom); }
+.selname.none { color: var(--muted); font-weight: 400; }
+.chips { display: flex; gap: 10px; padding: 0 6px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font: 500 12px var(--mono); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.chip i { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 5px; }
+.chip i svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.chip[data-c="props"] i { background: var(--c-props-bg); color: var(--c-props); }
+.chip[data-c="vars"] i { background: var(--c-vars-bg); color: var(--c-vars); }
+.chip[data-c="toks"] i { background: var(--c-toks-bg); color: var(--c-toks); }
+.chip[data-c="uses"] i { background: var(--c-uses-bg); color: var(--c-uses); }
+.save {
+  height: 28px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--ink); color: var(--paper); font-size: 12px; font-weight: 500; cursor: pointer;
+  transition: background-color 140ms, opacity 140ms;
+}
+.save:hover { background: var(--ink-2); }
+.save:disabled { background: var(--faint); color: light-dark(#fff, #1a1a1a); opacity: 0.75; cursor: default; }
+.tb.box { background: var(--ctl); box-shadow: 0 0 0 1px var(--ctl-line); color: var(--ink-2); }
+
+@media (max-width: 720px) { .chips, .dock .chips + .sep { display: none; } }
+@media (max-width: 520px) {
+  .selname, .selname + .sep { display: none; }
+  .hud-title { width: calc(100vw - 32px); top: 62px; padding: 10px 12px; }
+  .brand small { display: none; }
+  .sel-note { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .world.ease, .slot.appear { transition: none; animation: none; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-zout" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M5 7h4M10.5 10.5 13.5 13.5"/></symbol>
+    <symbol id="i-zin" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M5 7h4M7 5v4M10.5 10.5 13.5 13.5"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 16 16"><path d="M9.5 2.5h4v4M13.5 2.5l-4.5 4.5M6.5 13.5h-4v-4M2.5 13.5 7 9"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/></symbol>
+    <symbol id="i-frame" viewBox="0 0 16 16"><path d="M4.5 1.5v10h10M1.5 4.5h10v10"/></symbol>
+    <symbol id="i-keys" viewBox="0 0 16 16"><rect x="1.5" y="4" width="13" height="8.5" rx="2"/><path d="M4.5 7h.01M7 7h.01M9.5 7h.01M12 7h.01M5 9.8h6"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 16 16"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7Z"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 16 16"><path d="M2.5 8a5.5 5.5 0 1 0 1.7-4"/><path d="M2.5 2.5V6H6"/></symbol>
+    <symbol id="i-td" viewBox="0 0 16 16"><rect x="5.5" y="1.5" width="5" height="4" rx="1"/><rect x="1.5" y="10.5" width="5" height="4" rx="1"/><rect x="9.5" y="10.5" width="5" height="4" rx="1"/><path d="M8 5.5V8M4 10.5V8h8v2.5"/></symbol>
+    <symbol id="i-lr" viewBox="0 0 16 16"><rect x="1.5" y="5.5" width="4" height="5" rx="1"/><rect x="10.5" y="1.5" width="4" height="5" rx="1"/><rect x="10.5" y="9.5" width="4" height="5" rx="1"/><path d="M5.5 8H8M10.5 4H8v8h2.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 16 16"><path d="m4.5 6.5 3.5 3.5 3.5-3.5"/></symbol>
+    <symbol id="s-shadcn" viewBox="0 0 16 16"><path d="M3 13 13 3M8.5 13.5l5-5"/></symbol>
+    <symbol id="s-custom" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="m5.6 11 2.4-6 2.4 6M6.4 9h3.2"/></symbol>
+    <symbol id="s-huge" viewBox="0 0 16 16"><circle cx="8" cy="4.5" r="2.4"/><circle cx="4.5" cy="11" r="2.4"/><circle cx="11.5" cy="11" r="2.4"/></symbol>
+    <symbol id="s-app" viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="2.2"/><path d="M2 6h12M5 9.5h3"/></symbol>
+    <symbol id="c-props" viewBox="0 0 16 16"><path d="M3 5h10M3 11h10"/><circle cx="6" cy="5" r="1.6"/><circle cx="10" cy="11" r="1.6"/></symbol>
+    <symbol id="c-vars" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.5"/><path d="M6.5 2.5v11"/></symbol>
+    <symbol id="c-toks" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.5"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3"/></symbol>
+    <symbol id="c-uses" viewBox="0 0 16 16"><path d="M5 3.5C3 3.5 3 8 1.8 8 3 8 3 12.5 5 12.5M11 3.5c2 0 2 4.5 3.2 4.5-1.2 0-1.2 4.5-3.2 4.5"/></symbol>
+  </defs>
+</svg>
+
+<main class="canvas" id="canvas" aria-label="Component tree canvas. Drag to pan, Ctrl or Cmd and scroll to zoom.">
+  <div class="world" id="world">
+    <svg class="edges" id="edges" aria-hidden="true">
+      <defs><marker id="arw" viewBox="0 0 8 8" refX="7.5" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path class="arrow" d="M0 0.6 7.6 4 0 7.4Z"/></marker></defs>
+      <g id="edgePaths"></g>
+    </svg>
+    <div id="nodes"></div>
+  </div>
+</main>
+
+<section class="hud hud-title" aria-label="About this tree">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M11 22 21 10M16 23l6-7" stroke="var(--paper)" stroke-width="2.6" stroke-linecap="round"/></svg>
+    <h1>RunsToolbar tree</h1>
+    <small id="count">13 nodes</small>
+  </div>
+  <ul class="legend" id="legend" aria-label="Highlight nodes by source"></ul>
+  <p class="sel-note" id="selNote"></p>
+</section>
+
+<div class="hud hud-tools">
+  <div class="cluster" role="toolbar" aria-label="View">
+    <button class="tb" id="bFit" type="button" title="Fit tree (0)" aria-label="Fit the tree"><svg class="ic"><use href="#i-fit"/></svg></button>
+    <button class="tb" id="bEye" type="button" title="Previews (E)" aria-label="Show previews" aria-pressed="true"><svg class="ic"><use href="#i-eye"/></svg></button>
+    <button class="tb" id="bFrame" type="button" title="Frame selection (F)" aria-label="Frame the selected branch"><svg class="ic"><use href="#i-frame"/></svg></button>
+  </div>
+  <div class="cluster">
+    <button class="tb" id="bKeys" type="button" title="Keys (?)" aria-label="Keyboard shortcuts" aria-expanded="false" aria-controls="keys"><svg class="ic"><use href="#i-keys"/></svg></button>
+    <button class="tb" id="bTheme" type="button" title="Scheme" aria-label="Switch colour scheme"><svg class="ic t-sun"><use href="#i-sun"/></svg><svg class="ic t-moon"><use href="#i-moon"/></svg></button>
+  </div>
+  <dl class="keys" id="keys" hidden>
+    <dt><kbd>←</kbd><kbd>→</kbd></dt><dd>Sibling on the same row</dd>
+    <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>Parent, first child</dd>
+    <dt><kbd>Space</kbd></dt><dd>Collapse or expand branch</dd>
+    <dt><kbd>F</kbd></dt><dd>Frame selected branch</dd>
+    <dt><kbd>0</kbd></dt><dd>Fit the whole tree</dd>
+    <dt><kbd>+</kbd><kbd>−</kbd></dt><dd>Zoom</dd>
+    <dt><kbd>E</kbd> <kbd>L</kbd></dt><dd>Previews, layout</dd>
+    <dt><kbd>⌘</kbd><kbd>S</kbd></dt><dd>Save layout</dd>
+    <dt><kbd>Esc</kbd></dt><dd>Clear selection</dd>
+  </dl>
+</div>
+
+<div class="hud dock" role="toolbar" aria-label="Canvas">
+  <button class="tb" id="zout" type="button" title="Zoom out (−)" aria-label="Zoom out"><svg class="ic"><use href="#i-zout"/></svg></button>
+  <span class="zlabel" id="zlabel" aria-live="polite">100%</span>
+  <button class="tb" id="zin" type="button" title="Zoom in (+)" aria-label="Zoom in"><svg class="ic"><use href="#i-zin"/></svg></button>
+  <span class="sep"></span>
+  <div class="selname" id="selName"></div>
+  <div class="chips" id="chips"></div>
+  <span class="sep"></span>
+  <button class="tb" id="bReset" type="button" title="Revert to saved layout" aria-label="Revert to saved layout" disabled><svg class="ic"><use href="#i-reset"/></svg></button>
+  <button class="save" id="bSave" type="button" disabled>Save</button>
+  <span class="sep"></span>
+  <button class="tb box" id="bLayout" type="button" title="Layout (L)" aria-label="Switch to left-to-right layout"><svg class="ic"><use href="#i-lr"/></svg></button>
+</div>
+
+<script>
+/* ── content ──────────────────────────────────────────────────────── */
+const SOURCES = {
+  shadcn: { label: "shadcn/ui", icon: "s-shadcn" },
+  custom: { label: "Custom", icon: "s-custom" },
+  huge: { label: "Hugeicons", icon: "s-huge" },
+  app: { label: "App", icon: "s-app" },
+};
+// counts: props, variants (vars), design tokens read (toks), places it is used (uses)
+const NODES = [
+  { id: "toolbar", parent: null, name: "RunsToolbar", path: "runs/runs-toolbar.tsx", src: "app", w: 430, pv: "toolbar", note: "The row above the runs table: search, status and date range.", c: [6, 2, 9, 1] },
+  { id: "search", parent: "toolbar", name: "SearchField", path: "ui/input-group · Base UI", src: "shadcn", w: 250, pv: "search", note: "Debounced search over run names and targets.", c: [7, 3, 5, 4] },
+  { id: "status", parent: "toolbar", name: "StatusFilter", path: "status-filter.tsx", src: "app", w: 440, pv: "status", note: "Single-choice filter over run status, with a live count per status.", c: [5, 1, 7, 2] },
+  { id: "date", parent: "toolbar", name: "DateRange", path: "date-range.tsx", src: "app", w: 240, pv: "date", note: "Preset and custom ranges; writes ?from and ?to to the URL.", c: [4, 2, 4, 3] },
+  { id: "group", parent: "status", name: "ToggleGroup", path: "ui/toggle-group · Base UI", src: "shadcn", w: 300, pv: "group", note: "Roving focus and single selection across the status items.", c: [9, 3, 6, 6] },
+  { id: "thumb", parent: "group", name: "Sliding pill", path: "use-sliding-thumb.ts", src: "custom", w: 220, pv: "pill", note: "Measures the pressed item and slides one pill under it.", c: [3, 0, 4, 2] },
+  { id: "tip", parent: "group", name: "Tooltip", path: "ui/tooltip · Base UI", src: "shadcn", w: 210, pv: "tooltip", note: "Names the status when the filter is squeezed to icons only.", c: [8, 2, 5, 11] },
+  { id: "item", parent: "tip", name: "ToggleGroupItem", path: "ui/toggle-group · Base UI", src: "shadcn", w: 250, pv: "item", note: "One segment: status icon, label and count.", c: [10, 8, 6, 8] },
+  { id: "icon", parent: "item", name: "StatusIcon", path: "@hugeicons/core-free-icons", src: "huge", w: 250, pv: "icons", note: "Five line glyphs, one per run status.", c: [3, 5, 2, 14] },
+  { id: "badge", parent: "item", name: "Badge", path: "ui/badge", src: "shadcn", w: 200, pv: "badge", note: "The count, tabular figures, capped at 99+.", c: [4, 4, 5, 19] },
+  { id: "kbd", parent: "item", name: "Kbd", path: "ui/kbd", src: "shadcn", w: 200, pv: "kbd", note: "Shortcut hint shown in the tooltip: Shift and the item's number.", c: [2, 1, 3, 9] },
+  { id: "popover", parent: "date", name: "Popover", path: "ui/popover · Base UI", src: "shadcn", w: 230, pv: "popover", note: "Anchored panel for the presets and the calendar.", c: [8, 1, 4, 7] },
+  { id: "cal", parent: "popover", name: "Calendar", path: "ui/calendar · day-picker", src: "shadcn", w: 240, pv: "calendar", note: "Two-click range selection over one month.", c: [11, 2, 7, 2] },
+];
+const CHIPS = [["props", "props", "c-props"], ["vars", "variants", "c-vars"], ["toks", "tokens", "c-toks"], ["uses", "usages", "c-uses"]];
+
+const ICONS = {
+  queued: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5" stroke-dasharray="2.6 3"/></svg>',
+  sched: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 0 0 17Z" fill="currentColor" stroke="none"/></svg>',
+  running: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5" opacity=".3"/><path d="M12 3.5a8.5 8.5 0 0 1 8.5 8.5"/></svg>',
+  done: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.2 2.4 2.3 4.6-4.8"/></svg>',
+  failed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6"/></svg>',
+};
+const use = (id, cls = "ic") => `<svg class="${cls}"><use href="#${id}"/></svg>`;
+const segs = (mini) => `<div class="pv-seg${mini ? " mini" : ""}"><span>All <em>24</em></span><span>Running <em>3</em></span><span class="on">Scheduled <em>8</em></span><span>Failed <em>2</em></span></div>`;
+const PREVIEW = {
+  toolbar: () => `<div class="pv-toolbar"><div class="pv-input" style="width:96px">${use("i-search")}Search</div>${segs(true)}<span class="pv-btn" style="height:26px;padding:0 7px">${use("i-cal")}</span></div>`,
+  search: () => `<div class="pv-input" style="width:200px">${use("i-search")}<span style="flex:1">Search runs…</span><kbd>⌘K</kbd></div>`,
+  status: () => segs(false),
+  group: () => `<div class="pv-slots">${"<i></i>".repeat(7)}</div>`,
+  pill: () => `<div class="pv-thumbwrap"><div class="pv-thumb"></div></div>`,
+  tooltip: () => `<span class="pv-tip">Scheduled</span>`,
+  item: () => `<span class="pv-item"><span style="width:18px;color:var(--src-custom)">${ICONS.sched}</span>Scheduled<span class="pv-badge lg">8</span></span>`,
+  icons: () => `<div class="pv-icons">${["queued", "sched", "running", "done", "failed"].map((k) => ICONS[k]).join("")}</div>`,
+  badge: () => `<div class="pv-row"><span class="pv-badge">3</span><span class="pv-badge lg">8</span><span class="pv-badge">24</span><span class="pv-badge">99+</span></div>`,
+  kbd: () => `<div class="pv-row"><kbd style="height:26px;padding:0 8px;font-size:12px">Shift</kbd><kbd style="height:26px;min-width:26px;font-size:12px">3</kbd></div>`,
+  date: () => `<span class="pv-btn">${use("i-cal")}Last 7 days${use("i-chev")}</span>`,
+  popover: () => `<div class="pv-pop"><i></i><i></i><i></i></div>`,
+  calendar: () => {
+    let h = "";
+    for (let d = 1; d <= 21; d++) h += `<b class="${d === 9 || d === 15 ? "end" : d > 9 && d < 15 ? "in" : ""}">${d}</b>`;
+    return `<div class="pv-cal">${h}</div>`;
+  },
+};
+
+/* ── state ────────────────────────────────────────────────────────── */
+const $ = (s, r = document) => r.querySelector(s);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const byId = Object.fromEntries(NODES.map((n) => [n.id, n]));
+const kids = Object.fromEntries(NODES.map((n) => [n.id, NODES.filter((m) => m.parent === n.id).map((m) => m.id)]));
+const ROOT = NODES.find((n) => !n.parent).id;
+const DEFAULTS = { collapsed: [], orient: "td", wells: true };
+const STORE = "ak-ctree-layout";
+let saved = DEFAULTS;
+try { const s = JSON.parse(localStorage.getItem(STORE)); if (s && s.orient) saved = { ...DEFAULTS, ...s }; } catch (e) {}
+const st = { collapsed: new Set(saved.collapsed), orient: saved.orient, wells: saved.wells, sel: null, focus: null };
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+const canvas = $("#canvas"), world = $("#world"), nodesEl = $("#nodes"), edgeG = $("#edgePaths");
+const view = { x: 0, y: 0, k: 1 };
+let userMoved = false;
+
+/* ── render nodes once; layout moves them ─────────────────────────── */
+nodesEl.innerHTML = NODES.map((n) => {
+  const s = SOURCES[n.src];
+  return `<div class="slot" data-id="${n.id}" style="width:${n.w}px">
+    <span class="src" data-src="${n.src}">${use(s.icon, "")}${s.label}</span>
+    <button class="card" type="button" data-id="${n.id}" aria-pressed="false" aria-label="${n.name}, ${n.path}"><span class="well" aria-hidden="true">${PREVIEW[n.pv]()}</span><span class="meta"><b>${n.name}</b><span>${n.path}</span></span></button>
+  </div>`;
+}).join("") + NODES.filter((n) => kids[n.id].length).map((n) => `<button class="knob" type="button" data-id="${n.id}" aria-expanded="true" aria-label="Collapse ${n.name}"><i></i></button>`).join("");
+const slotEl = (id) => $(`.slot[data-id="${id}"]`, nodesEl);
+const knobEl = (id) => $(`.knob[data-id="${id}"]`, nodesEl);
+
+$("#legend").innerHTML = Object.entries(SOURCES).map(([k, s]) => {
+  const n = NODES.filter((m) => m.src === k).length;
+  return `<li><button class="src" data-src="${k}" type="button" aria-pressed="false" title="Highlight ${s.label} nodes">${use(s.icon, "")}${s.label} <em>${n}</em></button></li>`;
+}).join("");
+
+/* ── layout: a tidy tree, top-down or left-right ──────────────────── */
+const PILL = 30, GAP_X = 44, GAP_TD = 78, GAP_LR = 110;
+const descendants = (id) => kids[id].flatMap((k) => [k, ...descendants(k)]);
+const visKids = (id) => (st.collapsed.has(id) ? [] : kids[id]);
+function visible() { const out = []; (function walk(id) { out.push(id); visKids(id).forEach(walk); })(ROOT); return out; }
+let size = {}, target = {}, cur = {}, depth = {};
+function measure() { NODES.forEach((n) => { size[n.id] = { w: n.w, h: slotEl(n.id).offsetHeight, card: $(".card", slotEl(n.id)).offsetHeight }; }); }
+function layout() {
+  const TD = st.orient === "td", vis = visible(), E = {}, cc = {}, band = [];
+  const cross = (id) => (TD ? size[id].w : size[id].h);
+  const along = (id) => (TD ? size[id].h : size[id].w);
+  (function d(id, k) { depth[id] = k; band[k] = Math.max(band[k] || 0, along(id)); visKids(id).forEach((c) => d(c, k + 1)); })(ROOT, 0);
+  (function ext(id) { const ks = visKids(id); ks.forEach(ext); E[id] = ks.length ? Math.max(cross(id), ks.reduce((a, k) => a + E[k], 0) + GAP_X * (ks.length - 1)) : cross(id); })(ROOT);
+  const pos = {};
+  (function place(id, c0, m0) {
+    const ks = visKids(id), d = depth[id];
+    let center;
+    if (ks.length) {
+      const span = ks.reduce((a, k) => a + E[k], 0) + GAP_X * (ks.length - 1);
+      let c = c0 + (E[id] - span) / 2;
+      const mNext = m0 + band[d] + (TD ? GAP_TD : GAP_LR);
+      ks.forEach((k) => { place(k, c, mNext); c += E[k] + GAP_X; });
+      center = (cc[ks[0]] + cc[ks[ks.length - 1]]) / 2;
+    } else center = c0 + E[id] / 2;
+    cc[id] = center;
+    pos[id] = TD ? { x: center - size[id].w / 2, y: m0 } : { x: m0, y: center - size[id].h / 2 };
+  })(ROOT, 0, 0);
+  return pos;
+}
+// card box for a node at position p
+const card = (id, p) => { const s = size[id], top = p.y + s.h - s.card; return { x: p.x, y: top, w: s.w, h: s.card }; };
+function edgePath(P, C, TD) {
+  if (TD) {
+    const mid = P.y + (C.y - P.y) * 0.48, dx = C.x - P.x, s = Math.sign(dx), r = Math.min(14, Math.abs(dx) / 2);
+    if (Math.abs(dx) < 0.5) return `M${P.x} ${P.y}V${C.y}`;
+    return `M${P.x} ${P.y}V${mid - r}Q${P.x} ${mid} ${P.x + s * r} ${mid}H${C.x - s * r}Q${C.x} ${mid} ${C.x} ${mid + r}V${C.y}`;
+  }
+  const mid = P.x + (C.x - P.x) * 0.48, dy = C.y - P.y, s = Math.sign(dy), r = Math.min(14, Math.abs(dy) / 2);
+  if (Math.abs(dy) < 0.5) return `M${P.x} ${P.y}H${C.x}`;
+  return `M${P.x} ${P.y}H${mid - r}Q${mid} ${P.y} ${mid} ${P.y + s * r}V${C.y - s * r}Q${mid} ${C.y} ${mid + r} ${C.y}H${C.x}`;
+}
+function draw() {
+  const TD = st.orient === "td", vis = new Set(Object.keys(cur));
+  NODES.forEach((n) => {
+    const el = slotEl(n.id), p = cur[n.id];
+    if (p) el.style.transform = `translate(${p.x}px,${p.y}px)`;
+  });
+  let d = "";
+  NODES.forEach((n) => {
+    const kn = knobEl(n.id);
+    if (!kn) return;
+    if (!vis.has(n.id)) { kn.hidden = true; return; }
+    const b = card(n.id, cur[n.id]);
+    const P = TD ? { x: b.x + b.w / 2, y: b.y + b.h + 11 } : { x: b.x + b.w + 11, y: b.y + b.h / 2 };
+    kn.hidden = false; kn.style.transform = `translate(${P.x}px,${P.y}px)`;
+    visKids(n.id).forEach((k) => {
+      const q = cur[k]; if (!q) return;
+      const cb = card(k, q);
+      const C = TD ? { x: q.x + size[k].w / 2, y: q.y - 5 } : { x: cb.x - 5, y: cb.y + cb.h / 2 };
+      d += `<path d="${edgePath(P, C, TD)}" marker-end="url(#arw)"/>`;
+    });
+  });
+  edgeG.innerHTML = d;
+}
+let raf = 0;
+function relayout(anim = true) {
+  measure();
+  const prevVis = new Set(Object.keys(cur));
+  target = layout();
+  const ids = Object.keys(target);
+  NODES.forEach((n) => {
+    const el = slotEl(n.id), on = n.id in target;
+    el.classList.toggle("gone", !on);
+    if (on && !prevVis.has(n.id) && prevVis.size) { el.classList.remove("appear"); void el.offsetWidth; el.classList.add("appear"); }
+    const kn = knobEl(n.id);
+    if (kn) {
+      const c = st.collapsed.has(n.id);
+      kn.setAttribute("aria-expanded", String(!c));
+      kn.setAttribute("aria-label", `${c ? "Expand" : "Collapse"} ${n.name}`);
+      $("i", kn).dataset.n = "+" + descendants(n.id).length;
+    }
+  });
+  const from = {};
+  ids.forEach((id) => {
+    let p = byId[id].parent, anc = cur[id];
+    while (!anc && p) { anc = cur[p] && prevVis.has(p) ? cur[p] : null; p = byId[p].parent; }
+    from[id] = anc || target[id];
+  });
+  cancelAnimationFrame(raf);
+  if (!anim || reduce.matches || !prevVis.size) { cur = { ...target }; draw(); return; }
+  const t0 = performance.now(), D = 300;
+  const step = (now) => {
+    const t = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - t, 3);
+    cur = {};
+    ids.forEach((id) => { cur[id] = { x: from[id].x + (target[id].x - from[id].x) * e, y: from[id].y + (target[id].y - from[id].y) * e }; });
+    draw();
+    if (t < 1) raf = requestAnimationFrame(step);
+  };
+  raf = requestAnimationFrame(step);
+}
+
+/* ── view: pan, zoom, fit ─────────────────────────────────────────── */
+function apply(ease) {
+  world.classList.toggle("ease", !!ease && !reduce.matches);
+  world.style.transform = `translate(${view.x}px,${view.y}px) scale(${view.k})`;
+  $("#zlabel").textContent = Math.round(view.k * 100) + "%";
+}
+function bounds(ids) {
+  const xs = ids.map((id) => target[id].x), ys = ids.map((id) => target[id].y);
+  const x0 = Math.min(...xs), y0 = Math.min(...ys);
+  const x1 = Math.max(...ids.map((id) => target[id].x + size[id].w)), y1 = Math.max(...ids.map((id) => target[id].y + size[id].h));
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+function frame(ids, ease, maxK = 1) {
+  const W = canvas.clientWidth, H = canvas.clientHeight, b = bounds(ids);
+  const narrow = W < 640;
+  const pad = narrow ? { l: 20, r: 20, t: 150, b: 80 } : { l: 360, r: 40, t: 70, b: 86 };
+  if (!narrow && W - pad.l - pad.r < b.w * 0.55) pad.l = 40;
+  view.k = clamp(Math.min((W - pad.l - pad.r) / b.w, (H - pad.t - pad.b) / b.h), narrow ? 0.5 : 0.25, maxK);
+  view.x = pad.l + Math.max(0, W - pad.l - pad.r - b.w * view.k) / 2 - b.x * view.k;
+  view.y = pad.t + Math.max(0, H - pad.t - pad.b - b.h * view.k) / 2 - b.y * view.k;
+  apply(ease);
+}
+const fit = (ease) => { frame(Object.keys(target), ease); userMoved = false; homed = false; };
+// the opening view: the branch around the selected item, close to full size, as the reference frames it
+const HOME = "group";
+const home = (ease) => { frame([HOME, ...descendants(HOME)].filter((i) => i in target), ease, 1); userMoved = false; };
+const frameSel = () => { const id = st.sel || ROOT; frame([id, ...descendants(id)].filter((i) => i in target), true, 1.4); userMoved = true; };
+function zoomAt(cx, cy, f, ease) {
+  const k = clamp(view.k * f, 0.2, 2.5), r = k / view.k;
+  view.x = cx - (cx - view.x) * r; view.y = cy - (cy - view.y) * r; view.k = k; userMoved = true; apply(ease);
+}
+const mid = () => [canvas.clientWidth / 2, canvas.clientHeight / 2];
+function reveal(id) {
+  const el = id && $(".card", slotEl(id)); if (!el) return;
+  const r = el.getBoundingClientRect(), W = innerWidth, H = innerHeight;
+  if (r.left < 16 || r.right > W - 16 || r.top < 16 || r.bottom > H - 76) {
+    view.x += W / 2 - (r.left + r.width / 2); view.y += (H - 60) / 2 - (r.top + r.height / 2); userMoved = true; apply(true);
+  }
+}
+
+const ptrs = new Map(); let drag = null, pinch = null, moved = false;
+canvas.addEventListener("pointerdown", (e) => {
+  if (e.button > 0) return;
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]); moved = false;
+  if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
+  else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), k: view.k }; drag = null; }
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pinch && ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()];
+    zoomAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, clamp((pinch.k * Math.hypot(a[0] - b[0], a[1] - b[1])) / pinch.d, 0.2, 2.5) / view.k);
+    moved = true; return;
+  }
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!moved && Math.hypot(dx, dy) < 5) return;
+  if (!moved) { moved = true; canvas.setPointerCapture(e.pointerId); canvas.classList.add("panning"); }
+  view.x = drag.vx + dx; view.y = drag.vy + dy; userMoved = true; apply();
+});
+const endPtr = (e) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) { drag = null; canvas.classList.remove("panning"); } };
+canvas.addEventListener("pointerup", endPtr); canvas.addEventListener("pointercancel", endPtr);
+canvas.addEventListener("click", (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+canvas.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.01));
+  else { view.x -= e.deltaX; view.y -= e.deltaY; userMoved = true; apply(); }
+}, { passive: false });
+let homed = true;
+new ResizeObserver(() => { if (!userMoved && Object.keys(target).length) (homed ? home : fit)(); }).observe(canvas);
+
+/* ── selection, dock, saving ──────────────────────────────────────── */
+const snap = () => JSON.stringify({ collapsed: [...st.collapsed].sort(), orient: st.orient, wells: st.wells });
+function syncDirty() {
+  const dirty = snap() !== JSON.stringify({ ...saved, collapsed: [...saved.collapsed].sort() });
+  $("#bSave").disabled = !dirty; $("#bReset").disabled = !dirty;
+  $("#bSave").textContent = "Save";
+}
+function renderDock() {
+  const n = st.sel && byId[st.sel];
+  const sn = $("#selName");
+  sn.className = "selname" + (n ? "" : " none");
+  sn.innerHTML = n ? `<i class="glyph" aria-hidden="true"></i><span>${n.name}</span>` : `<span>${Object.keys(target).length} of ${NODES.length} nodes</span>`;
+  const vals = n ? n.c : [0, 1, 2, 3].map((i) => NODES.reduce((a, m) => a + m.c[i], 0));
+  $("#chips").innerHTML = CHIPS.map(([k, label, ic], i) => `<span class="chip" data-c="${k}" title="${vals[i]} ${label}${n ? "" : " across the tree"}"><i>${use(ic, "")}</i>${vals[i]}</span>`).join("");
+  $("#selNote").innerHTML = n ? `<b>${n.name}</b> · ${n.note}<code>${n.path}</code>` : `Pick a card to read what it does. Drag to pan, ⌘ or Ctrl and scroll to zoom.`;
+  $("#count").textContent = `${Object.keys(target).length} of ${NODES.length} nodes`;
+}
+function select(id, opts = {}) {
+  st.sel = id && byId[id] ? id : null;
+  document.querySelectorAll(".card").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.id === st.sel)));
+  renderDock();
+  const want = st.sel ? "#" + st.sel : "";
+  if (location.hash !== want) history.replaceState(null, "", want || location.pathname + location.search);
+  if (st.sel && opts.reveal !== false) reveal(st.sel);
+  if (st.sel && opts.focus) $(".card", slotEl(st.sel)).focus({ preventScroll: true });
+}
+function toggle(id) {
+  if (!kids[id].length) return;
+  st.collapsed.has(id) ? st.collapsed.delete(id) : st.collapsed.add(id);
+  if (st.sel && !visible().includes(st.sel)) select(id, { reveal: false });
+  relayout(); renderDock(); syncDirty();
+}
+function setOrient(o) {
+  st.orient = o;
+  const lr = o === "lr";
+  $("#bLayout").innerHTML = use(lr ? "i-td" : "i-lr");
+  $("#bLayout").setAttribute("aria-label", lr ? "Switch to top-down layout" : "Switch to left-to-right layout");
+}
+function setWells(on) {
+  st.wells = on;
+  document.body.classList.toggle("no-wells", !on);
+  $("#bEye").setAttribute("aria-pressed", String(on));
+  $("#bEye").setAttribute("aria-label", on ? "Hide previews" : "Show previews");
+}
+function applyState(s, anim) {
+  st.collapsed = new Set(s.collapsed); setOrient(s.orient); setWells(s.wells);
+  if (st.sel && !visible().includes(st.sel)) select(null);
+  relayout(anim); renderDock(); syncDirty();
+}
+
+nodesEl.addEventListener("click", (e) => {
+  const k = e.target.closest(".knob");
+  if (k) { toggle(k.dataset.id); return; }
+  const c = e.target.closest(".card");
+  if (c) select(c.dataset.id === st.sel ? null : c.dataset.id);
+});
+nodesEl.addEventListener("dblclick", (e) => { const c = e.target.closest(".card"); if (c) toggle(c.dataset.id); });
+canvas.addEventListener("click", (e) => { if (!e.target.closest(".card, .knob")) select(null); });
+$("#legend").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-src]"); if (!b) return;
+  st.focus = st.focus === b.dataset.src ? null : b.dataset.src;
+  if (st.focus) document.body.dataset.focus = st.focus; else delete document.body.dataset.focus;
+  document.querySelectorAll("#legend button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.src === st.focus)));
+  NODES.forEach((n) => slotEl(n.id).classList.toggle("match", n.src === st.focus));
+});
+$("#zin").addEventListener("click", () => zoomAt(...mid(), 1.25, true));
+$("#zout").addEventListener("click", () => zoomAt(...mid(), 0.8, true));
+$("#bFit").addEventListener("click", () => fit(true));
+$("#bFrame").addEventListener("click", frameSel);
+$("#bEye").addEventListener("click", () => { setWells(!st.wells); relayout(); syncDirty(); });
+$("#bLayout").addEventListener("click", () => { setOrient(st.orient === "td" ? "lr" : "td"); relayout(false); fit(true); syncDirty(); });
+$("#bReset").addEventListener("click", () => { applyState(saved, true); });
+function save() {
+  if ($("#bSave").disabled) return;
+  saved = JSON.parse(snap());
+  try { localStorage.setItem(STORE, JSON.stringify(saved)); } catch (e) {}
+  syncDirty(); $("#bSave").textContent = "Saved";
+}
+$("#bSave").addEventListener("click", save);
+const keysBtn = $("#bKeys"), keys = $("#keys");
+const showKeys = (on) => { keys.hidden = !on; keysBtn.setAttribute("aria-expanded", String(on)); keysBtn.setAttribute("aria-pressed", String(on)); };
+keysBtn.addEventListener("click", () => showKeys(keys.hidden));
+$("#bTheme").addEventListener("click", () => {
+  const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("ak-ctree-theme", t); } catch (e) {}
+});
+
+// arrow keys move along the tree: across a row, up to the parent, down to the first child
+function neighbour(dir) {
+  const TD = st.orient === "td";
+  if (!st.sel) return ROOT;
+  const n = byId[st.sel], vis = visible();
+  const up = TD ? "arrowup" : "arrowleft", down = TD ? "arrowdown" : "arrowright";
+  if (dir === up) return n.parent || st.sel;
+  if (dir === down) return visKids(st.sel)[0] || st.sel;
+  const row = vis.filter((id) => depth[id] === depth[st.sel]).sort((a, b) => (TD ? target[a].x - target[b].x : target[a].y - target[b].y));
+  const i = row.indexOf(st.sel), back = dir === (TD ? "arrowleft" : "arrowup");
+  return row[clamp(i + (back ? -1 : 1), 0, row.length - 1)];
+}
+addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  const k = e.key.toLowerCase();
+  if (k === "escape") { if (!keys.hidden) showKeys(false); else select(null); }
+  else if (k === "?") showKeys(keys.hidden);
+  else if (k === "+" || k === "=") zoomAt(...mid(), 1.25, true);
+  else if (k === "-") zoomAt(...mid(), 0.8, true);
+  else if (k === "0") fit(true);
+  else if (k === "f") frameSel();
+  else if (k === "e") $("#bEye").click();
+  else if (k === "l") $("#bLayout").click();
+  else if (k === " " && st.sel && (e.target === document.body || canvas.contains(e.target))) { e.preventDefault(); toggle(st.sel); }
+  else if (k.startsWith("arrow")) {
+    if (e.target !== document.body && !canvas.contains(e.target)) return;
+    e.preventDefault();
+    if (e.shiftKey) { const d = { arrowleft: [60, 0], arrowright: [-60, 0], arrowup: [0, 60], arrowdown: [0, -60] }[k]; view.x += d[0]; view.y += d[1]; userMoved = true; apply(true); }
+    else select(neighbour(k), { focus: true });
+  }
+});
+addEventListener("hashchange", () => select(location.hash.slice(1)));
+addEventListener("keyup", (e) => { if (e.key === " " && e.target.closest && e.target.closest(".card")) e.preventDefault(); });
+
+/* ── start ────────────────────────────────────────────────────────── */
+setOrient(st.orient); setWells(st.wells);
+const start = () => {
+  relayout(false); home();
+  select(byId[location.hash.slice(1)] ? location.hash.slice(1) : "item", { reveal: false });
+  syncDirty();
+};
+document.fonts && document.fonts.status !== "loaded" ? document.fonts.ready.then(() => { relayout(false); if (!userMoved) (homed ? home : fit)(); }) : 0;
+start();
+</script>
+</body>
+</html>
